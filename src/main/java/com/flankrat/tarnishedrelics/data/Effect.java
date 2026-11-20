@@ -32,6 +32,8 @@ import java.util.Locale;
  *   looting        value (extra Looting levels)
  *   function       function (datapack function id), trigger (hit | kill | hurt | tick), as (wielder | target)
  * </pre>
+ * Any effect can also have "slot" (mainhand, offhand, head, chest, legs, feet): it works while the item is in that
+ * slot instead of its category's slot (a dagger that grants health from the offhand).
  */
 public final class Effect {
 
@@ -69,6 +71,7 @@ public final class Effect {
     @Nullable public final ResourceLocation function;
     public final String trigger;          // function trigger
     public final boolean asTarget;        // function runs as the target
+    @Nullable public final net.minecraft.world.entity.EquipmentSlot slot;   // works in this slot instead of the item's own
 
     private Effect(JsonObject o) {
         json = o;
@@ -93,6 +96,7 @@ public final class Effect {
         function = o.has("function") ? new ResourceLocation(o.get("function").getAsString()) : null;
         trigger = o.has("trigger") ? o.get("trigger").getAsString() : "hit";
         asTarget = o.has("as") && o.get("as").getAsString().equals("target");
+        slot = o.has("slot") ? net.minecraft.world.entity.EquipmentSlot.byName(o.get("slot").getAsString()) : null;
         validate();
     }
 

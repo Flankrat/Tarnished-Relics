@@ -39,6 +39,12 @@ public final class RelicTooltips {
         String rarityKey = rarity != null ? rarity.nameKey() : "tarnishedrelics.rarity.unknown";
         String fallback = rarityId != null ? com.flankrat.tarnishedrelics.name.NameFallback.title(rarityId.toString()) : "Relic";
         lines.add(Component.translatableWithFallback(rarityKey, fallback).withStyle(s -> s.withColor(relic.getInt("Color"))));
+        // a legendary's lore lines (lang keys or plain text)
+        var lore = relic.getList("Lore", net.minecraft.nbt.Tag.TAG_STRING);
+        for (int i = 0; i < lore.size(); i++) {
+            String line = lore.getString(i);
+            lines.add(Component.translatableWithFallback(line, line).withStyle(ChatFormatting.DARK_PURPLE, ChatFormatting.ITALIC));
+        }
         for (RelicTag.Rolled rolled : RelicTag.affixes(relic)) {
             for (Effect e : rolled.affix().effects()) {
                 Component line = describe(e, e.value.get(rarityId, rolled.roll()));

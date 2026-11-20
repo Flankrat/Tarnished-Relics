@@ -45,7 +45,7 @@ public final class Schema {
     /** What the "..." picker next to a field offers. */
     public enum Pick {
         NONE, ITEM, RARITY_ITEM, ENTITY, DAMAGE, BIOME, DIMENSION, BLOCK, ATTRIBUTE, MOB_EFFECT, CATEGORY, RARITY, AUTO, POOL,
-        PROFESSION, LOOT_TYPE, TAG_ITEM
+        PROFESSION, LOOT_TYPE, TAG_ITEM, ENCHANTMENT, LEGENDARY
     }
 
     public record Field(String key, Kind kind, Pick pick, List<String> options, String help, Supplier<JsonElement> def) {
@@ -74,7 +74,7 @@ public final class Schema {
 
     private static final String[] SLOTS = {"mainhand", "offhand", "head", "chest", "legs", "feet"};
 
-    public static final List<String> FOLDERS = List.of("categories", "rarities", "affixes", "names", "levels", "exclusions", "tags", "config");
+    public static final List<String> FOLDERS = List.of("categories", "rarities", "affixes", "legendaries", "names", "levels", "exclusions", "tags", "config");
 
     /** The config file's options (config/tarnishedrelics-common.toml), shown in the Settings tab. */
     public static final List<Field> CONFIG = List.of(
@@ -135,7 +135,19 @@ public final class Schema {
                 f("cost", Kind.RANGE, Pick.NONE, "Emeralds the blacksmith asks", () -> arr(2, 4)),
                 f("villager_xp", Kind.INT, Pick.NONE, "Trade XP the blacksmith gets for identifying it", () -> num(5)),
                 f("color", Kind.COLOR, Pick.NONE, "Name color once identified (#RRGGBB)", () -> str("#FFFFFF")),
-                f("unique_name", Kind.BOOL, Pick.NONE, "Ends the name with \"of <generated name>\"", () -> new JsonPrimitive(false))));
+                f("unique_name", Kind.BOOL, Pick.NONE, "Ends the name with \"of <generated name>\"", () -> new JsonPrimitive(false)),
+                f("legendary", Kind.BOOL, Pick.NONE, "Picks a hand-made relic from the Legendaries tab instead of rolling affixes (items, levels and rolls aren't used)", () -> new JsonPrimitive(true)),
+                f("quality", Kind.INT, Pick.NONE, "Extra weight per point of the looter's Luck (Luck potions, luck gear)", () -> num(1)),
+                f("loot_tables", Kind.LIST, Pick.NONE, "Only drops in these loot tables (* wildcards, e.g. somemod:chests/boss_*); empty = any", JsonArray::new)));
+        FILES.put("legendaries", List.of(
+                f("name", Kind.TEXT, Pick.NONE, "Its name (lang key or plain text)", () -> str("Nameless Blade")),
+                f("lore", Kind.LIST, Pick.NONE, "Lines under the name (lang keys or plain text)", JsonArray::new),
+                f("items", Kind.LIST, Pick.ITEM, "Base items, one is picked: ids, #tags, mod:*", JsonArray::new),
+                f("category", Kind.TEXT, Pick.CATEGORY, "Category (slot, silhouette) if the base item has none of its own", () -> str("tarnishedrelics:sword")),
+                f("enchantments", Kind.MAP_INT, Pick.ENCHANTMENT, "Put on as they are: above the normal max level, and any combination", JsonObject::new),
+                f("effects", Kind.EFFECTS, Pick.NONE, "What it does; value ranges are rolled once per copy", JsonArray::new),
+                f("weight", Kind.INT, Pick.NONE, "How often it's picked among the legendaries (0 = only drops with its set)", () -> num(10)),
+                f("companions", Kind.LIST, Pick.LEGENDARY, "Other legendaries that drop with it, as a set", JsonArray::new)));
         FILES.put("affixes", List.of(
                 f("kind", Kind.ENUM, Pick.NONE, "prefix/suffix put a word in the name; hidden adds none", () -> str("prefix"), "prefix", "suffix", "hidden"),
                 f("name", Kind.TEXT, Pick.NONE, "Name word (lang key or plain text), e.g. Champion's / of the Bear", () -> str("New")),
@@ -186,7 +198,8 @@ public final class Schema {
                 f("as", Kind.ENUM, Pick.NONE, "Who the function runs as", () -> str("wielder"), "wielder", "target"),
                 f("conditions", Kind.CONDITIONS, Pick.NONE, "Only when all of these are true", JsonObject::new),
                 f("tooltip", Kind.TEXT, Pick.NONE, "Own tooltip line instead of the built-in one (lang key or text; %1$s = value as a percent, %2$s = plain number)", () -> str("%1$s more of something")),
-                f("hidden", Kind.BOOL, Pick.NONE, "No tooltip line for this effect", () -> new JsonPrimitive(true)))) {
+                f("hidden", Kind.BOOL, Pick.NONE, "No tooltip line for this effect", () -> new JsonPrimitive(true)),
+                f("slot", Kind.ENUM, Pick.NONE, "Works while the item is in this slot instead of its category's (e.g. a dagger that helps from the offhand)", () -> str("offhand"), SLOTS))) {
             EFFECT_FIELDS.put(fl.key(), fl);
         }
         EFFECT_TYPES.put("attribute", List.of("attribute", "operation", "value"));
@@ -263,6 +276,13 @@ public final class Schema {
             case "levels" -> o.add("items", new JsonObject());
             case "exclusions" -> o.add("items", new JsonArray());
             case "tags" -> o.add("values", new JsonArray());
+            case "legendaries" -> {
+                o.add("lore", new JsonArray());
+                o.add("items", arr("minecraft:diamond_sword"));
+                o.add("enchantments", new JsonObject());
+                o.add("effects", new JsonArray());
+                o.addProperty("weight", 10);
+            }
             default -> { }
         }
         return o;

@@ -1,0 +1,12 @@
+{
+  "weight": 1,
+  "quality": 1,
+  "legendary": true,
+  "identify_level": 5,
+  "cost": [
+    40,
+    64
+  ],
+  "villager_xp": 60,
+  "color": "#FF5522"
+}

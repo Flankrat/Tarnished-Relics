@@ -1,0 +1,42 @@
+{
+  "name": "legendary.tarnishedrelics.tidebreaker",
+  "lore": [
+    "legendary.tarnishedrelics.tidebreaker.lore.0",
+    "legendary.tarnishedrelics.tidebreaker.lore.1"
+  ],
+  "items": [
+    "minecraft:trident"
+  ],
+  "enchantments": {
+    "minecraft:impaling": 8,
+    "minecraft:loyalty": 5,
+    "minecraft:unbreaking": 5
+  },
+  "effects": [
+    {
+      "type": "damage_vs",
+      "value": [
+        0.2,
+        0.4
+      ],
+      "conditions": {
+        "in_water": true
+      }
+    },
+    {
+      "type": "on_hit_effect",
+      "effect": "minecraft:slowness",
+      "duration": 60,
+      "amplifier": 1,
+      "apply_to": "target"
+    },
+    {
+      "type": "lifesteal",
+      "value": [
+        0.05,
+        0.1
+      ]
+    }
+  ],
+  "weight": 10
+}

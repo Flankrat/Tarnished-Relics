@@ -1,7 +1,9 @@
 package com.flankrat.tarnishedrelics.command;
 
 import com.flankrat.tarnishedrelics.TRItems;
+import com.flankrat.tarnishedrelics.api.RelicGeneratedEvent;
 import com.flankrat.tarnishedrelics.data.Category;
+import com.flankrat.tarnishedrelics.data.Legendary;
 import com.flankrat.tarnishedrelics.data.Rarity;
 import com.flankrat.tarnishedrelics.data.TRData;
 import com.flankrat.tarnishedrelics.editor.EditorServer;
@@ -23,10 +25,13 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 
+import java.util.List;
+
 /**
  * Commands for making and testing content (op level 2):
  * <pre>
  *   /tarnishedrelics give [rarity] [category] [count]   random relics (any rarity/category if left out)
+ *   /tarnishedrelics legendary <id>                     that legendary (and the rest of its set)
  *   /tarnishedrelics identify                           identifies the relic in your main hand
  *   /tarnishedrelics errors                             problems found in the datapack files
  *   /tarnishedrelics editor                             opens the in-game editor for all of the above
@@ -52,6 +57,10 @@ public final class TRCommands {
                                         .then(Commands.argument("count", IntegerArgumentType.integer(1, 64))
                                                 .executes(c -> give(c, ResourceLocationArgument.getId(c, "rarity"),
                                                         ResourceLocationArgument.getId(c, "category"), IntegerArgumentType.getInteger(c, "count")))))))
+                .then(Commands.literal("legendary")
+                        .then(Commands.argument("legendary", ResourceLocationArgument.id())
+                                .suggests((c, b) -> SharedSuggestionProvider.suggestResource(TRData.get().legendaries().keySet(), b))
+                                .executes(c -> giveLegendary(c, ResourceLocationArgument.getId(c, "legendary")))))
                 .then(Commands.literal("identify").executes(TRCommands::identify))
                 .then(Commands.literal("errors").executes(TRCommands::errors))
                 .then(Commands.literal("editor").executes(c -> {
@@ -69,15 +78,29 @@ public final class TRCommands {
         if (categoryId != null && category == null) return fail(c, "Unknown category " + categoryId);
         int made = 0;
         for (int i = 0; i < count; i++) {
-            ItemStack relic = Roller.generate(player.getRandom(), rarity, category);
-            if (relic.isEmpty()) break;
-            if (!player.getInventory().add(relic)) player.drop(relic, false);
-            made++;
+            List<ItemStack> relics = Roller.generateAll(player.getRandom(), rarity, category, null, RelicGeneratedEvent.Source.COMMAND, null);
+            if (relics.isEmpty()) break;
+            for (ItemStack relic : relics) {
+                if (!player.getInventory().add(relic)) player.drop(relic, false);
+                made++;
+            }
         }
         if (made == 0) return fail(c, "Nothing to make: no rarity has a base item in that category");
         int finalMade = made;
         c.getSource().sendSuccess(() -> Component.literal("Gave " + finalMade + " unidentified relic(s)"), false);
         return made;
+    }
+
+    // a specific legendary (and the rest of its set)
+    private static int giveLegendary(CommandContext<CommandSourceStack> c, ResourceLocation id) throws CommandSyntaxException {
+        ServerPlayer player = c.getSource().getPlayerOrException();
+        Legendary l = TRData.get().legendaries().get(id);
+        if (l == null) return fail(c, "Unknown legendary " + id);
+        List<ItemStack> relics = Roller.generateAll(player.getRandom(), null, null, l, RelicGeneratedEvent.Source.COMMAND, null);
+        if (relics.isEmpty()) return fail(c, "Can't make " + id + ": no legendary rarity, no base item, or no category for it");
+        for (ItemStack relic : relics) if (!player.getInventory().add(relic)) player.drop(relic, false);
+        c.getSource().sendSuccess(() -> Component.literal("Gave " + relics.size() + " legendary relic(s)"), false);
+        return relics.size();
     }
 
     private static int identify(CommandContext<CommandSourceStack> c) throws CommandSyntaxException {

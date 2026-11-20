@@ -1,0 +1,39 @@
+{
+  "name": "legendary.tarnishedrelics.skyhook",
+  "lore": [
+    "legendary.tarnishedrelics.skyhook.lore.0",
+    "legendary.tarnishedrelics.skyhook.lore.1"
+  ],
+  "items": [
+    "minecraft:bow"
+  ],
+  "enchantments": {
+    "minecraft:power": 7,
+    "minecraft:punch": 3,
+    "minecraft:infinity": 1,
+    "minecraft:flame": 1
+  },
+  "effects": [
+    {
+      "type": "crit_chance",
+      "value": [
+        0.1,
+        0.2
+      ]
+    },
+    {
+      "type": "attribute",
+      "attribute": "minecraft:generic.movement_speed",
+      "operation": "multiply_total",
+      "value": [
+        0.05,
+        0.1
+      ]
+    },
+    {
+      "type": "damage_taken",
+      "value": 0.1
+    }
+  ],
+  "weight": 10
+}

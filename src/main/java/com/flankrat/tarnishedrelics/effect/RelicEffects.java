@@ -39,7 +39,7 @@ import java.util.UUID;
 
 /**
  * Makes relic affixes do things. An affix only works while its item is in the slot its category names (a sword in the
- * main hand, a helmet on the head...). Numbers come from the current datapack and the roll stored on the item.
+ * main hand, a helmet on the head...), or the slot an effect names with "slot". Numbers come from the current datapack and the roll stored on the item.
  */
 public final class RelicEffects {
 
@@ -63,10 +63,12 @@ public final class RelicEffects {
     private static void collect(ItemStack stack, @Nullable EquipmentSlot slot, Effect.Type type, List<Active> out) {
         CompoundTag relic = RelicTag.get(stack);
         if (relic == null) return;
-        if (slot != null && RelicTag.slot(relic) != slot) return;   // only in its own slot
+        EquipmentSlot own = RelicTag.slot(relic);
         ResourceLocation rarity = RelicTag.rarity(relic);
         for (RelicTag.Rolled rolled : RelicTag.affixes(relic)) {
             for (Effect e : rolled.affix().effects()) {
+                // only in its own slot (or the slot the effect names, e.g. a dagger that helps from the offhand)
+                if (slot != null && (e.slot != null ? e.slot : own) != slot) continue;
                 if (e.type == type) out.add(new Active(e, e.value.get(rarity, rolled.roll()), stack));
             }
         }
@@ -77,13 +79,15 @@ public final class RelicEffects {
     @SubscribeEvent
     public static void onAttributes(ItemAttributeModifierEvent event) {
         CompoundTag relic = RelicTag.get(event.getItemStack());
-        if (relic == null || RelicTag.slot(relic) != event.getSlotType()) return;
+        if (relic == null) return;
+        EquipmentSlot own = RelicTag.slot(relic);
         ResourceLocation rarity = RelicTag.rarity(relic);
         for (RelicTag.Rolled rolled : RelicTag.affixes(relic)) {
             List<Effect> effects = rolled.affix().effects();
             for (int i = 0; i < effects.size(); i++) {
                 Effect e = effects.get(i);
                 if (e.type != Effect.Type.ATTRIBUTE) continue;
+                if ((e.slot != null ? e.slot : own) != event.getSlotType()) continue;
                 Attribute attribute = ForgeRegistries.ATTRIBUTES.getValue(e.attribute);
                 if (attribute == null) continue;   // attribute from a mod that isn't installed
                 // Same UUID every time for the same affix/effect/slot, so modifiers replace instead of stacking up

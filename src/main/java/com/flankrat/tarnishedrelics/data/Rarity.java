@@ -22,13 +22,18 @@ import java.util.Map;
  *   "cost": [8, 12],                              emeralds to identify
  *   "villager_xp": 10,                            trade XP the blacksmith gets
  *   "color": "#FFFF55",                           name color once identified
- *   "unique_name": false                          true: ends the name with "of <generated name>"
+ *   "unique_name": false,                         true: ends the name with "of <generated name>"
+ *   "legendary": false,                           true: picks a hand-made legendary (legendaries/) instead of
+ *                                                 rolling affixes; items/levels/rolls are then not used
+ *   "quality": 0,                                 extra weight per point of the looter's Luck (like loot table quality)
+ *   "loot_tables": []                             only in these loot tables ("*" wildcards); empty = any
  * }
  * </pre>
  * The rarity's own name is the lang key {@code tarnishedrelics.rarity.<namespace>.<name>}.
  */
 public record Rarity(ResourceLocation id, @javax.annotation.Nullable String name, int weight, ItemList items, Map<String, int[]> rolls, int identifyLevel,
-                     int costMin, int costMax, int villagerXp, int color, boolean uniqueName) {
+                     int costMin, int costMax, int villagerXp, int color, boolean uniqueName, boolean legendary, int quality,
+                     java.util.List<String> lootTables) {
 
     static Rarity parse(ResourceLocation id, JsonObject o) {
         Map<String, int[]> rolls = new LinkedHashMap<>();
@@ -46,7 +51,10 @@ public record Rarity(ResourceLocation id, @javax.annotation.Nullable String name
                 rolls, o.has("identify_level") ? o.get("identify_level").getAsInt() : 1, cost[0], cost[1],
                 o.has("villager_xp") ? o.get("villager_xp").getAsInt() : 5,
                 Integer.parseInt(color.replace("#", ""), 16),
-                o.has("unique_name") && o.get("unique_name").getAsBoolean());
+                o.has("unique_name") && o.get("unique_name").getAsBoolean(),
+                o.has("legendary") && o.get("legendary").getAsBoolean(),
+                o.has("quality") ? o.get("quality").getAsInt() : 0,
+                Conditions.strings(o.get("loot_tables")));
     }
 
     static int[] intRange(JsonElement e) {
@@ -56,6 +64,21 @@ public record Rarity(ResourceLocation id, @javax.annotation.Nullable String name
 
     public int rollCost(RandomSource random) {
         return costMin + random.nextInt(Math.max(1, costMax - costMin + 1));
+    }
+
+    /** Weight with the looter's luck counted in (never below 0). */
+    public int weightWithLuck(float luck) {
+        return Math.max(0, weight + (int) Math.floor(quality * luck));
+    }
+
+    /** True if this rarity can drop from this loot table (null = not from a loot table, e.g. a command). */
+    public boolean allowsTable(@javax.annotation.Nullable ResourceLocation table) {
+        if (lootTables.isEmpty() || table == null) return true;
+        String id = table.toString();
+        for (String p : lootTables) {
+            if (id.matches(java.util.regex.Pattern.quote(p).replace("*", "\\E.*\\Q"))) return true;
+        }
+        return false;
     }
 
     public String nameKey() {

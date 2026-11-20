@@ -47,8 +47,8 @@ public class RelicLootModifier extends LootModifier {
     protected @NotNull ObjectArrayList<ItemStack> doApply(ObjectArrayList<ItemStack> loot, LootContext context) {
         if (!TRConfig.ENABLED.get() || !eligible(context)) return loot;
         if (context.getRandom().nextDouble() >= TRConfig.CHANCE.get()) return loot;
-        ItemStack relic = Roller.generate(context.getRandom(), null, null, source(context), context);
-        if (!relic.isEmpty()) loot.add(relic);
+        // usually one relic; a legendary set drops all its pieces
+        loot.addAll(Roller.generateAll(context.getRandom(), null, null, null, source(context), context));
         return loot;
     }
 

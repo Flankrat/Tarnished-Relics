@@ -217,20 +217,25 @@ public final class EditorServer {
     }
 
     /** Gives the op a freshly rolled relic (from the saved data), unidentified or already identified. */
-    public static void give(ServerPlayer player, @Nullable ResourceLocation rarityId, @Nullable ResourceLocation categoryId, boolean identified) {
+    public static void give(ServerPlayer player, @Nullable ResourceLocation rarityId, @Nullable ResourceLocation categoryId,
+                            @Nullable ResourceLocation legendaryId, boolean identified) {
         if (!allowed(player)) return;
         TRData data = TRData.get();
         Rarity rarity = rarityId == null ? null : data.rarities().get(rarityId);
         Category category = categoryId == null ? null : data.categories().get(categoryId);
-        ItemStack relic = Roller.generate(player.getRandom(), rarity, category);
-        if (relic.isEmpty()) {
+        com.flankrat.tarnishedrelics.data.Legendary legendary = legendaryId == null ? null : data.legendaries().get(legendaryId);
+        List<ItemStack> relics = Roller.generateAll(player.getRandom(), rarity, category, legendary,
+                com.flankrat.tarnishedrelics.api.RelicGeneratedEvent.Source.COMMAND, null);
+        if (relics.isEmpty()) {
             player.sendSystemMessage(Component.translatable("tarnishedrelics.editor.give_none"));
             return;
         }
-        ItemStack out = identified ? UnidentifiedItem.hidden(relic) : relic;
-        Component name = out.getDisplayName();
-        if (!player.getInventory().add(out)) player.drop(out, false);
-        player.sendSystemMessage(Component.translatable("tarnishedrelics.editor.given", name));
+        for (ItemStack relic : relics) {
+            ItemStack out = identified ? UnidentifiedItem.hidden(relic) : relic;
+            Component name = out.getDisplayName();
+            if (!player.getInventory().add(out)) player.drop(out, false);
+            player.sendSystemMessage(Component.translatable("tarnishedrelics.editor.given", name));
+        }
     }
 
     private static void checkTag(ResourceLocation id, JsonObject o, List<String> errors) {

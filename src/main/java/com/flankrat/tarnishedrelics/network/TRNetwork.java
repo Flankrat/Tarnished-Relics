@@ -29,7 +29,7 @@ import java.util.function.Supplier;
  */
 public final class TRNetwork {
 
-    private static final String VERSION = "3";
+    private static final String VERSION = "4";
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(TarnishedRelics.MODID, "main"), () -> VERSION, VERSION::equals, VERSION::equals);
 
@@ -162,24 +162,26 @@ public final class TRNetwork {
         }
     }
 
-    /** Op -> server: give me a relic of this rarity/category ("" = any), unidentified or identified. */
-    public record EditorGive(String rarity, String category, boolean identified) {
+    /** Op -> server: give me a relic of this rarity/category, or this legendary ("" = any), unidentified or identified. */
+    public record EditorGive(String rarity, String category, String legendary, boolean identified) {
 
         static void encode(EditorGive p, FriendlyByteBuf buf) {
             buf.writeUtf(p.rarity);
             buf.writeUtf(p.category);
+            buf.writeUtf(p.legendary);
             buf.writeBoolean(p.identified);
         }
 
         static EditorGive decode(FriendlyByteBuf buf) {
-            return new EditorGive(buf.readUtf(), buf.readUtf(), buf.readBoolean());
+            return new EditorGive(buf.readUtf(), buf.readUtf(), buf.readUtf(), buf.readBoolean());
         }
 
         static void handle(EditorGive p, Supplier<NetworkEvent.Context> ctx) {
             ServerPlayer player = ctx.get().getSender();
             ctx.get().enqueueWork(() -> {
                 if (player != null) EditorServer.give(player, p.rarity.isEmpty() ? null : ResourceLocation.tryParse(p.rarity),
-                        p.category.isEmpty() ? null : ResourceLocation.tryParse(p.category), p.identified);
+                        p.category.isEmpty() ? null : ResourceLocation.tryParse(p.category),
+                        p.legendary.isEmpty() ? null : ResourceLocation.tryParse(p.legendary), p.identified);
             });
             ctx.get().setPacketHandled(true);
         }
