@@ -23,7 +23,7 @@ public final class TRClient {
     /** Built-in silhouettes; a category's "silhouette" must be one of these (unknown ones show "generic"). */
     public static final List<String> SILHOUETTES = List.of(
             "generic", "sword", "axe", "pickaxe", "shovel", "hoe", "bow", "crossbow", "trident",
-            "helmet", "chestplate", "leggings", "boots");
+            "helmet", "chestplate", "leggings", "boots", "shield");
 
     // tint multiplied over the texture: dark grey keeps a hint of the shading so it reads as a shape
     private static final int SILHOUETTE_TINT = 0x2E2E34;

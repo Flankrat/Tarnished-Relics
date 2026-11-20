@@ -1,4 +1,7 @@
 {
+  "auto": [
+    "crossbow"
+  ],
   "items": [
     "minecraft:crossbow",
     "#forge:tools/crossbows"

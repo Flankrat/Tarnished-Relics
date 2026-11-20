@@ -2,13 +2,14 @@
 
 Diablo-style loot for Minecraft Forge 1.20.1.
 
-Every time loot is generated (chests, mob drops, fishing, archaeology) there is a small chance (1% by default) that an
-**unidentified relic** is added: a darkened silhouette of a weapon, piece of armor or tool, named only by its type
+Every time a loot chest is generated there is a small chance (1% by default) that an **unidentified relic** is added: a darkened silhouette of a weapon, piece of armor or tool, named only by its type
 ("Unidentified Sword"). You can't use it, enchant it, repair it or rename it until a **blacksmith villager** identifies
 it. Then it turns into the real item, with a tier, random affixes and a name like
 **"Champion's Iron Sword of Smiting"**, or for a Unique, **"Sturdy Netherite Pickaxe of Ithireal"**.
 
-Everything is datapack-driven: item categories, tiers, affixes and their effects, and name lists.
+Everything is datapack-driven: item categories, tiers, affixes and their effects, and name lists. Weapons, armor,
+tools and shields from **other mods are picked up automatically**, and an **in-game editor** (`/tarnishedrelics editor`)
+can change all of it without touching a file.
 
 ## How it plays
 
@@ -24,6 +25,23 @@ Everything is datapack-driven: item categories, tiers, affixes and their effects
 
 Crafted gear is never affected: only relics found in loot have affixes.
 
+## Modded gear
+
+Categories pick up items by what they are (`"auto"`, see below), so a mod's swords, bows, armor or shields become
+relics without being listed: a sword is anything built on Minecraft's sword class (Spartan Weaponry's and Better
+Survival's blades are), a helmet is any helmet armor piece, a shield is anything that can block, and so on. Only single,
+damageable items count. Anything else that deals melee damage lands in the `weapon` category ("Unidentified Weapon"),
+other projectile weapons in `ranged`.
+
+Each item has a **material level** (see `levels/`): its tool tier, its armor value, or a material word in its id
+("iron", "diamond"...). Tiers pick base items by level, so an iron katana from a mod is a Magic or Rare relic like an
+iron sword, and a netherite one can be Unique.
+
+To keep items out, use an **exclusions** file (whole mods with `"somemod:*"`), or the editor's Mods tab.
+
+When picking a base item, the category is chosen first (by its `weight`), then an item in it, so a mod that adds 300
+swords doesn't make nearly every relic a sword.
+
 ## Name format
 
 `[Quality word] [name prefix from other mods] [affix prefix] [base item] [affix suffix | of <Unique name>]`
@@ -38,40 +56,49 @@ Crafted gear is never affected: only relics found in loot have affixes.
 
 Everything lives in `data/<namespace>/tarnished_relics/`. Files from all datapacks are merged; a file with the same
 id replaces the earlier one. `/reload` applies changes. `/tarnishedrelics errors` lists files that failed to load.
+Any file with `"disabled": true` is ignored, which switches off a file another pack (or the mod) ships.
 
-Item lists anywhere accept an item id (`"minecraft:iron_sword"`), an item tag (`"#minecraft:swords"`) or every item of
-a category (`"@tarnishedrelics:sword"`).
+Item lists anywhere accept an item id (`"minecraft:iron_sword"`), an item tag (`"#minecraft:swords"`), every item of a
+mod (`"somemod:*"`) or every item of a category (`"@tarnishedrelics:sword"`). Rarities also take `"*"`: every item that
+has a category.
 
 ### `categories/<name>.json`: what kind of item it is
 
 ```json
 {
+  "auto": ["sword"],
   "items": ["#minecraft:swords", "somemod:cool_blade"],
   "exclude": ["minecraft:wooden_sword"],
   "slot": "mainhand",
   "silhouette": "sword",
-  "priority": 0
+  "priority": 0,
+  "weight": 10
 }
 ```
 
 | Field | Meaning |
 |---|---|
-| `items`, `exclude` | Which items belong to the category |
+| `auto` | Item kinds picked up from every mod: `sword`, `axe`, `pickaxe`, `shovel`, `hoe`, `bow`, `crossbow`, `trident`, `shield`, `helmet`, `chestplate`, `leggings`, `boots`, `melee` (anything with attack damage), `ranged` (any projectile weapon) |
+| `items`, `exclude` | Items added to / kept out of the category by hand |
 | `slot` | Where the item's affixes work: `mainhand`, `offhand`, `head`, `chest`, `legs`, `feet` |
-| `silhouette` | The unidentified icon: `generic`, `sword`, `axe`, `pickaxe`, `shovel`, `hoe`, `bow`, `crossbow`, `trident`, `helmet`, `chestplate`, `leggings`, `boots` |
+| `silhouette` | The unidentified icon: `generic`, `sword`, `axe`, `pickaxe`, `shovel`, `hoe`, `bow`, `crossbow`, `trident`, `helmet`, `chestplate`, `leggings`, `boots`, `shield` |
 | `priority` | If an item is in several categories, the highest priority wins |
+| `weight` | How often a relic is this category, relative to the others (default 10) |
+| `name` | Optional: the unidentified name, as a lang key or plain text |
 
-The unidentified name is the lang key `item.<namespace>.unidentified.<name>` ("Unidentified Sword").
+The unidentified name is the lang key `item.<namespace>.unidentified.<name>` ("Unidentified Sword") unless `name` is set.
+With no lang entry either, it's made from the file name (`war_hammer` -> "Unidentified War Hammer").
 
-Built in: `sword`, `axe`, `pickaxe`, `shovel`, `hoe`, `bow`, `crossbow`, `trident`, `helmet`, `chestplate`, `leggings`,
-`boots` (vanilla and Forge tags). To add a mod's weapons, add their ids or tags to a category, or make a new one.
+Built in: `sword`, `axe`, `pickaxe`, `shovel`, `hoe`, `bow`, `crossbow`, `trident`, `shield`, `helmet`, `chestplate`,
+`leggings`, `boots`, plus `weapon` (`melee`) and `ranged` at priority -10, so they only get what nothing else took.
 
 ### `rarities/<name>.json`: the tiers
 
 ```json
 {
   "weight": 25,
-  "items": ["minecraft:iron_sword", "#minecraft:swords", "@tarnishedrelics:helmet"],
+  "items": ["*", "minecraft:trident"],
+  "levels": [2, 3],
   "rolls": { "normal": [3, 4] },
   "identify_level": 3,
   "cost": [8, 12],
@@ -84,7 +111,9 @@ Built in: `sword`, `axe`, `pickaxe`, `shovel`, `hoe`, `bow`, `crossbow`, `triden
 | Field | Meaning |
 |---|---|
 | `weight` | How often this tier is picked, relative to the others |
-| `items` | Which base items this tier can be (they must also be in a category) |
+| `items` | Which base items this tier can be (they must also be in a category). `"*"` = anything with a category |
+| `levels` | `[min, max]` material levels for the `"*"` and `"@category"` entries (items named directly always count) |
+| `name` | Optional: display name, as a lang key or plain text |
 | `rolls` | How many affixes to roll from each pool, e.g. `{ "unique": [2, 3], "normal": [1, 2] }` |
 | `identify_level` | Villager level needed: 1 Novice, 2 Apprentice, 3 Journeyman, 4 Expert, 5 Master |
 | `cost` | Emeralds to identify (rolled once per relic) |
@@ -92,10 +121,12 @@ Built in: `sword`, `axe`, `pickaxe`, `shovel`, `hoe`, `bow`, `crossbow`, `triden
 | `color` | Name color once identified |
 | `unique_name` | `true`: the name ends with "of" + a generated name (see `names/`) |
 
-The tier's display name is the lang key `tarnishedrelics.rarity.<namespace>.<name>`.
+The tier's display name is the lang key `tarnishedrelics.rarity.<namespace>.<name>` unless `name` is set (with no lang
+entry either, it's made from the file name).
 
-Built in: `magic` (weight 70, 1-2 affixes, Novice, 2-4 emeralds), `rare` (25, 3-4 affixes, Journeyman, 8-12),
-`unique` (5, 2-3 unique-pool + 1-2 normal affixes, Master, 20-30, generated name).
+Built in: `magic` (weight 70, levels 1-2, 1-2 affixes, Novice, 2-4 emeralds), `rare` (25, levels 2-3, 3-4 affixes,
+Journeyman, 8-12), `unique` (5, levels 3 and up plus the vanilla bow and crossbow, 2-3 unique-pool + 1-2 normal
+affixes, Master, 20-30, generated name).
 
 ### `affixes/<name>.json`: prefixes and suffixes
 
@@ -117,7 +148,7 @@ Built in: `magic` (weight 70, 1-2 affixes, Novice, 2-4 emeralds), `rare` (25, 3-
 | Field | Meaning |
 |---|---|
 | `kind` | `prefix`, `suffix`, or `hidden` (gives effects but no name part) |
-| `name` | Lang key of the name part ("Champion's", "of the Bear") |
+| `name` | The name part ("Champion's", "of the Bear"): a lang key, or plain text |
 | `pool` | The pool tiers roll it from (`rolls` in the rarity). Built-in pools: `normal`, `unique` |
 | `applies_to` | Category ids, or `"*"` for any |
 | `weight` | A number, or per tier (`{ "magic": 10, "rare": 6 }`; tiers not listed can't roll it) |
@@ -155,7 +186,7 @@ Every effect can also have:
 - `"conditions"`: all must pass. `chance` (0-1), `health_below` / `health_above` (fraction of the wielder's max
   health), `in_water`, `is_night`, `is_day`, `sneaking`, `on_fire`, `y_below`, `y_above`, `dimensions` (list),
   `biomes` (ids/#tags), `target` (entity ids/#tags).
-- `"tooltip"`: a lang key for its own tooltip line (`%1$s` = value as a percent, `%2$s` = plain number).
+- `"tooltip"`: its own tooltip line, a lang key or plain text (`%1$s` = value as a percent, `%2$s` = plain number).
 - `"hidden": true`: no tooltip line.
 
 Damage and effect names in tooltips use the lang key `tarnishedrelics.target.<namespace>.<path>` if it exists,
@@ -173,6 +204,30 @@ otherwise the id's path.
 
 All files are merged. A Unique gets a whole name or a start + end, about half the time each.
 
+### `levels/<any>.json`: material levels
+
+```json
+{
+  "items": { "minecraft:trident": 3, "#somemod:fancy_bows": 3, "othermod:*": 2 },
+  "keywords": { "iron": 2, "diamond": 3, "dragonbone": 4 },
+  "default": 2
+}
+```
+
+All files are merged. An item named in `items` (id, #tag, or whole mod) gets that level. Otherwise its level is the
+highest of: its tool tier (wood/gold 0, stone 1, iron 2, diamond 3, netherite 4; modded tiers give their own), its
+armor (from its material's chestplate armor: leather 0, gold/chain 1, iron 2, diamond 3, netherite 4) and a `keywords`
+word in its id (whole words between underscores: `iron_longbow` has `iron`). Items none of those apply to get `default`.
+Built-in keywords cover vanilla materials and the common modded metals (copper, tin, bronze, silver, steel...).
+
+### `exclusions/<any>.json`: items that are never relics
+
+```json
+{ "items": ["somemod:*", "othermod:silly_hat", "#somemod:joke_weapons"] }
+```
+
+All files are merged. The editor writes its own exclusions to `tarnishedrelics:exclusions/editor`.
+
 ### Blacksmiths
 
 `data/<namespace>/tags/villager_profession/blacksmiths.json` (tag `#tarnishedrelics:blacksmiths`). Add a mod's smith
@@ -184,8 +239,8 @@ profession to let it identify relics.
 |---|---|---|
 | `[loot] enabled` | `true` | Relics can turn up in loot |
 | `[loot] chance` | `0.01` | Chance that one relic is added each time loot is generated |
-| `[loot] lootTypes` | chest, entity, fishing, archaeology | Kinds of loot that can get one (also `gift`, `barter`) |
-| `[loot] entityNeedsPlayerKill` | `true` | Mob drops only count for kills by a player (no mob farms) |
+| `[loot] lootTypes` | chest | Kinds of loot that can get one: `chest`, `entity` (mob drops: rolled on every kill, so even 1% adds up fast), `fishing`, `archaeology`, `gift`, `barter` |
+| `[loot] entityNeedsPlayerKill` | `true` | If `entity` is on: mob drops only count for kills by a player (no mob farms) |
 | `[loot] excludeTables` | the spawn bonus chest | Loot tables that never get relics (`*` wildcards) |
 | `[identify] confirmSeconds` | `10` | Time to use the relic on the smith again to pay |
 | `[display] showRarityColorUnidentified` | `false` | Unidentified relics show their tier's color as a hint |
@@ -195,12 +250,51 @@ profession to let it identify relics.
 - `/tarnishedrelics give [rarity] [category] [count]`: random relics.
 - `/tarnishedrelics identify`: identifies the relic in your main hand.
 - `/tarnishedrelics errors`: lists datapack files that failed to load.
+- `/tarnishedrelics editor`: opens the in-game editor.
+
+## In-game editor
+
+`/tarnishedrelics editor` (op level 2) opens a screen for everything above: the datapack folders, the mod's tags and
+the config.
+
+- **Tabs**: categories, rarities, affixes, names, levels, exclusions, tags, settings, mods. The file tabs list their
+  files (from the mod, KubeJS, datapacks...); pick one to edit it as a form. Hover a field's name for what it does.
+  `+ field` adds optional fields; `Raw JSON` edits the text directly. New files get a readable name from their file
+  name.
+- **Tags**: the blacksmith professions (`villager_profession/blacksmiths`), the `undead` and `arthropods` mob lists the
+  affixes use, and any new tag in the `tarnishedrelics` namespace (name it like `entity_types/dragons`). Tags from every
+  pack add up, so the editor shows them all together; taking out something another pack adds saves the tag with
+  `"replace": true`.
+- **Settings**: the config file's options. Saving writes `config/tarnishedrelics-common.toml` at once.
+- **Pickers** (`...` buttons) list what's actually loaded: items with icons, tags, whole mods, mobs, villager
+  professions, blocks, attributes, potion effects, damage types, biomes, dimensions, categories and rarities,
+  filterable by mod. Entries for mods that aren't loaded are shown in yellow (they're kept, they just do nothing here);
+  unknown ids in red.
+- Each file shows what it does in practice ("Matches 359 items", "Can be 491 base items"), with a **Show** list of the
+  items: each with its category, level, rarities and whether any recipe makes it, and a button to exclude it.
+  **Exclude no-recipe items** excludes every relic item in the list that nothing crafts (often gear for a material
+  from a mod that isn't installed).
+- Rarities and categories have **Give** and **Identified** buttons that roll one for you (from the saved data).
+- The **Mods** tab lists every loaded mod with gear that can be relics: how many items, and one button to exclude or
+  include the whole mod.
+- Changes are a working copy until **Save & Reload** (Ctrl+S). The server checks them first; nothing is written if any
+  changed file has an error. **Save to** picks where they go:
+  - **This world**: the world's `datapacks/tarnishedrelics_editor` datapack, moved to the top of the pack list.
+  - **Whole modpack**: `config/tarnishedrelics/datapack`, a datapack every world loads (also old worlds). A modpack
+    ships its changes just by including its config folder: no KubeJS or datapack-loader mod needed. Saving a file
+    here removes this world's copy of it, so the world doesn't hide the change. Files can be put in this folder by
+    hand too (`data/<namespace>/tarnished_relics/...`, `data/<namespace>/tags/...`).
+- **Turn off** switches a file off (`"disabled": true`), also for files from the mod or other packs. **Use original**
+  drops the editor's copy of a file so the version underneath is used again. **Revert** throws away unsaved changes.
 
 ## For other mods
 
 - `com.flankrat.tarnishedrelics.api.RelicGeneratedEvent` (Forge event bus) fires with the real item right after it is
-  rolled, before it is hidden in the relic. Add your own loot rolls (sockets etc.) to it there.
+  rolled, before it is hidden in the relic. Add your own loot rolls (sockets etc.) to it there. `getSource()` says where
+  it came from (`CHEST`, `ENTITY`, `FISHING`, `ARCHAEOLOGY`, `GIFT`, `BARTER`, `OTHER_LOOT`, `COMMAND`) and
+  `getLootContext()` gives the loot roll (null for commands), so a mod can use its own odds per source.
 - Put a JSON text component in the item's `TarnishedRelicsNamePrefix` NBT string to add a word to the name.
+- The unidentified item is hidden from JEI (an empty one has nothing inside).
 - An identified relic's data is in the `TarnishedRelics` NBT compound (rarity, category, slot, color, name parts,
   affixes with their rolls).
 

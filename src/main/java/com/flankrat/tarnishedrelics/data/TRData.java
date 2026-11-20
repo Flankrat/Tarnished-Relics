@@ -26,6 +26,9 @@ public final class TRData {
     private final Map<ResourceLocation, Rarity> rarities = new LinkedHashMap<>();
     private final Map<ResourceLocation, Affix> affixes = new LinkedHashMap<>();
     private final NameList names = new NameList();
+    private final Levels levels = new Levels();
+    private final List<String> exclusionEntries = new ArrayList<>();
+    private ItemList exclusions = ItemList.of(List.of());
     private final List<String> errors = new ArrayList<>();
     private final Map<ResourceLocation, String> rawJson;   // "folder/name" ids -> JSON, for the client sync
 
@@ -35,11 +38,18 @@ public final class TRData {
 
     /** Parses a full set of files and makes it the current data. Ids are "<folder>/<name>" under tarnished_relics/. */
     public static TRData load(Map<ResourceLocation, JsonElement> files) {
+        TRData data = parseOnly(files);
+        data.logResult();
+        current = data;
+        return data;
+    }
+
+    /** Parses files without making them current: the editor uses it to check and preview unsaved changes. */
+    public static TRData parseOnly(Map<ResourceLocation, JsonElement> files) {
         Map<ResourceLocation, String> raw = new LinkedHashMap<>();
         files.forEach((id, json) -> raw.put(id, json.toString()));
         TRData data = new TRData(raw);
         data.parse(files);
-        current = data;
         return data;
     }
 
@@ -63,11 +73,15 @@ public final class TRData {
             ResourceLocation id = new ResourceLocation(file.getNamespace(), file.getPath().substring(slash + 1));
             try {
                 JsonObject o = e.getValue().getAsJsonObject();
+                // "disabled": true switches a file off (how the editor removes a file another pack ships)
+                if (o.has("disabled") && o.get("disabled").getAsBoolean()) continue;
                 switch (folder) {
                     case "categories" -> categories.put(id, Category.parse(id, o));
                     case "rarities" -> rarities.put(id, Rarity.parse(id, o));
                     case "affixes" -> affixes.put(id, Affix.parse(id, o));
                     case "names" -> names.add(o);
+                    case "levels" -> levels.add(o);
+                    case "exclusions" -> exclusionEntries.addAll(Conditions.strings(o.get("items")));
                     default -> errors.add(file + ": unknown folder \"" + folder + "\"");
                 }
             } catch (RuntimeException ex) {
@@ -75,6 +89,14 @@ public final class TRData {
                 errors.add(file + ": " + ex.getMessage());
             }
         }
+        exclusions = ItemList.of(exclusionEntries);
+        // lists look up categories/levels in this data set, not whatever is current
+        exclusions.owner(this);
+        categories.values().forEach(c -> c.items().owner(this));
+        rarities.values().forEach(r -> r.items().owner(this));
+    }
+
+    private void logResult() {
         for (String err : errors) TarnishedRelics.LOGGER.error("[Tarnished Relics] bad datapack file {}", err);
         TarnishedRelics.LOGGER.info("[Tarnished Relics] loaded {} categories, {} rarities, {} affixes ({} errors)",
                 categories.size(), rarities.size(), affixes.size(), errors.size());
@@ -84,6 +106,8 @@ public final class TRData {
     public void clearCaches() {
         categories.values().forEach(c -> c.items().clearCache());
         rarities.values().forEach(r -> r.items().clearCache());
+        exclusions.clearCache();
+        levels.clearCache();
         categoryCache.clear();
     }
 
@@ -97,6 +121,15 @@ public final class TRData {
 
     public Map<ResourceLocation, Affix> affixes() {
         return Collections.unmodifiableMap(affixes);
+    }
+
+    public Levels levels() {
+        return levels;
+    }
+
+    /** The merged exclusions list: these items are never relics. */
+    public ItemList exclusions() {
+        return exclusions;
     }
 
     public NameList names() {
@@ -116,8 +149,8 @@ public final class TRData {
 
     @Nullable
     public Category categoryOf(Item item) {
-        return categoryCache.computeIfAbsent(item, it -> categories.values().stream()
-                .filter(c -> c.items().contains(it))
+        return categoryCache.computeIfAbsent(item, it -> exclusions.contains(it) ? java.util.Optional.<Category>empty() : categories.values().stream()
+                .filter(c -> c.matches(it))
                 .max(java.util.Comparator.comparingInt(Category::priority))).orElse(null);
     }
 }

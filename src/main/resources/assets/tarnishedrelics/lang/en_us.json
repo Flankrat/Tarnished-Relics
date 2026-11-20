@@ -13,6 +13,9 @@
   "item.tarnishedrelics.unidentified.chestplate": "Unidentified Chestplate",
   "item.tarnishedrelics.unidentified.leggings": "Unidentified Leggings",
   "item.tarnishedrelics.unidentified.boots": "Unidentified Boots",
+  "item.tarnishedrelics.unidentified.shield": "Unidentified Shield",
+  "item.tarnishedrelics.unidentified.weapon": "Unidentified Weapon",
+  "item.tarnishedrelics.unidentified.ranged": "Unidentified Ranged Weapon",
   "tarnishedrelics.rarity.tarnishedrelics.magic": "Magic",
   "tarnishedrelics.rarity.tarnishedrelics.rare": "Rare",
   "tarnishedrelics.rarity.tarnishedrelics.unique": "Unique",
@@ -76,5 +79,9 @@
   "affix.tarnishedrelics.of_thorns": "of Thorns",
   "affix.tarnishedrelics.of_fleetness": "of Fleetness",
   "affix.tarnishedrelics.of_feathers": "of Feathers",
-  "affix.tarnishedrelics.of_night_sight": "of Night Sight"
+  "affix.tarnishedrelics.of_night_sight": "of Night Sight",
+  "tarnishedrelics.editor.saved_chat": "[Tarnished Relics] Saved %s file(s) to the world's tarnishedrelics_editor datapack and reloaded.",
+  "tarnishedrelics.editor.saved_chat_modpack": "[Tarnished Relics] Saved %s file(s) for the whole modpack (config/tarnishedrelics/datapack) and reloaded.",
+  "tarnishedrelics.editor.given": "[Tarnished Relics] Gave you %s",
+  "tarnishedrelics.editor.give_none": "[Tarnished Relics] Nothing fits: no base item has this rarity and category."
 }

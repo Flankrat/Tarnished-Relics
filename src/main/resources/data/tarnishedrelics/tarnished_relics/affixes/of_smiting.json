@@ -7,7 +7,9 @@
     "tarnishedrelics:axe",
     "tarnishedrelics:trident",
     "tarnishedrelics:bow",
-    "tarnishedrelics:crossbow"
+    "tarnishedrelics:crossbow",
+    "tarnishedrelics:weapon",
+    "tarnishedrelics:ranged"
   ],
   "weight": 10,
   "effects": [

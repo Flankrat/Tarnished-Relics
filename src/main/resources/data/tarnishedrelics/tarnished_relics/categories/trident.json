@@ -1,4 +1,7 @@
 {
+  "auto": [
+    "trident"
+  ],
   "items": [
     "minecraft:trident",
     "#forge:tools/tridents"

@@ -1,4 +1,7 @@
 {
+  "auto": [
+    "boots"
+  ],
   "items": [
     "#forge:armors/boots"
   ],

@@ -39,6 +39,7 @@ public final class TarnishedRelics {
         IEventBus modBus = FMLJavaModLoadingContext.get().getModEventBus();
         TRItems.register(modBus);
         modBus.addListener((FMLCommonSetupEvent e) -> e.enqueueWork(TRNetwork::register));
+        modBus.addListener(com.flankrat.tarnishedrelics.editor.ModpackPack::onAddPackFinders);
 
         IEventBus forge = MinecraftForge.EVENT_BUS;
         forge.addListener((AddReloadListenerEvent e) -> e.addListener(new TRDataLoader()));

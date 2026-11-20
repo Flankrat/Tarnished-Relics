@@ -1,4 +1,7 @@
 {
+  "auto": [
+    "chestplate"
+  ],
   "items": [
     "#forge:armors/chestplates"
   ],

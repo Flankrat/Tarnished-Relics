@@ -6,7 +6,8 @@
     "tarnishedrelics:helmet",
     "tarnishedrelics:chestplate",
     "tarnishedrelics:leggings",
-    "tarnishedrelics:boots"
+    "tarnishedrelics:boots",
+    "tarnishedrelics:shield"
   ],
   "weight": 10,
   "effects": [

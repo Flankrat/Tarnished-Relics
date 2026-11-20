@@ -21,10 +21,11 @@ public final class TRConfig {
         ForgeConfigSpec.Builder b = new ForgeConfigSpec.Builder();
         b.push("loot");
         ENABLED = b.comment("Relics can turn up in loot.").define("enabled", true);
-        CHANCE = b.comment("Chance that one unidentified relic is added each time loot is generated.")
+        CHANCE = b.comment("Chance that one unidentified relic is added each time loot of the kinds below is generated (each chest opened, ...).")
                 .defineInRange("chance", 0.01, 0.0, 1.0);
-        LOOT_TYPES = b.comment("Which kinds of loot can get one: chest, entity (mob drops), fishing, archaeology, gift, barter.")
-                .defineListAllowEmpty(List.of("lootTypes"), () -> List.of("chest", "entity", "fishing", "archaeology"), o -> o instanceof String);
+        LOOT_TYPES = b.comment("Which kinds of loot can get one: chest, entity (mob drops), fishing, archaeology, gift, barter.",
+                        "Chests only by default: mob drops are rolled on every kill, so even 1% there adds up fast.")
+                .defineListAllowEmpty(List.of("lootTypes"), () -> List.of("chest"), o -> o instanceof String);
         ENTITY_NEEDS_PLAYER = b.comment("Mob drops only get relics when a player made the kill (stops mob farms).")
                 .define("entityNeedsPlayerKill", true);
         EXCLUDE_TABLES = b.comment("Loot tables that never get relics, e.g. \"minecraft:chests/spawn_bonus_chest\". \"*\" works as a wildcard.")

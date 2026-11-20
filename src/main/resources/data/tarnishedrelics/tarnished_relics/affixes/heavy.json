@@ -5,7 +5,8 @@
   "applies_to": [
     "tarnishedrelics:sword",
     "tarnishedrelics:axe",
-    "tarnishedrelics:trident"
+    "tarnishedrelics:trident",
+    "tarnishedrelics:weapon"
   ],
   "weight": 6,
   "effects": [

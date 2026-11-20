@@ -13,8 +13,10 @@ import java.util.Map;
  * affixes it rolls from which pools, and what identifying it takes.
  * <pre>
  * {
+ *   "name": "Magic",                              optional: lang key or plain text
  *   "weight": 25,                                 chance relative to the other rarities
- *   "items": ["minecraft:iron_sword", "#minecraft:swords", "@tarnishedrelics:helmet"],
+ *   "items": ["*", "minecraft:trident"],          see ItemList ("*" = every item that has a category)
+ *   "levels": [2, 3],                             only "*"/"@category" items of these material levels (see Levels)
  *   "rolls": { "normal": [3, 4] },                affixes per pool ("unique" pool for uniques)
  *   "identify_level": 3,                          villager level needed: 1 novice ... 5 master
  *   "cost": [8, 12],                              emeralds to identify
@@ -25,7 +27,7 @@ import java.util.Map;
  * </pre>
  * The rarity's own name is the lang key {@code tarnishedrelics.rarity.<namespace>.<name>}.
  */
-public record Rarity(ResourceLocation id, int weight, ItemList items, Map<String, int[]> rolls, int identifyLevel,
+public record Rarity(ResourceLocation id, @javax.annotation.Nullable String name, int weight, ItemList items, Map<String, int[]> rolls, int identifyLevel,
                      int costMin, int costMax, int villagerXp, int color, boolean uniqueName) {
 
     static Rarity parse(ResourceLocation id, JsonObject o) {
@@ -34,8 +36,13 @@ public record Rarity(ResourceLocation id, int weight, ItemList items, Map<String
             for (Map.Entry<String, JsonElement> e : o.getAsJsonObject("rolls").entrySet()) rolls.put(e.getKey(), intRange(e.getValue()));
         }
         int[] cost = o.has("cost") ? intRange(o.get("cost")) : new int[]{1, 1};
+        ItemList items = ItemList.parse(o.get("items"), o.get("exclude"));
+        if (o.has("levels")) {
+            int[] lv = intRange(o.get("levels"));
+            items.levels(lv[0], lv[1]);
+        }
         String color = o.has("color") ? o.get("color").getAsString() : "#FFFFFF";
-        return new Rarity(id, o.has("weight") ? o.get("weight").getAsInt() : 1, ItemList.parse(o.get("items"), o.get("exclude")),
+        return new Rarity(id, o.has("name") ? o.get("name").getAsString() : null, o.has("weight") ? o.get("weight").getAsInt() : 1, items,
                 rolls, o.has("identify_level") ? o.get("identify_level").getAsInt() : 1, cost[0], cost[1],
                 o.has("villager_xp") ? o.get("villager_xp").getAsInt() : 5,
                 Integer.parseInt(color.replace("#", ""), 16),
@@ -52,6 +59,7 @@ public record Rarity(ResourceLocation id, int weight, ItemList items, Map<String
     }
 
     public String nameKey() {
+        if (name != null) return name;
         return "tarnishedrelics.rarity." + id.getNamespace() + "." + id.getPath();
     }
 }

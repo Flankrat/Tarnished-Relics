@@ -33,7 +33,9 @@ public class UnidentifiedItem extends Item {
     public Component getName(ItemStack stack) {
         CompoundTag tag = stack.getTag();
         String key = tag != null && tag.contains("NameKey") ? tag.getString("NameKey") : getDescriptionId();
-        MutableComponent name = Component.translatable(key);
+        // a category made in a datapack/the editor may have no lang entry: "Unidentified Spear" from its id
+        String category = tag != null ? tag.getString("Category") : "";
+        MutableComponent name = Component.translatableWithFallback(key, com.flankrat.tarnishedrelics.name.NameFallback.unidentified(category));
         if (tag != null && tag.contains("Color") && TRConfig.SHOW_RARITY_COLOR.get()) {
             name = name.withStyle(s -> s.withColor(tag.getInt("Color")));
         }

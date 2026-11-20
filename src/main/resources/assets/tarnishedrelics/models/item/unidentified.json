@@ -72,6 +72,12 @@
         "tarnishedrelics:silhouette": 12
       },
       "model": "tarnishedrelics:item/unidentified/boots"
+    },
+    {
+      "predicate": {
+        "tarnishedrelics:silhouette": 13
+      },
+      "model": "tarnishedrelics:item/unidentified/shield"
     }
   ]
 }

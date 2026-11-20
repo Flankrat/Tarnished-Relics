@@ -4,7 +4,8 @@
   "pool": "normal",
   "applies_to": [
     "tarnishedrelics:bow",
-    "tarnishedrelics:crossbow"
+    "tarnishedrelics:crossbow",
+    "tarnishedrelics:ranged"
   ],
   "weight": 10,
   "effects": [

@@ -12,6 +12,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.storage.loot.LootContext;
 import net.minecraftforge.common.MinecraftForge;
 
 import javax.annotation.Nullable;
@@ -35,18 +36,38 @@ public final class Roller {
      * rarity/category may be null for "random" (the commands use them).
      */
     public static ItemStack generate(RandomSource random, @Nullable Rarity rarity, @Nullable Category category) {
+        return generate(random, rarity, category, RelicGeneratedEvent.Source.COMMAND, null);
+    }
+
+    /** Same, telling RelicGeneratedEvent listeners where the relic came from. */
+    public static ItemStack generate(RandomSource random, @Nullable Rarity rarity, @Nullable Category category,
+                                     RelicGeneratedEvent.Source source, @Nullable LootContext context) {
         TRData data = TRData.get();
         if (rarity == null) rarity = pickRarity(data, random, category);
         if (rarity == null) return ItemStack.EMPTY;
 
-        // Base item: anything on the rarity's list that has a category (needed for its slot and silhouette)
-        List<Item> bases = new ArrayList<>();
+        // Base item: anything on the rarity's list that has a category (needed for its slot and silhouette).
+        // The category is picked first (by its weight), then an item in it, so a mod adding 300 swords doesn't
+        // make nearly every relic a sword.
+        Map<Category, List<Item>> bases = new java.util.LinkedHashMap<>();
         for (Item item : rarity.items().resolve()) {
             Category c = data.categoryOf(item);
-            if (c != null && (category == null || c == category)) bases.add(item);
+            if (c != null && (category == null || c == category)) bases.computeIfAbsent(c, k -> new ArrayList<>()).add(item);
         }
-        if (bases.isEmpty()) return ItemStack.EMPTY;
-        ItemStack real = new ItemStack(bases.get(random.nextInt(bases.size())));
+        int total = 0;
+        for (Category c : bases.keySet()) total += Math.max(0, c.weight());
+        if (total <= 0) return ItemStack.EMPTY;
+        int pick = random.nextInt(total);
+        List<Item> baseItems = null;
+        for (Map.Entry<Category, List<Item>> e : bases.entrySet()) {
+            pick -= Math.max(0, e.getKey().weight());
+            if (pick < 0) {
+                baseItems = e.getValue();
+                break;
+            }
+        }
+        if (baseItems == null) return ItemStack.EMPTY;
+        ItemStack real = new ItemStack(baseItems.get(random.nextInt(baseItems.size())));
         Category cat = data.categoryOf(real.getItem());
 
         CompoundTag relic = new CompoundTag();
@@ -82,7 +103,7 @@ public final class Roller {
         real.getOrCreateTag().put(RelicTag.KEY, relic);
 
         // Let other mods add their own loot rolls (sockets etc.) to the real item before it's hidden
-        MinecraftForge.EVENT_BUS.post(new RelicGeneratedEvent(real, rarity));
+        MinecraftForge.EVENT_BUS.post(new RelicGeneratedEvent(real, rarity, source, context));
         return wrap(real, rarity, cat, random);
     }
 
