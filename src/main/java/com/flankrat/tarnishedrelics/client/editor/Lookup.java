@@ -65,6 +65,24 @@ public final class Lookup {
                 for (String mod : mods) out.add(new Choice(mod + ":*", "Every item from " + modName(mod), mod, ItemStack.EMPTY, "mod"));
                 addTags(out, ForgeRegistries.ITEMS);
             }
+            case TAG_ITEM -> {
+                for (var e : ForgeRegistries.ITEMS.getEntries()) {
+                    ResourceLocation id = e.getKey().location();
+                    out.add(new Choice(id.toString(), new ItemStack(e.getValue()).getHoverName().getString(), id.getNamespace(), new ItemStack(e.getValue()), "item"));
+                }
+                addTags(out, ForgeRegistries.ITEMS);
+            }
+            case PROFESSION -> {
+                for (var e : ForgeRegistries.VILLAGER_PROFESSIONS.getEntries()) {
+                    ResourceLocation id = e.getKey().location();
+                    out.add(new Choice(id.toString(), net.minecraft.network.chat.Component.translatable("entity.minecraft.villager." + id.getPath()).getString(),
+                            id.getNamespace(), new ItemStack(Items.EMERALD), "profession"));
+                }
+                addTags(out, ForgeRegistries.VILLAGER_PROFESSIONS);
+            }
+            case LOOT_TYPE -> {
+                for (String t : com.flankrat.tarnishedrelics.editor.ConfigFile.LOOT_TYPES) out.add(new Choice(t, t, "", ItemStack.EMPTY, "loot"));
+            }
             case ENTITY -> {
                 for (var e : ForgeRegistries.ENTITY_TYPES.getEntries()) {
                     ResourceLocation id = e.getKey().location();
@@ -194,6 +212,15 @@ public final class Lookup {
             }
             case ENTITY -> {
                 return checkRegistry(value, ForgeRegistries.ENTITY_TYPES);
+            }
+            case TAG_ITEM -> {
+                return checkRegistry(value, ForgeRegistries.ITEMS);
+            }
+            case PROFESSION -> {
+                return checkRegistry(value, ForgeRegistries.VILLAGER_PROFESSIONS);
+            }
+            case LOOT_TYPE -> {
+                return com.flankrat.tarnishedrelics.editor.ConfigFile.LOOT_TYPES.contains(value) ? null : "Not a loot type";
             }
             case BLOCK -> {
                 return checkRegistry(value, ForgeRegistries.BLOCKS);

@@ -29,7 +29,7 @@ import java.util.function.Supplier;
  */
 public final class TRNetwork {
 
-    private static final String VERSION = "2";
+    private static final String VERSION = "3";
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(TarnishedRelics.MODID, "main"), () -> VERSION, VERSION::equals, VERSION::equals);
 
@@ -47,6 +47,8 @@ public final class TRNetwork {
                 Optional.of(NetworkDirection.PLAY_TO_SERVER));
         CHANNEL.registerMessage(4, EditorResult.class, EditorResult::encode, EditorResult::decode, EditorResult::handle,
                 Optional.of(NetworkDirection.PLAY_TO_CLIENT));
+        CHANNEL.registerMessage(5, EditorGive.class, EditorGive::encode, EditorGive::decode, EditorGive::handle,
+                Optional.of(NetworkDirection.PLAY_TO_SERVER));
     }
 
     // joining (player set) or /reload (player null = everyone)
@@ -137,23 +139,47 @@ public final class TRNetwork {
         }
     }
 
-    /** Op -> server: check and save the files sent (save = false: forget them). */
-    public record EditorCommit(boolean save) {
+    /** Op -> server: check and save the files sent (save = false: forget them), to the world or the whole modpack. */
+    public record EditorCommit(boolean save, boolean modpack) {
 
         static void encode(EditorCommit p, FriendlyByteBuf buf) {
             buf.writeBoolean(p.save);
+            buf.writeBoolean(p.modpack);
         }
 
         static EditorCommit decode(FriendlyByteBuf buf) {
-            return new EditorCommit(buf.readBoolean());
+            return new EditorCommit(buf.readBoolean(), buf.readBoolean());
         }
 
         static void handle(EditorCommit p, Supplier<NetworkEvent.Context> ctx) {
             ServerPlayer player = ctx.get().getSender();
             ctx.get().enqueueWork(() -> {
                 if (player == null) return;
-                if (p.save) EditorServer.commit(player);
+                if (p.save) EditorServer.commit(player, p.modpack);
                 else EditorServer.cancel(player);
+            });
+            ctx.get().setPacketHandled(true);
+        }
+    }
+
+    /** Op -> server: give me a relic of this rarity/category ("" = any), unidentified or identified. */
+    public record EditorGive(String rarity, String category, boolean identified) {
+
+        static void encode(EditorGive p, FriendlyByteBuf buf) {
+            buf.writeUtf(p.rarity);
+            buf.writeUtf(p.category);
+            buf.writeBoolean(p.identified);
+        }
+
+        static EditorGive decode(FriendlyByteBuf buf) {
+            return new EditorGive(buf.readUtf(), buf.readUtf(), buf.readBoolean());
+        }
+
+        static void handle(EditorGive p, Supplier<NetworkEvent.Context> ctx) {
+            ServerPlayer player = ctx.get().getSender();
+            ctx.get().enqueueWork(() -> {
+                if (player != null) EditorServer.give(player, p.rarity.isEmpty() ? null : ResourceLocation.tryParse(p.rarity),
+                        p.category.isEmpty() ? null : ResourceLocation.tryParse(p.category), p.identified);
             });
             ctx.get().setPacketHandled(true);
         }

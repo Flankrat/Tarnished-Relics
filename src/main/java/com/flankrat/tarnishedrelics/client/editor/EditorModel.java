@@ -90,16 +90,27 @@ public final class EditorModel {
         return o.isEmpty() ? "" : o.get(o.size() - 1);
     }
 
-    /** True if the editor's pack has its own copy and some other pack has the file too. */
-    public boolean overridesAnother(ResourceLocation id) {
-        List<String> o = origins(id);
-        return o.size() > 1 && o.get(o.size() - 1).equals(com.flankrat.tarnishedrelics.editor.EditorServer.PACK_ID);
+    /** The packs the editor saves to: the world's editor pack and the modpack folder. */
+    public static boolean isEditorPack(String packId) {
+        return packId.equals(com.flankrat.tarnishedrelics.editor.EditorServer.PACK_ID) || packId.equals(com.flankrat.tarnishedrelics.editor.ModpackPack.ID);
     }
 
-    /** True if only the editor's pack has the file (or it's new). */
+    /** True if the copy in use is one the editor saved and some other pack has the file too. */
+    public boolean overridesAnother(ResourceLocation id) {
+        List<String> o = origins(id);
+        return o.size() > 1 && isEditorPack(o.get(o.size() - 1));
+    }
+
+    /** True if only the editor's packs have the file (or it's new). */
     public boolean editorOnly(ResourceLocation id) {
         List<String> o = origins(id);
-        return o.isEmpty() || (o.size() == 1 && o.get(0).equals(com.flankrat.tarnishedrelics.editor.EditorServer.PACK_ID));
+        return o.isEmpty() || o.stream().allMatch(EditorModel::isEditorPack);
+    }
+
+    /** Tags and the config aren't Tarnished Relics data files (the preview skips them). */
+    public static boolean isSpecial(ResourceLocation id) {
+        String folder = folderOf(id);
+        return folder.equals("tags") || folder.equals("config");
     }
 
     public boolean isRemoved(ResourceLocation id) {
@@ -163,7 +174,9 @@ public final class EditorModel {
     public TRData preview() {
         if (preview == null) {
             Map<ResourceLocation, JsonElement> map = new LinkedHashMap<>();
-            files.forEach((id, o) -> map.put(id, o.deepCopy()));
+            files.forEach((id, o) -> {
+                if (!isSpecial(id)) map.put(id, o.deepCopy());
+            });
             preview = TRData.parseOnly(map);
         }
         return preview;

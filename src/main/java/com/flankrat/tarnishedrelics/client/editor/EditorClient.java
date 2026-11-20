@@ -28,10 +28,10 @@ public final class EditorClient {
     }
 
     /** Sends every change (one packet per file: client packets are limited to 32 KB), then asks the server to save. */
-    public static void save(EditorModel model) {
+    public static void save(EditorModel model, boolean modpack) {
         for (Map.Entry<ResourceLocation, String> e : model.changes().entrySet()) {
             TRNetwork.CHANNEL.sendToServer(new TRNetwork.EditorFile(e.getKey(), e.getValue()));
         }
-        TRNetwork.CHANNEL.sendToServer(new TRNetwork.EditorCommit(true));
+        TRNetwork.CHANNEL.sendToServer(new TRNetwork.EditorCommit(true, modpack));
     }
 }

@@ -53,7 +53,9 @@ public class EditorScreen extends Screen {
     /** The open editor, for packets that arrive while a picker is on top of it. */
     @Nullable static EditorScreen last;
 
-    private static final List<String> TABS = List.of("categories", "rarities", "affixes", "names", "levels", "exclusions", "mods");
+    private static final List<String> TABS = List.of("categories", "rarities", "affixes", "names", "levels", "exclusions", "tags", "settings", "mods");
+    /** Where Save writes: the world's editor pack, or the modpack folder every world loads. Kept between openings. */
+    private static boolean saveToModpack;
     private static final int ROW = 22;
     private static final int LABEL_W = 100;
     private static final int RED = 0xFF6060;
@@ -121,7 +123,7 @@ public class EditorScreen extends Screen {
         last = this;
         rows.clear();
         leftW = Math.max(110, Math.min(170, width / 4));
-        boolean mods = folder.equals("mods");
+        boolean mods = fullWidth();
         formX = mods ? 8 : leftW + 14;
         formW = width - formX - 8;
         formTop = mods ? 46 : 92;
@@ -150,6 +152,11 @@ public class EditorScreen extends Screen {
         initFooter();
         buildForm();
         layoutForm();
+    }
+
+    /** Tabs without a file list. */
+    private boolean fullWidth() {
+        return folder.equals("mods") || folder.equals("settings");
     }
 
     private static String cap(String s) {
@@ -235,6 +242,7 @@ public class EditorScreen extends Screen {
                     packName(model.origins(selected).get(model.origins(selected).size() - 2))))).build());
             x += 82;
         }
+        if (EditorServer.isTag(selected)) return;   // tags have no "disabled" switch
         boolean off = model.isDisabled(selected);
         addRenderableWidget(Button.builder(off ? t("enable", "Turn on") : t("disable", "Turn off"), b -> {
             JsonObject o = model.get(selected);
@@ -247,6 +255,12 @@ public class EditorScreen extends Screen {
     }
 
     private void initFooter() {
+        addRenderableWidget(CycleButton.<Boolean>builder(v -> v ? t("target.modpack", "Save to: whole modpack") : t("target.world", "Save to: this world"))
+                .withValues(false, true).withInitialValue(saveToModpack).displayOnlyValue()
+                .withTooltip(v -> Tooltip.create(v
+                        ? t("target.modpack.tip", "config/tarnishedrelics/datapack: every world loads it, so the modpack ships it with its config folder. Replaces this world's copy of the same files.")
+                        : t("target.world.tip", "This world's datapacks/tarnishedrelics_editor folder: only this world.")))
+                .create(width - 8 - 190 - 152, height - 24, 150, 20, Component.literal("target"), (b, v) -> saveToModpack = v));
         Button save = Button.builder(saving ? t("saving", "Saving...") : t("save", "Save & Reload"), b -> save())
                 .bounds(width - 8 - 190, height - 24, 110, 20)
                 .tooltip(Tooltip.create(t("save.tip", "Check every change, write it to the world's editor datapack and reload (Ctrl+S)"))).build();
@@ -273,6 +287,10 @@ public class EditorScreen extends Screen {
             setStatus(t("bad_name", "Use only a-z, 0-9, _ - . / in file names."), RED, List.of());
             return;
         }
+        if (folder.equals("tags") && name.split("/").length < 2) {
+            setStatus(t("tag_name", "Name tags like entity_types/dragons, items/..., blocks/... or villager_profession/smiths."), RED, List.of());
+            return;
+        }
         ResourceLocation id = new ResourceLocation(EditorModel.NAMESPACE, folder + "/" + name);
         if (model.exists(id)) {
             setStatus(t("exists", "There already is a file called %s.", name), RED, List.of());
@@ -281,6 +299,14 @@ public class EditorScreen extends Screen {
         JsonObject start = selected != null && model.get(selected) != null && name.endsWith("_copy")
                 ? model.get(selected).deepCopy() : Schema.template(folder);
         start.remove("disabled");
+        // a readable name from the file name, so it never shows a raw lang key
+        String title = com.flankrat.tarnishedrelics.name.NameFallback.title(name);
+        switch (folder) {
+            case "categories" -> start.addProperty("name", "Unidentified " + title);
+            case "rarities" -> start.addProperty("name", title);
+            case "affixes" -> start.addProperty("name", title);
+            default -> { }
+        }
         model.put(id, start);
         selected = id;
         newName = null;
@@ -301,7 +327,7 @@ public class EditorScreen extends Screen {
         }
         saving = true;
         setStatus(t("saving", "Saving..."), TEXT, List.of());
-        EditorClient.save(model);
+        EditorClient.save(model, saveToModpack);
         rebuildWidgets();
     }
 
@@ -318,7 +344,7 @@ public class EditorScreen extends Screen {
     }
 
     private void close() {
-        TRNetwork.CHANNEL.sendToServer(new TRNetwork.EditorCommit(false));
+        TRNetwork.CHANNEL.sendToServer(new TRNetwork.EditorCommit(false, false));
         last = null;
         minecraft.setScreen(null);
     }
@@ -397,6 +423,8 @@ public class EditorScreen extends Screen {
         contentHeight = 4;
         if (folder.equals("mods")) {
             buildMods();
+        } else if (folder.equals("settings")) {
+            buildSettings();
         } else if (selected != null) {
             JsonObject json = model.get(selected);
             if (json == null) {
@@ -415,8 +443,10 @@ public class EditorScreen extends Screen {
                     r.labelColor = 0xFFD060;
                     r.label = t("off", "This file is turned off: the game ignores it.");
                 }
-                List<Field> fields = Schema.FILES.getOrDefault(folder, List.of());
-                addFields(json, fields, 0, List.of("disabled"));
+                List<Field> fields = folder.equals("tags")
+                        ? Schema.tagFields(EditorModel.shortId(selected).getPath().split("/")[0])
+                        : Schema.FILES.getOrDefault(folder, List.of());
+                addFields(json, fields, 0, folder.equals("tags") ? List.of("replace") : List.of("disabled"));
             }
         }
         contentHeight += 6;
@@ -476,16 +506,61 @@ public class EditorScreen extends Screen {
             }
             default -> { }
         }
+        // a short explanation for the folders whose rules aren't obvious from the fields
+        String explain = switch (folder) {
+            case "levels" -> "Item level = the highest of its tool tier, armor and a material word in its id (keywords). \"items\" here overrides that. Rarities use levels to pick base items.";
+            case "rarities" -> "\"*\" = every item with a category, filtered by \"levels\". Items named directly always count.";
+            case "tags" -> tagHelp(shortId.getPath());
+            default -> null;
+        };
+        if (explain != null) {
+            Row r = row(0, "", null);
+            r.wideLabel = true;
+            r.labelColor = 0x909090;
+            r.label = Component.literal(explain);
+            r.help = Component.literal(explain);
+        }
         if (text == null) return;
         Row r = row(0, "", null);
         r.wideLabel = true;
         r.labelColor = 0x90C0FF;
         r.label = Component.literal(text);
+        int right = formW;
         if (items != null) {
             List<Item> shown = items;
+            right -= 52;
             place(r, Button.builder(t("show", "Show"), b -> minecraft.setScreen(new ItemsScreen(this, Component.literal(selected.toString()), model,
-                    () -> shown))).bounds(0, 0, 50, 18).build(), formW - 52);
+                    () -> shown))).bounds(0, 0, 50, 18).build(), right);
         }
+        // test rolls (from the saved data, which is what the server has)
+        if (folder.equals("rarities") || folder.equals("categories")) {
+            String rarity = folder.equals("rarities") ? shortId.toString() : "";
+            String category = folder.equals("categories") ? shortId.toString() : "";
+            Tooltip tip = Tooltip.create(t("give.tip", "Rolls one from the saved data (save first to try your changes)"));
+            right -= 72;
+            place(r, Button.builder(t("give_id", "Identified"), b -> TRNetwork.CHANNEL.sendToServer(new TRNetwork.EditorGive(rarity, category, true)))
+                    .bounds(0, 0, 70, 18).tooltip(tip).build(), right);
+            right -= 52;
+            place(r, Button.builder(t("give", "Give"), b -> TRNetwork.CHANNEL.sendToServer(new TRNetwork.EditorGive(rarity, category, false)))
+                    .bounds(0, 0, 50, 18).tooltip(tip).build(), right);
+        }
+    }
+
+    private static String tagHelp(String path) {
+        if (path.equals("villager_profession/blacksmiths")) return "Villager professions that can identify relics (add a mod's smith here).";
+        if (path.startsWith("entity_types/")) return "Mobs in this tag; affixes target it as #tarnishedrelics:" + path.substring(13) + ".";
+        return "Tags from every pack add up; this list is all of them together. Taking out one another pack adds makes it replace the tag.";
+    }
+
+    private void buildSettings() {
+        JsonObject json = model.get(EditorServer.CONFIG_FILE);
+        Row intro = row(0, "", null);
+        intro.wideLabel = true;
+        intro.labelColor = 0x90C0FF;
+        intro.label = t("settings.intro", "The config file (config/tarnishedrelics-common.toml): the same for every world. Saving writes it right away.");
+        intro.help = intro.label;
+        if (json == null) return;
+        addFields(json, Schema.CONFIG, 0, List.of());
     }
 
     private static List<Item> itemsWhere(java.util.function.Predicate<Item> test) {
@@ -542,12 +617,12 @@ public class EditorScreen extends Screen {
                     obj.addProperty(key, val);
                     restructure();
                 }), valueX(indent) + w + 2);
-                place(r, removeButton(() -> obj.remove(key)), formW - 22);
+                removeField(r, obj, key);
             }
             case NUMBER, INT -> {
                 Row r = row(indent, key, f.help());
                 place(r, number(v, f.kind() == Kind.INT, n -> obj.add(key, n)), valueX(indent));
-                place(r, removeButton(() -> obj.remove(key)), formW - 22);
+                removeField(r, obj, key);
             }
             case BOOL -> {
                 Row r = row(indent, key, f.help());
@@ -556,7 +631,7 @@ public class EditorScreen extends Screen {
                             obj.addProperty(key, val);
                             changed();
                         }), valueX(indent));
-                place(r, removeButton(() -> obj.remove(key)), formW - 22);
+                removeField(r, obj, key);
             }
             case ENUM -> {
                 Row r = row(indent, key, f.help());
@@ -568,7 +643,7 @@ public class EditorScreen extends Screen {
                             obj.addProperty(key, val);
                             changed();
                         }), valueX(indent));
-                place(r, removeButton(() -> obj.remove(key)), formW - 22);
+                removeField(r, obj, key);
             }
             case COLOR -> {
                 Row r = row(indent, key, f.help());
@@ -582,12 +657,12 @@ public class EditorScreen extends Screen {
                     changed();
                 });
                 r.swatch = parseColor(box.getValue());
-                place(r, removeButton(() -> obj.remove(key)), formW - 22);
+                removeField(r, obj, key);
             }
             case RANGE -> {
                 Row r = row(indent, key, f.help());
                 rangeBoxes(r, valueX(indent), v, val -> obj.add(key, val));
-                place(r, removeButton(() -> obj.remove(key)), formW - 22);
+                removeField(r, obj, key);
             }
             case LIST -> listField(obj, f, indent);
             case MAP_INT, MAP_RANGE -> mapField(obj, f, indent);
@@ -595,7 +670,7 @@ public class EditorScreen extends Screen {
             case VALUE -> valueField(obj, f, indent);
             case CONDITIONS -> {
                 Row r = row(indent, key, f.help());
-                place(r, removeButton(() -> obj.remove(key)), formW - 22);
+                removeField(r, obj, key);
                 if (!v.isJsonObject()) {
                     obj.add(key, new JsonObject());
                     v = obj.get(key);
@@ -621,7 +696,7 @@ public class EditorScreen extends Screen {
             }
         });
         place(r, box, valueX(indent));
-        place(r, removeButton(() -> obj.remove(key)), formW - 22);
+        removeField(r, obj, key);
     }
 
     // ---- lists and maps --------------------------------------------------------------------------------------
@@ -647,7 +722,7 @@ public class EditorScreen extends Screen {
         if (arr.isEmpty()) {
             head.labelColor = TEXT;
         }
-        place(head, removeButton(() -> obj.remove(key)), formW - 22);
+        removeField(head, obj, key);
         for (int i = 0; i < arr.size(); i++) {
             int index = i;
             Row r = row(indent + 12, "", null);
@@ -695,7 +770,7 @@ public class EditorScreen extends Screen {
             if (f.pick() != Pick.NONE) minecraft.setScreen(new PickerScreen(this, f.pick(), model, add));
             else add.accept("new");
         }).bounds(0, 0, 50, 18).build(), valueX(indent));
-        place(head, removeButton(() -> obj.remove(key)), formW - 22);
+        removeField(head, obj, key);
         mapEntries(map, f.pick(), f.kind() == Kind.MAP_RANGE, indent + 12);
     }
 
@@ -767,14 +842,14 @@ public class EditorScreen extends Screen {
                 }), valueX(indent));
         if (!per) {
             place(head, number(v, true, n -> obj.add(key, n)), valueX(indent) + 92);
-            place(head, removeButton(() -> obj.remove(key)), formW - 22);
+            removeField(head, obj, key);
             return;
         }
         place(head, Button.builder(t("add_entry", "+ Add"), b -> minecraft.setScreen(new PickerScreen(this, Pick.RARITY, model, k -> {
             obj.getAsJsonObject(key).add(uniqueKey(obj.getAsJsonObject(key), k), new JsonPrimitive(10));
             restructure();
         }))).bounds(0, 0, 50, 18).build(), valueX(indent) + 92);
-        place(head, removeButton(() -> obj.remove(key)), formW - 22);
+        removeField(head, obj, key);
         mapEntries(v.getAsJsonObject(), Pick.RARITY, false, indent + 12);
     }
 
@@ -808,7 +883,7 @@ public class EditorScreen extends Screen {
             obj.getAsJsonObject(key).add(uniqueKey(obj.getAsJsonObject(key), k), rangeJson(0.1, 0.2));
             restructure();
         }))).bounds(0, 0, 50, 18).build(), x);
-        place(head, removeButton(() -> obj.remove(key)), formW - 22);
+        removeField(head, obj, key);
         if (mode == 2) mapEntries(v.getAsJsonObject(), Pick.RARITY, true, indent + 12);
     }
 
@@ -1030,6 +1105,12 @@ public class EditorScreen extends Screen {
                 .bounds(0, 0, 20, 18).tooltip(Tooltip.create(t("pick.tip", "Pick from what's loaded"))).build();
     }
 
+    /** The remove button of a field (not for settings: every config option has to stay). */
+    private void removeField(Row r, JsonObject obj, String key) {
+        if (folder.equals("settings")) return;
+        place(r, removeButton(() -> obj.remove(key)), formW - 22);
+    }
+
     private Button removeButton(Runnable remove) {
         return Button.builder(Component.literal("✖"), b -> {
             remove.run();
@@ -1068,7 +1149,9 @@ public class EditorScreen extends Screen {
 
     /** A readable name for a pack id: the editor, a mod's name, KubeJS, a world datapack... */
     private static String packName(String packId) {
-        if (packId.equals(EditorServer.PACK_ID)) return "the editor";
+        if (packId.equals(EditorServer.PACK_ID)) return "the editor (this world)";
+        if (packId.equals(com.flankrat.tarnishedrelics.editor.ModpackPack.ID)) return "the modpack folder";
+        if (packId.equals("config")) return "the config file";
         if (packId.equals("vanilla")) return "Minecraft";
         String id = packId.startsWith("mod:") ? packId.substring(4) : packId;
         if (Lookup.modLoaded(id) && !id.equals("minecraft")) return Lookup.modName(id) + " (mod)";
@@ -1096,7 +1179,7 @@ public class EditorScreen extends Screen {
         // nearly opaque, so the hotbar and chat behind don't make the form hard to read
         g.fill(0, 0, width, height, 0xF0141418);
         g.drawString(font, title, 8, 6, 0xFFFFFF);
-        boolean mods = folder.equals("mods");
+        boolean mods = fullWidth();
         if (!mods) {
             g.fill(6, 60, 8 + leftW + 2, height - 54, 0x60000000);
             if (selected != null) {
@@ -1222,7 +1305,7 @@ public class EditorScreen extends Screen {
                 else if (!model.errorsFor(id).isEmpty()) color = RED;
                 else if (model.isDisabled(id)) color = 0x808080;
                 else if (model.isChanged(id)) color = 0xFFD060;
-                else if (model.origin(id).equals(EditorServer.PACK_ID)) color = 0x80E080;
+                else if (EditorModel.isEditorPack(model.origin(id))) color = 0x80E080;
                 String mark = model.isChanged(id) || model.isRemoved(id) ? "* " : "";
                 g.drawString(font, font.plainSubstrByWidth(mark + name, w - 4), left + 2, top + 2, color, false);
             }

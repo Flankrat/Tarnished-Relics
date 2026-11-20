@@ -22,7 +22,7 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * Every time loot is generated (chests, mob drops, fishing, archaeology; see [loot] lootTypes), there is a
+ * Every time loot is generated of the kinds in [loot] lootTypes (chests only by default), there is a
  * [loot] chance (default 1%) that one unidentified relic is added to it.
  */
 public class RelicLootModifier extends LootModifier {

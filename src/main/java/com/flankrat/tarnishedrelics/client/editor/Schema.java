@@ -44,7 +44,8 @@ public final class Schema {
 
     /** What the "..." picker next to a field offers. */
     public enum Pick {
-        NONE, ITEM, RARITY_ITEM, ENTITY, DAMAGE, BIOME, DIMENSION, BLOCK, ATTRIBUTE, MOB_EFFECT, CATEGORY, RARITY, AUTO, POOL
+        NONE, ITEM, RARITY_ITEM, ENTITY, DAMAGE, BIOME, DIMENSION, BLOCK, ATTRIBUTE, MOB_EFFECT, CATEGORY, RARITY, AUTO, POOL,
+        PROFESSION, LOOT_TYPE, TAG_ITEM
     }
 
     public record Field(String key, Kind kind, Pick pick, List<String> options, String help, Supplier<JsonElement> def) {
@@ -73,7 +74,35 @@ public final class Schema {
 
     private static final String[] SLOTS = {"mainhand", "offhand", "head", "chest", "legs", "feet"};
 
-    public static final List<String> FOLDERS = List.of("categories", "rarities", "affixes", "names", "levels", "exclusions");
+    public static final List<String> FOLDERS = List.of("categories", "rarities", "affixes", "names", "levels", "exclusions", "tags", "config");
+
+    /** The config file's options (config/tarnishedrelics-common.toml), shown in the Settings tab. */
+    public static final List<Field> CONFIG = List.of(
+            f("enabled", Kind.BOOL, Pick.NONE, "Relics can turn up in loot at all", () -> new JsonPrimitive(true)),
+            f("chance", Kind.NUMBER, Pick.NONE, "Chance (0-1) that one relic is added each time loot of the kinds below is generated", () -> num(0.01)),
+            f("lootTypes", Kind.LIST, Pick.LOOT_TYPE, "Kinds of loot that can get one: chest, entity (mob drops: rolled on every kill, so it adds up fast), fishing, archaeology, gift, barter", () -> arr("chest")),
+            f("entityNeedsPlayerKill", Kind.BOOL, Pick.NONE, "If entity is on: mob drops only count for kills by a player (stops mob farms)", () -> new JsonPrimitive(true)),
+            f("excludeTables", Kind.LIST, Pick.NONE, "Loot table ids that never get relics (* works as a wildcard)", JsonArray::new),
+            f("confirmSeconds", Kind.INT, Pick.NONE, "Seconds to use the relic on the smith again to pay (1-120)", () -> num(10)),
+            f("showRarityColorUnidentified", Kind.BOOL, Pick.NONE, "Unidentified relics show their rarity's color as a hint", () -> new JsonPrimitive(false)));
+
+    /** A tag file's fields; the picker depends on the tag's registry (tags/<registry>/<name>). */
+    public static List<Field> tagFields(String registry) {
+        Pick pick = switch (registry) {
+            // 1.20.1 tag folders: entity_types, items, blocks, and the registry name for the rest
+            case "villager_profession" -> Pick.PROFESSION;
+            case "entity_types", "entity_type" -> Pick.ENTITY;
+            case "blocks", "block" -> Pick.BLOCK;
+            case "items", "item" -> Pick.TAG_ITEM;
+            default -> Pick.NONE;
+        };
+        String help = switch (registry) {
+            case "villager_profession" -> "Villager professions (ids or #tags)";
+            case "entity_types", "entity_type" -> "Mobs (ids or #tags)";
+            default -> "Ids or #tags";
+        };
+        return List.of(f("values", Kind.LIST, pick, help, JsonArray::new));
+    }
 
     public static final Map<String, List<Field>> FILES = new LinkedHashMap<>();
     public static final List<Field> CONDITIONS;
@@ -155,7 +184,9 @@ public final class Schema {
                 f("function", Kind.TEXT, Pick.NONE, "Datapack function id", () -> str("mypack:on_hit")),
                 f("trigger", Kind.ENUM, Pick.NONE, "When the function runs", () -> str("hit"), "hit", "kill", "hurt", "tick"),
                 f("as", Kind.ENUM, Pick.NONE, "Who the function runs as", () -> str("wielder"), "wielder", "target"),
-                f("conditions", Kind.CONDITIONS, Pick.NONE, "Only when all of these are true", JsonObject::new))) {
+                f("conditions", Kind.CONDITIONS, Pick.NONE, "Only when all of these are true", JsonObject::new),
+                f("tooltip", Kind.TEXT, Pick.NONE, "Own tooltip line instead of the built-in one (lang key or text; %1$s = value as a percent, %2$s = plain number)", () -> str("%1$s more of something")),
+                f("hidden", Kind.BOOL, Pick.NONE, "No tooltip line for this effect", () -> new JsonPrimitive(true)))) {
             EFFECT_FIELDS.put(fl.key(), fl);
         }
         EFFECT_TYPES.put("attribute", List.of("attribute", "operation", "value"));
@@ -231,6 +262,7 @@ public final class Schema {
             case "names" -> o.add("names", new JsonArray());
             case "levels" -> o.add("items", new JsonObject());
             case "exclusions" -> o.add("items", new JsonArray());
+            case "tags" -> o.add("values", new JsonArray());
             default -> { }
         }
         return o;

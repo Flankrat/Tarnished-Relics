@@ -30,6 +30,8 @@ public class ItemsScreen extends Screen {
     private final Supplier<List<Item>> items;
     private String search = "";
     private ItemList list;
+    /** Items some recipe makes (worked out once): gear nothing can craft is often from a mod that isn't there. */
+    private java.util.Set<Item> craftable;
 
     public ItemsScreen(Screen parent, Component title, EditorModel model, Supplier<List<Item>> items) {
         super(title);
@@ -38,11 +40,29 @@ public class ItemsScreen extends Screen {
         this.items = items;
     }
 
+    private java.util.Set<Item> craftable() {
+        if (craftable == null) {
+            craftable = new java.util.HashSet<>();
+            var level = Minecraft.getInstance().level;
+            if (level != null) {
+                for (var recipe : level.getRecipeManager().getRecipes()) {
+                    try {
+                        ItemStack out = recipe.getResultItem(level.registryAccess());
+                        if (!out.isEmpty()) craftable.add(out.getItem());
+                    } catch (RuntimeException ignored) {
+                        // some modded recipes can't say their result without a crafting grid
+                    }
+                }
+            }
+        }
+        return craftable;
+    }
+
     @Override
     protected void init() {
         int w = Math.min(420, width - 20);
         int x = (width - w) / 2;
-        EditBox box = new EditBox(font, x, 22, w, 18, Component.literal("search"));
+        EditBox box = new EditBox(font, x, 22, w - 154, 18, Component.literal("search"));
         box.setMaxLength(200);
         box.setValue(search);
         box.setHint(Component.translatableWithFallback("tarnishedrelics.editor.search", "Search..."));
@@ -51,6 +71,14 @@ public class ItemsScreen extends Screen {
             refill();
         });
         addRenderableWidget(box);
+        addRenderableWidget(Button.builder(Component.translatableWithFallback("tarnishedrelics.editor.exclude_uncraftable", "Exclude no-recipe items"), b -> {
+            for (Item item : items.get()) {
+                ResourceLocation id = ForgeRegistries.ITEMS.getKey(item);
+                if (id != null && !craftable().contains(item) && model.preview().categoryOf(item) != null) model.setExcluded(id.toString(), true);
+            }
+        }).bounds(x + w - 150, 22, 150, 18).tooltip(net.minecraft.client.gui.components.Tooltip.create(Component.translatableWithFallback(
+                "tarnishedrelics.editor.exclude_uncraftable.tip",
+                "Excludes every relic item in this list that no recipe makes. Those are often for a mod that isn't installed (e.g. aluminum weapons with no aluminum)."))).build());
         list = new ItemList(minecraft, w, height, 46, height - 32, x);
         addRenderableWidget(list);
         addRenderableWidget(Button.builder(Component.translatableWithFallback("gui.done", "Done"), b -> onClose())
@@ -131,7 +159,8 @@ public class ItemsScreen extends Screen {
                 String info;
                 if (c != null) {
                     long rarities = data.rarities().values().stream().filter(r -> r.items().contains(item)).count();
-                    info = c.id().getPath() + " · level " + data.levels().of(item) + " · " + rarities + " rarit" + (rarities == 1 ? "y" : "ies");
+                    info = c.id().getPath() + " · level " + data.levels().of(item) + " · " + rarities + " rarit" + (rarities == 1 ? "y" : "ies")
+                            + (craftable().contains(item) ? "" : " · no recipe");
                 } else {
                     info = data.exclusions().contains(item) ? "excluded" : "not a relic";
                 }

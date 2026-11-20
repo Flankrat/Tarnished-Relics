@@ -37,7 +37,8 @@ public final class RelicTooltips {
         ResourceLocation rarityId = RelicTag.rarity(relic);
         Rarity rarity = rarityId == null ? null : TRData.get().rarities().get(rarityId);
         String rarityKey = rarity != null ? rarity.nameKey() : "tarnishedrelics.rarity.unknown";
-        lines.add(Component.translatable(rarityKey).withStyle(s -> s.withColor(relic.getInt("Color"))));
+        String fallback = rarityId != null ? com.flankrat.tarnishedrelics.name.NameFallback.title(rarityId.toString()) : "Relic";
+        lines.add(Component.translatableWithFallback(rarityKey, fallback).withStyle(s -> s.withColor(relic.getInt("Color"))));
         for (RelicTag.Rolled rolled : RelicTag.affixes(relic)) {
             for (Effect e : rolled.affix().effects()) {
                 Component line = describe(e, e.value.get(rarityId, rolled.roll()));
@@ -49,7 +50,11 @@ public final class RelicTooltips {
 
     static Component describe(Effect e, double v) {
         if (e.json.has("hidden") && e.json.get("hidden").getAsBoolean()) return null;
-        if (e.json.has("tooltip")) return Component.translatable(e.json.get("tooltip").getAsString(), percent(v), number(v));
+        // a lang key, or plain text (the fallback is formatted with the same %1$s/%2$s)
+        if (e.json.has("tooltip")) {
+            String t = e.json.get("tooltip").getAsString();
+            return Component.translatableWithFallback(t, t, percent(v), number(v));
+        }
         String key = "tarnishedrelics.effect." + e.type.key();
         MutableComponent line = switch (e.type) {
             case ATTRIBUTE -> null;   // shown by vanilla's stat lines
