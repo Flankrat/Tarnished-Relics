@@ -1,0 +1,28 @@
+{
+  "kind": "hidden",
+  "pool": "legendary",
+  "applies_to": [
+    "tarnishedrelics:sword",
+    "tarnishedrelics:axe",
+    "tarnishedrelics:trident",
+    "tarnishedrelics:weapon"
+  ],
+  "weight": 10,
+  "effects": [
+    {
+      "type": "on_hit_fire",
+      "value": [
+        5,
+        8
+      ]
+    },
+    {
+      "type": "damage_vs",
+      "target": "#tarnishedrelics:undead",
+      "value": [
+        0.2,
+        0.3
+      ]
+    }
+  ]
+}

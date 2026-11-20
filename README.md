@@ -121,7 +121,11 @@ Built in: `sword`, `axe`, `pickaxe`, `shovel`, `hoe`, `bow`, `crossbow`, `triden
 | `villager_xp` | Trade XP the blacksmith earns |
 | `color` | Name color once identified |
 | `unique_name` | `true`: the name ends with "of" + a generated name (see `names/`) |
-| `legendary` | `true`: picks a hand-made relic from `legendaries/` instead of rolling affixes |
+| `legendary` | `true`: makes legendaries (see Legendaries) |
+| `handmade_chance` | Legendary: share that are hand-made (default 0.3) |
+| `signature_enchantments`, `enchantment_bonus` | Legendary: how many fitting enchantments, and how many levels above their max (single-level ones stay at 1) |
+| `drawback_chance`, `drawback_pool` | Legendary: chance of one affix from that pool (default `drawback`) |
+| `lore_lines` | Legendary: how many generated lore lines |
 | `quality` | Extra weight per point of the looter's Luck (Luck potions, luck gear), like loot table quality |
 | `loot_tables` | Only drops in these loot tables (`*` wildcards); empty = any |
 
@@ -130,7 +134,8 @@ entry either, it's made from the file name).
 
 Built in: `magic` (weight 70, levels 1-2, 1-2 affixes, Novice, 2-4 emeralds), `rare` (25, levels 2-3, 3-4 affixes,
 Journeyman, 8-12), `unique` (5, levels 3 and up plus the vanilla bow and crossbow, 2-3 unique-pool + 1-2 normal
-affixes, Master, 20-30, generated name), `legendary` (1, quality 1, a hand-made legendary, Master, 40-64 emeralds).
+affixes, Master, 20-30, generated name), `legendary` (1, quality 1, levels 3 and up, 2 legendary-pool + 1 unique + 1-2 normal affixes, 2-3 signature
+enchantments 1-3 levels above max, 35% drawback, 30% hand-made instead, Master, 40-64 emeralds).
 
 ### `affixes/<name>.json`: prefixes and suffixes
 
@@ -198,10 +203,21 @@ Every effect can also have:
 Damage and effect names in tooltips use the lang key `tarnishedrelics.target.<namespace>.<path>` if it exists,
 otherwise the id's path.
 
+### Legendaries
+
+A rarity with `"legendary": true` makes legendaries, in two kinds:
+
+- **Generated** (most of them): a base item and affixes like any rarity (`items`, `levels`, `rolls`; the built-in one
+  rolls from the strong `legendary` affix pool plus `unique` and `normal`), and on top: a generated name
+  ("Grimfang, the Last Light") and lore lines from `names/`, signature enchantments that fit the item put on above
+  their normal max (`signature_enchantments`, `enchantment_bonus`), and a chance of one drawback from the `drawback`
+  pool (`drawback_chance`, `drawback_pool`). The name is shown as it is, with nothing added.
+- **Hand-made** (`handmade_chance` of them, when any can drop): one from `legendaries/`, below.
+
 ### `legendaries/<name>.json`: hand-made legendary relics
 
-A rarity with `"legendary": true` doesn't roll affixes: it picks one of these. A legendary always has the same name,
-lore, signature enchantments and effects; only the numbers vary (each copy gets one roll for all its value ranges).
+A hand-made legendary always has the same name, lore, signature enchantments and effects; only the numbers vary
+(each copy gets one roll for all its value ranges).
 
 ```json
 {
@@ -240,11 +256,14 @@ with Binding). `/tarnishedrelics legendary <id>` gives one (and the rest of its 
 {
   "names": ["Ithireal", "Grimfang"],
   "starts": ["Ith", "Mor", "Vael"],
-  "ends": ["ireal", "goth", "andor"]
+  "ends": ["ireal", "goth", "andor"],
+  "titles": ["the Last Light", "Bane of Kings"],
+  "lore": ["{name} was never meant to be found.", "Kings have bled for less."]
 }
 ```
 
-All files are merged. A Unique gets a whole name or a start + end, about half the time each.
+All files are merged. A Unique gets a whole name or a start + end, about half the time each. Generated legendaries
+use the same names, half the time with ", <title>", and lore lines (`{name}` is replaced by the name).
 
 ### `levels/<any>.json`: material levels
 

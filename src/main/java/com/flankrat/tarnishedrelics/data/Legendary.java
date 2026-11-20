@@ -36,7 +36,7 @@ public record Legendary(ResourceLocation id, ItemList items, @Nullable ResourceL
                         Map<String, Integer> enchantments, int weight, List<ResourceLocation> companions, Affix affix) {
 
     /** Affix pool no rarity rolls from (so a legendary's effects never turn up as a normal affix). */
-    public static final String POOL = "legendary";
+    public static final String POOL = "handmade_legendary";
 
     static Legendary parse(ResourceLocation id, JsonObject o) {
         if (!o.has("name")) throw new JsonParseException("a legendary needs a \"name\"");

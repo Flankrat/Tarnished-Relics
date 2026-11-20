@@ -1,0 +1,27 @@
+{
+  "kind": "hidden",
+  "pool": "legendary",
+  "applies_to": [
+    "tarnishedrelics:sword",
+    "tarnishedrelics:axe",
+    "tarnishedrelics:trident",
+    "tarnishedrelics:weapon"
+  ],
+  "weight": 10,
+  "effects": [
+    {
+      "type": "on_hit_effect",
+      "effect": "minecraft:slowness",
+      "duration": 80,
+      "amplifier": 2,
+      "apply_to": "target"
+    },
+    {
+      "type": "on_hit_effect",
+      "effect": "minecraft:weakness",
+      "duration": 80,
+      "amplifier": 1,
+      "apply_to": "target"
+    }
+  ]
+}

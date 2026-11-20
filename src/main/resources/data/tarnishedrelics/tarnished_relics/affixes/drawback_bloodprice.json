@@ -1,0 +1,24 @@
+{
+  "kind": "hidden",
+  "pool": "drawback",
+  "applies_to": [
+    "tarnishedrelics:sword",
+    "tarnishedrelics:axe",
+    "tarnishedrelics:trident",
+    "tarnishedrelics:weapon"
+  ],
+  "weight": 10,
+  "group": "drawback",
+  "effects": [
+    {
+      "type": "on_hit_effect",
+      "effect": "minecraft:wither",
+      "duration": 40,
+      "amplifier": 0,
+      "apply_to": "self",
+      "conditions": {
+        "chance": 0.15
+      }
+    }
+  ]
+}

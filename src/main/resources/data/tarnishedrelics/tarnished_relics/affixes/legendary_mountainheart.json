@@ -1,0 +1,27 @@
+{
+  "kind": "hidden",
+  "pool": "legendary",
+  "applies_to": [
+    "tarnishedrelics:pickaxe",
+    "tarnishedrelics:shovel",
+    "tarnishedrelics:axe",
+    "tarnishedrelics:hoe"
+  ],
+  "weight": 10,
+  "effects": [
+    {
+      "type": "break_speed",
+      "value": [
+        0.5,
+        0.8
+      ]
+    },
+    {
+      "type": "durability",
+      "value": [
+        0.4,
+        0.6
+      ]
+    }
+  ]
+}

@@ -61,7 +61,16 @@ public final class Roller {
         }
         if (rarity == null) return List.of();
         if (rarity.legendary()) {
-            if (legendary == null) legendary = pickLegendary(data, random, category);
+            if (legendary == null) {
+                // mostly generated; sometimes (handmade_chance) one of the hand-made ones
+                Legendary handmade = pickLegendary(data, random, category);
+                boolean useHandmade = handmade != null && random.nextDouble() < rarity.handmadeChance();
+                if (!useHandmade) {
+                    ItemStack generated = rollNormal(data, random, rarity, category, source, context);
+                    if (!generated.isEmpty()) return List.of(generated);
+                }
+                legendary = handmade;
+            }
             if (legendary == null) return List.of();
             List<ItemStack> out = new ArrayList<>();
             ItemStack main = makeLegendary(data, random, rarity, legendary, source, context);
@@ -217,13 +226,58 @@ public final class Roller {
                 }
             }
         }
+        if (rarity.legendary()) {
+            makeGeneratedLegendary(data, random, rarity, cat, real, relic, affixes, taken, groups);
+        } else if (rarity.uniqueName()) {
+            relic.putString("UniqueName", data.names().generate(random));
+        }
         relic.put("Affixes", affixes);
-        if (rarity.uniqueName()) relic.putString("UniqueName", data.names().generate(random));
         real.getOrCreateTag().put(RelicTag.KEY, relic);
 
         // Let other mods add their own loot rolls (sockets etc.) to the real item before it's hidden
         MinecraftForge.EVENT_BUS.post(new RelicGeneratedEvent(real, rarity, source, context));
         return wrap(real, rarity, cat, random);
+    }
+
+    /**
+     * The extra parts of a generated legendary: a drawback (maybe), a generated name and lore, and signature
+     * enchantments: ones that fit the item, put on above their normal max.
+     */
+    private static void makeGeneratedLegendary(TRData data, RandomSource random, Rarity rarity, Category cat, ItemStack real,
+                                               CompoundTag relic, ListTag affixes, Set<ResourceLocation> taken, Set<String> groups) {
+        if (random.nextDouble() < rarity.drawbackChance()) {
+            Affix drawback = pickAffix(data, random, rarity, cat, rarity.drawbackPool(), taken, groups);
+            if (drawback != null) {
+                CompoundTag entry = new CompoundTag();
+                entry.putString("Id", drawback.id().toString());
+                entry.putFloat("Roll", random.nextFloat());
+                affixes.add(entry);
+            }
+        }
+        String name = data.names().generateLegendary(random);
+        relic.putString("LegendaryName", name);
+        relic.remove("Prefix");
+        relic.remove("Suffix");
+        ListTag lore = new ListTag();
+        for (String line : data.names().lore(random, Rarity.roll(rarity.loreLines(), random), name)) lore.add(net.minecraft.nbt.StringTag.valueOf(line));
+        relic.put("Lore", lore);
+
+        // signature enchantments: fit the item, not curses, go together with each other
+        Map<net.minecraft.world.item.enchantment.Enchantment, Integer> ench = new java.util.LinkedHashMap<>(
+                net.minecraft.world.item.enchantment.EnchantmentHelper.getEnchantments(real));
+        List<net.minecraft.world.item.enchantment.Enchantment> options = new ArrayList<>();
+        for (var e : net.minecraftforge.registries.ForgeRegistries.ENCHANTMENTS) {
+            if (!e.isCurse() && e.canEnchant(real)) options.add(e);
+        }
+        int count = Rarity.roll(rarity.signatureEnchantments(), random);
+        while (count > 0 && !options.isEmpty()) {
+            var e = options.remove(random.nextInt(options.size()));
+            if (!net.minecraft.world.item.enchantment.EnchantmentHelper.isEnchantmentCompatible(ench.keySet(), e)) continue;
+            // single-level enchantments (Mending, Silk Touch...) do nothing at higher levels, so they stay at 1
+            ench.put(e, e.getMaxLevel() <= 1 ? 1 : e.getMaxLevel() + Rarity.roll(rarity.enchantmentBonus(), random));
+            count--;
+        }
+        net.minecraft.world.item.enchantment.EnchantmentHelper.setEnchantments(ench, real);
     }
 
     /** Puts a rolled item inside an unidentified item. */
@@ -255,9 +309,9 @@ public final class Roller {
             int w = r.weightWithLuck(luck);
             if (w <= 0 || !r.allowsTable(table)) continue;
             boolean any;
-            if (r.legendary()) {
-                any = data.legendaries().values().stream().anyMatch(l -> l.weight() > 0
-                        && (category == null || legendaryCategory(data, l, firstItem(l)) == category));
+            if (r.legendary() && data.legendaries().values().stream().anyMatch(l -> l.weight() > 0
+                    && (category == null || legendaryCategory(data, l, firstItem(l)) == category))) {
+                any = true;   // a hand-made one can drop (generated ones are checked below)
             } else {
                 // only rarities that can actually make an item (of the asked category)
                 any = r.items().resolve().stream().anyMatch(i -> {

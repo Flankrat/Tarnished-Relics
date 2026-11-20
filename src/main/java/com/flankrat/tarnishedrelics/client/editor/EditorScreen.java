@@ -518,8 +518,8 @@ public class EditorScreen extends Screen {
         // a short explanation for the folders whose rules aren't obvious from the fields
         String explain = switch (folder) {
             case "levels" -> "Item level = the highest of its tool tier, armor and a material word in its id (keywords). \"items\" here overrides that. Rarities use levels to pick base items.";
-            case "rarities" -> "\"*\" = every item with a category, filtered by \"levels\". Items named directly always count. \"legendary\": picks from the Legendaries tab instead.";
-            case "legendaries" -> "A hand-made relic: always this name, lore, enchantments and effects; each copy gets one roll for the value ranges. Drops from a rarity with \"legendary\": true.";
+            case "rarities" -> "\"*\" = every item with a category, filtered by \"levels\". Items named directly always count. \"legendary\": generated legendaries (plus hand-made ones from the Legendary tab, by handmade_chance).";
+            case "legendaries" -> "A hand-made relic: always this name, lore, enchantments and effects; each copy gets one roll for the value ranges. Legendary rarities drop these by their handmade_chance, generated ones otherwise.";
             case "tags" -> tagHelp(shortId.getPath());
             default -> null;
         };

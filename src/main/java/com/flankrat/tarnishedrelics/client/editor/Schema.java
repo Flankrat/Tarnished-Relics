@@ -136,7 +136,13 @@ public final class Schema {
                 f("villager_xp", Kind.INT, Pick.NONE, "Trade XP the blacksmith gets for identifying it", () -> num(5)),
                 f("color", Kind.COLOR, Pick.NONE, "Name color once identified (#RRGGBB)", () -> str("#FFFFFF")),
                 f("unique_name", Kind.BOOL, Pick.NONE, "Ends the name with \"of <generated name>\"", () -> new JsonPrimitive(false)),
-                f("legendary", Kind.BOOL, Pick.NONE, "Picks a hand-made relic from the Legendaries tab instead of rolling affixes (items, levels and rolls aren't used)", () -> new JsonPrimitive(true)),
+                f("legendary", Kind.BOOL, Pick.NONE, "A legendary: generated (generated name and lore, signature enchantments, maybe a drawback) or, by handmade_chance, one from the Legendary tab", () -> new JsonPrimitive(true)),
+                f("handmade_chance", Kind.NUMBER, Pick.NONE, "Legendary: share (0-1) that are hand-made ones from the Legendary tab", () -> num(0.3)),
+                f("signature_enchantments", Kind.RANGE, Pick.NONE, "Legendary: how many enchantments that fit the item it gets, above their max", () -> arr(2, 3)),
+                f("enchantment_bonus", Kind.RANGE, Pick.NONE, "Legendary: levels above the enchantment's normal max", () -> arr(1, 3)),
+                f("drawback_chance", Kind.NUMBER, Pick.NONE, "Legendary: chance (0-1) of one affix from the drawback pool", () -> num(0.35)),
+                f("drawback_pool", Kind.TEXT, Pick.POOL, "Legendary: the pool drawbacks come from", () -> str("drawback")),
+                f("lore_lines", Kind.RANGE, Pick.NONE, "Legendary: generated lore lines (from the Names tab's lore)", () -> arr(1, 2)),
                 f("quality", Kind.INT, Pick.NONE, "Extra weight per point of the looter's Luck (Luck potions, luck gear)", () -> num(1)),
                 f("loot_tables", Kind.LIST, Pick.NONE, "Only drops in these loot tables (* wildcards, e.g. somemod:chests/boss_*); empty = any", JsonArray::new)));
         FILES.put("legendaries", List.of(
@@ -159,7 +165,9 @@ public final class Schema {
         FILES.put("names", List.of(
                 f("names", Kind.LIST, Pick.NONE, "Whole names for Uniques, used as they are", JsonArray::new),
                 f("starts", Kind.LIST, Pick.NONE, "Name starts (a start + an end makes a name)", JsonArray::new),
-                f("ends", Kind.LIST, Pick.NONE, "Name ends", JsonArray::new)));
+                f("ends", Kind.LIST, Pick.NONE, "Name ends", JsonArray::new),
+                f("titles", Kind.LIST, Pick.NONE, "Generated legendaries: \"<name>, <title>\" half the time", JsonArray::new),
+                f("lore", Kind.LIST, Pick.NONE, "Generated legendaries: lore lines ({name} = its name)", JsonArray::new)));
         FILES.put("levels", List.of(
                 f("items", Kind.MAP_INT, Pick.ITEM, "Material level of items: ids, #tags, mod:* (beats every rule below)", JsonObject::new),
                 f("keywords", Kind.MAP_INT, Pick.NONE, "Level for items whose id has the word (iron_longbow has iron)", JsonObject::new),

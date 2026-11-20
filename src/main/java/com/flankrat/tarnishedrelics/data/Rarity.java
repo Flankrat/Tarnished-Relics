@@ -23,8 +23,16 @@ import java.util.Map;
  *   "villager_xp": 10,                            trade XP the blacksmith gets
  *   "color": "#FFFF55",                           name color once identified
  *   "unique_name": false,                         true: ends the name with "of <generated name>"
- *   "legendary": false,                           true: picks a hand-made legendary (legendaries/) instead of
- *                                                 rolling affixes; items/levels/rolls are then not used
+ *   "legendary": false,                           true: a legendary. With "handmade_chance" it's one of the
+ *                                                 hand-made ones (legendaries/), otherwise it's generated: base
+ *                                                 item and affixes as usual (items/levels/rolls), plus a
+ *                                                 generated name and lore (names/), signature enchantments and
+ *                                                 maybe a drawback:
+ *   "handmade_chance": 0.3,                       share that are hand-made (when any can drop)
+ *   "signature_enchantments": [2, 3],             enchantments that fit the item, put on above their max...
+ *   "enchantment_bonus": [1, 3],                  ...by this many levels
+ *   "drawback_chance": 0.35,                      chance of one affix from "drawback_pool" (default "drawback")
+ *   "lore_lines": [1, 2],                         generated lore lines
  *   "quality": 0,                                 extra weight per point of the looter's Luck (like loot table quality)
  *   "loot_tables": []                             only in these loot tables ("*" wildcards); empty = any
  * }
@@ -33,7 +41,8 @@ import java.util.Map;
  */
 public record Rarity(ResourceLocation id, @javax.annotation.Nullable String name, int weight, ItemList items, Map<String, int[]> rolls, int identifyLevel,
                      int costMin, int costMax, int villagerXp, int color, boolean uniqueName, boolean legendary, int quality,
-                     java.util.List<String> lootTables) {
+                     java.util.List<String> lootTables, double handmadeChance, int[] signatureEnchantments,
+                     int[] enchantmentBonus, double drawbackChance, String drawbackPool, int[] loreLines) {
 
     static Rarity parse(ResourceLocation id, JsonObject o) {
         Map<String, int[]> rolls = new LinkedHashMap<>();
@@ -54,7 +63,18 @@ public record Rarity(ResourceLocation id, @javax.annotation.Nullable String name
                 o.has("unique_name") && o.get("unique_name").getAsBoolean(),
                 o.has("legendary") && o.get("legendary").getAsBoolean(),
                 o.has("quality") ? o.get("quality").getAsInt() : 0,
-                Conditions.strings(o.get("loot_tables")));
+                Conditions.strings(o.get("loot_tables")),
+                o.has("handmade_chance") ? o.get("handmade_chance").getAsDouble() : 0.3,
+                o.has("signature_enchantments") ? intRange(o.get("signature_enchantments")) : new int[]{0, 0},
+                o.has("enchantment_bonus") ? intRange(o.get("enchantment_bonus")) : new int[]{1, 1},
+                o.has("drawback_chance") ? o.get("drawback_chance").getAsDouble() : 0,
+                o.has("drawback_pool") ? o.get("drawback_pool").getAsString() : "drawback",
+                o.has("lore_lines") ? intRange(o.get("lore_lines")) : new int[]{1, 2});
+    }
+
+    /** A random int in [r0, r1]. */
+    public static int roll(int[] r, RandomSource random) {
+        return r[0] + random.nextInt(Math.max(1, r[1] - r[0] + 1));
     }
 
     static int[] intRange(JsonElement e) {
