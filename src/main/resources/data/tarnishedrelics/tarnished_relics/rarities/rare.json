@@ -1,26 +1,11 @@
 {
   "weight": 25,
   "items": [
-    "minecraft:iron_sword",
-    "minecraft:iron_axe",
-    "minecraft:iron_pickaxe",
-    "minecraft:iron_shovel",
-    "minecraft:iron_hoe",
-    "minecraft:iron_helmet",
-    "minecraft:iron_chestplate",
-    "minecraft:iron_leggings",
-    "minecraft:iron_boots",
-    "minecraft:diamond_sword",
-    "minecraft:diamond_axe",
-    "minecraft:diamond_pickaxe",
-    "minecraft:diamond_shovel",
-    "minecraft:diamond_hoe",
-    "minecraft:diamond_helmet",
-    "minecraft:diamond_chestplate",
-    "minecraft:diamond_leggings",
-    "minecraft:diamond_boots",
-    "minecraft:bow",
-    "minecraft:crossbow"
+    "*"
+  ],
+  "levels": [
+    2,
+    3
   ],
   "rolls": {
     "normal": [

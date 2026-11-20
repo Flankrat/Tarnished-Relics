@@ -1,4 +1,7 @@
 {
+  "auto": [
+    "leggings"
+  ],
   "items": [
     "#forge:armors/leggings"
   ],

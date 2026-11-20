@@ -1,4 +1,7 @@
 {
+  "auto": [
+    "hoe"
+  ],
   "items": [
     "#minecraft:hoes"
   ],

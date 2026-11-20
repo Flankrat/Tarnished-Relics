@@ -1,4 +1,7 @@
 {
+  "auto": [
+    "bow"
+  ],
   "items": [
     "minecraft:bow",
     "#forge:tools/bows"

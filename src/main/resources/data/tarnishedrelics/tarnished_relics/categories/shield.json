@@ -1,0 +1,10 @@
+{
+  "auto": [
+    "shield"
+  ],
+  "items": [
+    "#forge:tools/shields"
+  ],
+  "slot": "offhand",
+  "silhouette": "shield"
+}

@@ -1,4 +1,7 @@
 {
+  "auto": [
+    "shovel"
+  ],
   "items": [
     "#minecraft:shovels"
   ],

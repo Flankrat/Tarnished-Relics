@@ -1,4 +1,7 @@
 {
+  "auto": [
+    "axe"
+  ],
   "items": [
     "#minecraft:axes"
   ],

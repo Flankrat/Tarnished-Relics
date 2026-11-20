@@ -2,7 +2,8 @@
   "kind": "hidden",
   "pool": "unique",
   "applies_to": [
-    "tarnishedrelics:chestplate"
+    "tarnishedrelics:chestplate",
+    "tarnishedrelics:shield"
   ],
   "weight": 10,
   "effects": [

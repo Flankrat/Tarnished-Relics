@@ -4,6 +4,7 @@ import com.flankrat.tarnishedrelics.TRItems;
 import com.flankrat.tarnishedrelics.data.Category;
 import com.flankrat.tarnishedrelics.data.Rarity;
 import com.flankrat.tarnishedrelics.data.TRData;
+import com.flankrat.tarnishedrelics.editor.EditorServer;
 import com.flankrat.tarnishedrelics.relic.Roller;
 import com.flankrat.tarnishedrelics.smith.Blacksmith;
 import com.mojang.brigadier.CommandDispatcher;
@@ -28,6 +29,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
  *   /tarnishedrelics give [rarity] [category] [count]   random relics (any rarity/category if left out)
  *   /tarnishedrelics identify                           identifies the relic in your main hand
  *   /tarnishedrelics errors                             problems found in the datapack files
+ *   /tarnishedrelics editor                             opens the in-game editor for all of the above
  * </pre>
  */
 public final class TRCommands {
@@ -51,7 +53,11 @@ public final class TRCommands {
                                                 .executes(c -> give(c, ResourceLocationArgument.getId(c, "rarity"),
                                                         ResourceLocationArgument.getId(c, "category"), IntegerArgumentType.getInteger(c, "count")))))))
                 .then(Commands.literal("identify").executes(TRCommands::identify))
-                .then(Commands.literal("errors").executes(TRCommands::errors)));
+                .then(Commands.literal("errors").executes(TRCommands::errors))
+                .then(Commands.literal("editor").executes(c -> {
+                    EditorServer.open(c.getSource().getPlayerOrException(), false);
+                    return 1;
+                })));
     }
 
     private static int give(CommandContext<CommandSourceStack> c, ResourceLocation rarityId, ResourceLocation categoryId, int count)

@@ -5,6 +5,7 @@ import com.google.common.base.Suppliers;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import com.flankrat.tarnishedrelics.api.RelicGeneratedEvent;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.storage.loot.LootContext;
@@ -46,9 +47,20 @@ public class RelicLootModifier extends LootModifier {
     protected @NotNull ObjectArrayList<ItemStack> doApply(ObjectArrayList<ItemStack> loot, LootContext context) {
         if (!TRConfig.ENABLED.get() || !eligible(context)) return loot;
         if (context.getRandom().nextDouble() >= TRConfig.CHANCE.get()) return loot;
-        ItemStack relic = Roller.generate(context.getRandom(), null, null);
+        ItemStack relic = Roller.generate(context.getRandom(), null, null, source(context), context);
         if (!relic.isEmpty()) loot.add(relic);
         return loot;
+    }
+
+    private static RelicGeneratedEvent.Source source(LootContext context) {
+        LootContextParamSet params = context.getLevel().getServer().getLootData().getLootTable(context.getQueriedLootTableId()).getParamSet();
+        if (params == LootContextParamSets.CHEST) return RelicGeneratedEvent.Source.CHEST;
+        if (params == LootContextParamSets.ENTITY) return RelicGeneratedEvent.Source.ENTITY;
+        if (params == LootContextParamSets.FISHING) return RelicGeneratedEvent.Source.FISHING;
+        if (params == LootContextParamSets.ARCHAEOLOGY) return RelicGeneratedEvent.Source.ARCHAEOLOGY;
+        if (params == LootContextParamSets.GIFT) return RelicGeneratedEvent.Source.GIFT;
+        if (params == LootContextParamSets.PIGLIN_BARTER) return RelicGeneratedEvent.Source.BARTER;
+        return RelicGeneratedEvent.Source.OTHER_LOOT;
     }
 
     private static boolean eligible(LootContext context) {

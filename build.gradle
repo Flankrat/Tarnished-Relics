@@ -58,11 +58,18 @@ minecraft {
 
 repositories {
     mavenCentral()
+    maven {
+        name = 'Jared (JEI)'
+        url = 'https://maven.blamejared.com/'
+    }
 }
 
 dependencies {
     minecraft "net.minecraftforge:forge:${mc_version}-${forge_version}"
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+    // JEI is optional: only its API is needed to build (to hide the unidentified item from its list)
+    compileOnly fg.deobf("mezz.jei:jei-${mc_version}-common-api:${jei_version}")
+    compileOnly fg.deobf("mezz.jei:jei-${mc_version}-forge-api:${jei_version}")
 }
 
 mixin {
@@ -104,3 +111,4 @@ jar.finalizedBy('reobfJar')
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
+
