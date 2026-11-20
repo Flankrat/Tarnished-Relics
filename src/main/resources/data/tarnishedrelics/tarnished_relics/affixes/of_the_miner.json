@@ -1,0 +1,20 @@
+{
+  "kind": "suffix",
+  "name": "affix.tarnishedrelics.of_the_miner",
+  "pool": "normal",
+  "applies_to": [
+    "tarnishedrelics:pickaxe",
+    "tarnishedrelics:shovel"
+  ],
+  "weight": {
+    "rare": 5,
+    "unique": 5
+  },
+  "effects": [
+    {
+      "type": "passive_effect",
+      "effect": "minecraft:haste",
+      "amplifier": 0
+    }
+  ]
+}

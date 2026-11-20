@@ -1,0 +1,33 @@
+{
+  "kind": "prefix",
+  "name": "affix.tarnishedrelics.champions",
+  "pool": "normal",
+  "applies_to": [
+    "tarnishedrelics:sword",
+    "tarnishedrelics:axe",
+    "tarnishedrelics:trident"
+  ],
+  "weight": 10,
+  "effects": [
+    {
+      "type": "attribute",
+      "attribute": "minecraft:generic.attack_damage",
+      "operation": "add",
+      "value": {
+        "magic": [
+          1,
+          2
+        ],
+        "rare": [
+          2,
+          4
+        ],
+        "unique": [
+          3,
+          5
+        ]
+      }
+    }
+  ],
+  "group": "flat_damage"
+}

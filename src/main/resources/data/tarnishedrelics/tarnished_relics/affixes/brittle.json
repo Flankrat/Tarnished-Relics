@@ -1,0 +1,21 @@
+{
+  "kind": "prefix",
+  "name": "affix.tarnishedrelics.brittle",
+  "pool": "normal",
+  "applies_to": [
+    "*"
+  ],
+  "weight": {
+    "magic": 4
+  },
+  "effects": [
+    {
+      "type": "durability",
+      "value": [
+        -0.3,
+        -0.15
+      ]
+    }
+  ],
+  "group": "durability"
+}

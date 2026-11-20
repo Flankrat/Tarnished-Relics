@@ -1,0 +1,33 @@
+{
+  "kind": "prefix",
+  "name": "affix.tarnishedrelics.hardened",
+  "pool": "normal",
+  "applies_to": [
+    "tarnishedrelics:helmet",
+    "tarnishedrelics:chestplate",
+    "tarnishedrelics:leggings",
+    "tarnishedrelics:boots"
+  ],
+  "weight": 10,
+  "effects": [
+    {
+      "type": "attribute",
+      "attribute": "minecraft:generic.armor_toughness",
+      "operation": "add",
+      "value": {
+        "magic": [
+          0.5,
+          1
+        ],
+        "rare": [
+          1,
+          1.5
+        ],
+        "unique": [
+          1.5,
+          2.5
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "weight": 25,
+  "items": [
+    "minecraft:iron_sword",
+    "minecraft:iron_axe",
+    "minecraft:iron_pickaxe",
+    "minecraft:iron_shovel",
+    "minecraft:iron_hoe",
+    "minecraft:iron_helmet",
+    "minecraft:iron_chestplate",
+    "minecraft:iron_leggings",
+    "minecraft:iron_boots",
+    "minecraft:diamond_sword",
+    "minecraft:diamond_axe",
+    "minecraft:diamond_pickaxe",
+    "minecraft:diamond_shovel",
+    "minecraft:diamond_hoe",
+    "minecraft:diamond_helmet",
+    "minecraft:diamond_chestplate",
+    "minecraft:diamond_leggings",
+    "minecraft:diamond_boots",
+    "minecraft:bow",
+    "minecraft:crossbow"
+  ],
+  "rolls": {
+    "normal": [
+      3,
+      4
+    ]
+  },
+  "identify_level": 3,
+  "cost": [
+    8,
+    12
+  ],
+  "villager_xp": 15,
+  "color": "#FFFF55"
+}

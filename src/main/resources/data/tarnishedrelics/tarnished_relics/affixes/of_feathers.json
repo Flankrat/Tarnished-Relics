@@ -1,0 +1,29 @@
+{
+  "kind": "suffix",
+  "name": "affix.tarnishedrelics.of_feathers",
+  "pool": "normal",
+  "applies_to": [
+    "tarnishedrelics:boots"
+  ],
+  "weight": 10,
+  "effects": [
+    {
+      "type": "damage_taken",
+      "damage": "#minecraft:is_fall",
+      "value": {
+        "magic": [
+          -0.25,
+          -0.1
+        ],
+        "rare": [
+          -0.4,
+          -0.2
+        ],
+        "unique": [
+          -0.6,
+          -0.35
+        ]
+      }
+    }
+  ]
+}

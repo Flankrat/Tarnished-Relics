@@ -1,0 +1,24 @@
+{
+  "kind": "hidden",
+  "pool": "unique",
+  "applies_to": [
+    "tarnishedrelics:boots"
+  ],
+  "weight": 10,
+  "effects": [
+    {
+      "type": "attribute",
+      "attribute": "minecraft:generic.movement_speed",
+      "operation": "multiply_base",
+      "value": [
+        0.1,
+        0.15
+      ]
+    },
+    {
+      "type": "damage_taken",
+      "damage": "#minecraft:is_fall",
+      "value": -0.75
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "kind": "suffix",
+  "name": "affix.tarnishedrelics.of_thorns",
+  "pool": "normal",
+  "applies_to": [
+    "tarnishedrelics:helmet",
+    "tarnishedrelics:chestplate",
+    "tarnishedrelics:leggings",
+    "tarnishedrelics:boots"
+  ],
+  "weight": 10,
+  "effects": [
+    {
+      "type": "thorns",
+      "value": {
+        "magic": [
+          0.05,
+          0.1
+        ],
+        "rare": [
+          0.1,
+          0.2
+        ],
+        "unique": [
+          0.15,
+          0.3
+        ]
+      }
+    }
+  ]
+}

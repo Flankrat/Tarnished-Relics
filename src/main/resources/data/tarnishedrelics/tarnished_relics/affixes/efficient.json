@@ -1,0 +1,31 @@
+{
+  "kind": "prefix",
+  "name": "affix.tarnishedrelics.efficient",
+  "pool": "normal",
+  "applies_to": [
+    "tarnishedrelics:pickaxe",
+    "tarnishedrelics:shovel",
+    "tarnishedrelics:hoe",
+    "tarnishedrelics:axe"
+  ],
+  "weight": 10,
+  "effects": [
+    {
+      "type": "break_speed",
+      "value": {
+        "magic": [
+          0.1,
+          0.2
+        ],
+        "rare": [
+          0.15,
+          0.35
+        ],
+        "unique": [
+          0.3,
+          0.5
+        ]
+      }
+    }
+  ]
+}

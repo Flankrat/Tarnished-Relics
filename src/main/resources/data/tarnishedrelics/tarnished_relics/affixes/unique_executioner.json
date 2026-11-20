@@ -1,0 +1,28 @@
+{
+  "kind": "hidden",
+  "pool": "unique",
+  "applies_to": [
+    "tarnishedrelics:sword",
+    "tarnishedrelics:axe",
+    "tarnishedrelics:trident",
+    "tarnishedrelics:bow",
+    "tarnishedrelics:crossbow"
+  ],
+  "weight": 10,
+  "effects": [
+    {
+      "type": "crit_chance",
+      "value": [
+        0.15,
+        0.25
+      ]
+    },
+    {
+      "type": "crit_damage",
+      "value": [
+        0.5,
+        0.8
+      ]
+    }
+  ]
+}

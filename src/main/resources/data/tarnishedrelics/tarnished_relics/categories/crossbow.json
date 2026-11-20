@@ -1,0 +1,8 @@
+{
+  "items": [
+    "minecraft:crossbow",
+    "#forge:tools/crossbows"
+  ],
+  "slot": "mainhand",
+  "silhouette": "crossbow"
+}

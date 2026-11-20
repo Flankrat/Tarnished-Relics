@@ -1,0 +1,34 @@
+{
+  "kind": "prefix",
+  "name": "affix.tarnishedrelics.vital",
+  "pool": "normal",
+  "applies_to": [
+    "tarnishedrelics:helmet",
+    "tarnishedrelics:chestplate",
+    "tarnishedrelics:leggings",
+    "tarnishedrelics:boots"
+  ],
+  "weight": 10,
+  "effects": [
+    {
+      "type": "attribute",
+      "attribute": "minecraft:generic.max_health",
+      "operation": "add",
+      "value": {
+        "magic": [
+          1,
+          2
+        ],
+        "rare": [
+          2,
+          3
+        ],
+        "unique": [
+          3,
+          4
+        ]
+      }
+    }
+  ],
+  "group": "health"
+}

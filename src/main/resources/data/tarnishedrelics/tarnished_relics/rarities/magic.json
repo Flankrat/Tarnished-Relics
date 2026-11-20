@@ -1,0 +1,42 @@
+{
+  "weight": 70,
+  "items": [
+    "minecraft:stone_sword",
+    "minecraft:stone_axe",
+    "minecraft:stone_pickaxe",
+    "minecraft:golden_sword",
+    "minecraft:golden_axe",
+    "minecraft:chainmail_helmet",
+    "minecraft:chainmail_chestplate",
+    "minecraft:chainmail_leggings",
+    "minecraft:chainmail_boots",
+    "minecraft:golden_helmet",
+    "minecraft:golden_chestplate",
+    "minecraft:golden_leggings",
+    "minecraft:golden_boots",
+    "minecraft:iron_sword",
+    "minecraft:iron_axe",
+    "minecraft:iron_pickaxe",
+    "minecraft:iron_shovel",
+    "minecraft:iron_hoe",
+    "minecraft:iron_helmet",
+    "minecraft:iron_chestplate",
+    "minecraft:iron_leggings",
+    "minecraft:iron_boots",
+    "minecraft:bow",
+    "minecraft:crossbow"
+  ],
+  "rolls": {
+    "normal": [
+      1,
+      2
+    ]
+  },
+  "identify_level": 1,
+  "cost": [
+    2,
+    4
+  ],
+  "villager_xp": 5,
+  "color": "#5555FF"
+}

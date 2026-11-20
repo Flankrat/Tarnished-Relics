@@ -1,0 +1,19 @@
+{
+  "kind": "hidden",
+  "pool": "unique",
+  "applies_to": [
+    "tarnishedrelics:sword",
+    "tarnishedrelics:axe",
+    "tarnishedrelics:trident"
+  ],
+  "weight": 10,
+  "effects": [
+    {
+      "type": "lifesteal",
+      "value": [
+        0.08,
+        0.15
+      ]
+    }
+  ]
+}

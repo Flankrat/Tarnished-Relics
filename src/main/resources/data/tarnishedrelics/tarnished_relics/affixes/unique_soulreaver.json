@@ -1,0 +1,25 @@
+{
+  "kind": "hidden",
+  "pool": "unique",
+  "applies_to": [
+    "tarnishedrelics:sword",
+    "tarnishedrelics:axe",
+    "tarnishedrelics:trident",
+    "tarnishedrelics:bow",
+    "tarnishedrelics:crossbow"
+  ],
+  "weight": 10,
+  "effects": [
+    {
+      "type": "xp_bonus",
+      "value": [
+        0.75,
+        1.25
+      ]
+    },
+    {
+      "type": "looting",
+      "value": 1
+    }
+  ]
+}
