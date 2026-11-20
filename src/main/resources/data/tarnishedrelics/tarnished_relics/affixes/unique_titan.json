@@ -1,0 +1,31 @@
+{
+  "kind": "hidden",
+  "pool": "unique",
+  "applies_to": [
+    "tarnishedrelics:helmet",
+    "tarnishedrelics:chestplate",
+    "tarnishedrelics:leggings",
+    "tarnishedrelics:boots"
+  ],
+  "weight": 10,
+  "effects": [
+    {
+      "type": "attribute",
+      "attribute": "minecraft:generic.max_health",
+      "operation": "add",
+      "value": [
+        4,
+        6
+      ]
+    },
+    {
+      "type": "attribute",
+      "attribute": "minecraft:generic.knockback_resistance",
+      "operation": "add",
+      "value": [
+        0.2,
+        0.3
+      ]
+    }
+  ]
+}

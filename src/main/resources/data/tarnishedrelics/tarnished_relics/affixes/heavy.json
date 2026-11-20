@@ -1,0 +1,34 @@
+{
+  "kind": "prefix",
+  "name": "affix.tarnishedrelics.heavy",
+  "pool": "normal",
+  "applies_to": [
+    "tarnishedrelics:sword",
+    "tarnishedrelics:axe",
+    "tarnishedrelics:trident"
+  ],
+  "weight": 6,
+  "effects": [
+    {
+      "type": "attribute",
+      "attribute": "minecraft:generic.attack_damage",
+      "operation": "add",
+      "value": {
+        "default": [
+          2,
+          3
+        ]
+      }
+    },
+    {
+      "type": "attribute",
+      "attribute": "minecraft:generic.attack_speed",
+      "operation": "multiply_base",
+      "value": [
+        -0.15,
+        -0.1
+      ]
+    }
+  ],
+  "group": "flat_damage"
+}

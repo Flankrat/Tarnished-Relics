@@ -1,0 +1,21 @@
+{
+  "kind": "hidden",
+  "pool": "unique",
+  "applies_to": [
+    "tarnishedrelics:sword",
+    "tarnishedrelics:axe",
+    "tarnishedrelics:trident"
+  ],
+  "weight": 10,
+  "effects": [
+    {
+      "type": "on_hit_effect",
+      "effect": "minecraft:wither",
+      "duration": 80,
+      "amplifier": 1,
+      "conditions": {
+        "chance": 0.3
+      }
+    }
+  ]
+}

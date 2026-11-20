@@ -1,0 +1,77 @@
+{
+  "parent": "tarnishedrelics:item/unidentified/generic",
+  "overrides": [
+    {
+      "predicate": {
+        "tarnishedrelics:silhouette": 1
+      },
+      "model": "tarnishedrelics:item/unidentified/sword"
+    },
+    {
+      "predicate": {
+        "tarnishedrelics:silhouette": 2
+      },
+      "model": "tarnishedrelics:item/unidentified/axe"
+    },
+    {
+      "predicate": {
+        "tarnishedrelics:silhouette": 3
+      },
+      "model": "tarnishedrelics:item/unidentified/pickaxe"
+    },
+    {
+      "predicate": {
+        "tarnishedrelics:silhouette": 4
+      },
+      "model": "tarnishedrelics:item/unidentified/shovel"
+    },
+    {
+      "predicate": {
+        "tarnishedrelics:silhouette": 5
+      },
+      "model": "tarnishedrelics:item/unidentified/hoe"
+    },
+    {
+      "predicate": {
+        "tarnishedrelics:silhouette": 6
+      },
+      "model": "tarnishedrelics:item/unidentified/bow"
+    },
+    {
+      "predicate": {
+        "tarnishedrelics:silhouette": 7
+      },
+      "model": "tarnishedrelics:item/unidentified/crossbow"
+    },
+    {
+      "predicate": {
+        "tarnishedrelics:silhouette": 8
+      },
+      "model": "tarnishedrelics:item/unidentified/trident"
+    },
+    {
+      "predicate": {
+        "tarnishedrelics:silhouette": 9
+      },
+      "model": "tarnishedrelics:item/unidentified/helmet"
+    },
+    {
+      "predicate": {
+        "tarnishedrelics:silhouette": 10
+      },
+      "model": "tarnishedrelics:item/unidentified/chestplate"
+    },
+    {
+      "predicate": {
+        "tarnishedrelics:silhouette": 11
+      },
+      "model": "tarnishedrelics:item/unidentified/leggings"
+    },
+    {
+      "predicate": {
+        "tarnishedrelics:silhouette": 12
+      },
+      "model": "tarnishedrelics:item/unidentified/boots"
+    }
+  ]
+}

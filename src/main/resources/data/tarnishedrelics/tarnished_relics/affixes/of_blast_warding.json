@@ -1,0 +1,32 @@
+{
+  "kind": "suffix",
+  "name": "affix.tarnishedrelics.of_blast_warding",
+  "pool": "normal",
+  "applies_to": [
+    "tarnishedrelics:helmet",
+    "tarnishedrelics:chestplate",
+    "tarnishedrelics:leggings",
+    "tarnishedrelics:boots"
+  ],
+  "weight": 10,
+  "effects": [
+    {
+      "type": "damage_taken",
+      "damage": "#minecraft:is_explosion",
+      "value": {
+        "magic": [
+          -0.1,
+          -0.05
+        ],
+        "rare": [
+          -0.15,
+          -0.08
+        ],
+        "unique": [
+          -0.25,
+          -0.15
+        ]
+      }
+    }
+  ]
+}

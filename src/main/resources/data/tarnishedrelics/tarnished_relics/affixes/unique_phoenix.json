@@ -1,0 +1,15 @@
+{
+  "kind": "hidden",
+  "pool": "unique",
+  "applies_to": [
+    "tarnishedrelics:chestplate"
+  ],
+  "weight": 10,
+  "effects": [
+    {
+      "type": "passive_effect",
+      "effect": "minecraft:fire_resistance",
+      "amplifier": 0
+    }
+  ]
+}

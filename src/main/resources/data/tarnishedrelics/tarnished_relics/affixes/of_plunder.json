@@ -1,0 +1,22 @@
+{
+  "kind": "suffix",
+  "name": "affix.tarnishedrelics.of_plunder",
+  "pool": "normal",
+  "applies_to": [
+    "tarnishedrelics:sword",
+    "tarnishedrelics:axe",
+    "tarnishedrelics:trident",
+    "tarnishedrelics:bow",
+    "tarnishedrelics:crossbow"
+  ],
+  "weight": {
+    "rare": 6,
+    "unique": 6
+  },
+  "effects": [
+    {
+      "type": "looting",
+      "value": 1
+    }
+  ]
+}

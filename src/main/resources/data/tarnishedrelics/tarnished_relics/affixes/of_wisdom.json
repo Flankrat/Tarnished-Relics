@@ -1,0 +1,32 @@
+{
+  "kind": "suffix",
+  "name": "affix.tarnishedrelics.of_wisdom",
+  "pool": "normal",
+  "applies_to": [
+    "tarnishedrelics:sword",
+    "tarnishedrelics:axe",
+    "tarnishedrelics:trident",
+    "tarnishedrelics:bow",
+    "tarnishedrelics:crossbow"
+  ],
+  "weight": 10,
+  "effects": [
+    {
+      "type": "xp_bonus",
+      "value": {
+        "magic": [
+          0.15,
+          0.3
+        ],
+        "rare": [
+          0.25,
+          0.5
+        ],
+        "unique": [
+          0.4,
+          0.75
+        ]
+      }
+    }
+  ]
+}

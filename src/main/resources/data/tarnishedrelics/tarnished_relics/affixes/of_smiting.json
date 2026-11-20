@@ -1,0 +1,33 @@
+{
+  "kind": "suffix",
+  "name": "affix.tarnishedrelics.of_smiting",
+  "pool": "normal",
+  "applies_to": [
+    "tarnishedrelics:sword",
+    "tarnishedrelics:axe",
+    "tarnishedrelics:trident",
+    "tarnishedrelics:bow",
+    "tarnishedrelics:crossbow"
+  ],
+  "weight": 10,
+  "effects": [
+    {
+      "type": "damage_vs",
+      "target": "#tarnishedrelics:undead",
+      "value": {
+        "magic": [
+          0.1,
+          0.2
+        ],
+        "rare": [
+          0.15,
+          0.3
+        ],
+        "unique": [
+          0.25,
+          0.4
+        ]
+      }
+    }
+  ]
+}

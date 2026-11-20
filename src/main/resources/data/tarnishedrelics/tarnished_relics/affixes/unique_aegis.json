@@ -1,0 +1,24 @@
+{
+  "kind": "hidden",
+  "pool": "unique",
+  "applies_to": [
+    "tarnishedrelics:helmet",
+    "tarnishedrelics:chestplate",
+    "tarnishedrelics:leggings",
+    "tarnishedrelics:boots"
+  ],
+  "weight": 10,
+  "effects": [
+    {
+      "type": "damage_taken",
+      "value": [
+        -0.15,
+        -0.08
+      ]
+    },
+    {
+      "type": "thorns",
+      "value": 0.2
+    }
+  ]
+}

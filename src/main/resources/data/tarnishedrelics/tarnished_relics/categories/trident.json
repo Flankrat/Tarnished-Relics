@@ -1,0 +1,8 @@
+{
+  "items": [
+    "minecraft:trident",
+    "#forge:tools/tridents"
+  ],
+  "slot": "mainhand",
+  "silhouette": "trident"
+}

@@ -1,0 +1,22 @@
+{
+  "kind": "suffix",
+  "name": "affix.tarnishedrelics.of_venom",
+  "pool": "normal",
+  "applies_to": [
+    "tarnishedrelics:sword",
+    "tarnishedrelics:axe",
+    "tarnishedrelics:trident"
+  ],
+  "weight": 10,
+  "effects": [
+    {
+      "type": "on_hit_effect",
+      "effect": "minecraft:poison",
+      "duration": 60,
+      "amplifier": 0,
+      "conditions": {
+        "chance": 0.2
+      }
+    }
+  ]
+}

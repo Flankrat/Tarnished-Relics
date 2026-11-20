@@ -1,0 +1,23 @@
+{
+  "kind": "suffix",
+  "name": "affix.tarnishedrelics.of_embers",
+  "pool": "normal",
+  "applies_to": [
+    "tarnishedrelics:sword",
+    "tarnishedrelics:axe",
+    "tarnishedrelics:trident"
+  ],
+  "weight": 10,
+  "effects": [
+    {
+      "type": "on_hit_fire",
+      "value": [
+        2,
+        4
+      ],
+      "conditions": {
+        "chance": 0.25
+      }
+    }
+  ]
+}

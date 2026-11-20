@@ -1,0 +1,33 @@
+{
+  "kind": "suffix",
+  "name": "affix.tarnishedrelics.of_the_bane",
+  "pool": "normal",
+  "applies_to": [
+    "tarnishedrelics:sword",
+    "tarnishedrelics:axe",
+    "tarnishedrelics:trident",
+    "tarnishedrelics:bow",
+    "tarnishedrelics:crossbow"
+  ],
+  "weight": 10,
+  "effects": [
+    {
+      "type": "damage_vs",
+      "target": "#tarnishedrelics:arthropods",
+      "value": {
+        "magic": [
+          0.15,
+          0.25
+        ],
+        "rare": [
+          0.2,
+          0.35
+        ],
+        "unique": [
+          0.3,
+          0.5
+        ]
+      }
+    }
+  ]
+}
