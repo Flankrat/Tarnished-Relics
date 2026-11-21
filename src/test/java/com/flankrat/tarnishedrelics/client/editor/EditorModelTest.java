@@ -129,6 +129,27 @@ class EditorModelTest {
         assertNotNull(m.preview().categoryOf(net.minecraft.world.item.Items.IRON_SWORD));
     }
 
+    // Bug (round 4, found by clicking through the Mods tab): excluding a mod made the editor's exclusions file, and
+    // including it again left that new, empty file behind, so Save stayed lit and would write an empty file
+    @Test
+    void excludeThenIncludeIsNoChange() {
+        EditorModel m = model();
+        m.setExcluded("somemod:*", true);
+        m.setExcluded("somemod:*", false);
+        assertFalse(m.hasChanges(), "changes: " + m.changes());
+    }
+
+    // an editor exclusions file that was already saved stays (with its other entries) when one entry goes
+    @Test
+    void savedEditorExclusionsFileStays() {
+        EditorModel m = model(Map.of(EditorModel.EXCLUSIONS, new String[]{"{\"items\": [\"othermod:*\"]}", "file/tarnishedrelics_editor"}));
+        m.setExcluded("somemod:*", true);
+        m.setExcluded("somemod:*", false);
+        assertFalse(m.hasChanges(), "changes: " + m.changes());
+        m.setExcluded("othermod:*", false);
+        assertEquals("{\"items\":[]}", m.changes().get(EditorModel.EXCLUSIONS));
+    }
+
     // taking an entry out removes it from every exclusions file, also one that has it as a single string
     @Test
     void includeRemovesTheEntryEverywhere() {
