@@ -15,9 +15,9 @@ can change all of it without touching a file.
 ## How it plays
 
 1. **Find a relic.** It's plain white, with a silhouette of its category and *"Take it to a blacksmith to identify
-   it."* Nothing on it tells you its tier.
+   it."* Nothing on it tells you its tier. Fire and lava don't destroy it (like netherite).
 2. **Use it on the right smith:** a toolsmith for tools, an armorer for armor (and shields), a weaponsmith for
-   weapons; an axe goes to a toolsmith or a weaponsmith. The wrong villager tells you who to see. Higher tiers need
+   weapons, a fletcher for bows and crossbows; an axe goes to a toolsmith or a weaponsmith. The wrong villager tells you who to see. Higher tiers need
    a higher villager level. If the smith isn't skilled enough they
    shake their head and say which level you need. That's the only way to find out.
 3. **Pay.** The smith names a price in emeralds; use the relic on them again within 10 seconds to pay. The real item
@@ -308,7 +308,8 @@ smith to one (`data/<namespace>/tags/villager_profession/...`, or the editor's T
 |---|---|---|
 | `#tarnishedrelics:toolsmiths` | toolsmith | pickaxe, shovel, hoe, axe |
 | `#tarnishedrelics:armorers` | armorer | helmet, chestplate, leggings, boots, shield |
-| `#tarnishedrelics:weaponsmiths` | weaponsmith | sword, axe, trident, bow, crossbow, ranged, weapon |
+| `#tarnishedrelics:weaponsmiths` | weaponsmith | sword, axe, trident, weapon |
+| `#tarnishedrelics:fletchers` | fletcher | bow, crossbow, ranged (modded longbows and heavy crossbows are bows and crossbows) |
 
 Categories without `smiths` (a pack's own) go to any profession in `#tarnishedrelics:blacksmiths` (armorer,
 weaponsmith and toolsmith by default).
