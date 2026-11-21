@@ -38,6 +38,7 @@ import net.minecraftforge.event.entity.living.LootingLevelEvent;
 import net.minecraftforge.event.entity.player.CriticalHitEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.eventbus.api.Event;
+import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.registries.ForgeRegistries;
 
@@ -275,8 +276,11 @@ public final class RelicEffects {
         return t.isTag() ? source.is(t.tag()) : source.typeHolder().unwrapKey().map(k -> k.location().equals(t.id())).orElse(false);
     }
 
-    // lifesteal uses the final damage (after armor)
-    @SubscribeEvent
+    // Lifesteal heals from the final damage: after armor, and after every other mod's change to it. Other mods change
+    // the amount in this event too (JLME's protection enchantments after armor) or cancel the hit, so it's read last
+    // (LOWEST; a cancelled hit doesn't get here). Read at the normal priority, a hit another mod reduced healed as if
+    // it hadn't been, and a hit cancelled later healed too. Damage itself is only changed in LivingHurtEvent.
+    @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onDamage(LivingDamageEvent event) {
         if (event.getEntity().level().isClientSide) return;
         DamageSource source = event.getSource();
