@@ -3,7 +3,9 @@
   "pool": "unique",
   "applies_to": [
     "tarnishedrelics:chestplate",
-    "tarnishedrelics:shield"
+    "tarnishedrelics:shield",
+    "tarnishedrelics:helmet",
+    "tarnishedrelics:leggings"
   ],
   "weight": 10,
   "effects": [

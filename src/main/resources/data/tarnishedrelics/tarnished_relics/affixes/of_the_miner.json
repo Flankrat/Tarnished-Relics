@@ -4,7 +4,8 @@
   "pool": "normal",
   "applies_to": [
     "tarnishedrelics:pickaxe",
-    "tarnishedrelics:shovel"
+    "tarnishedrelics:shovel",
+    "tarnishedrelics:hoe"
   ],
   "weight": {
     "rare": 5,
