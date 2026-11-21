@@ -94,6 +94,9 @@ added to the tag.
 - **Tooltip Overhaul**: the rating line under the name shows the relic's tier ("Unique", in the tier's color) instead
   of the item's vanilla rarity, and the tooltip body then leaves out its own tier line.
 - **JEI**: the unidentified item is hidden (an empty one has nothing inside).
+- **Just a Lot More Enchantments (JLME)**: generated legendaries can roll its enchantments, at their raised levels,
+  but never the ones it keeps out of loot (they come from other recipes), and its item restrictions are kept.
+  Lifesteal heals from the damage left after its protection enchantments, which apply after armor.
 - Other mods can add their own rolls (sockets...) and a word in the name through the API (see For other mods).
 
 ## Name format
@@ -282,7 +285,7 @@ and a perfect roll stays perfect. Affixes removed from the datapack simply stop 
 | `damage_taken` | `value`, `damage` (optional damage type id/#tag or list) | ±% damage taken from anything (`-0.2` = 20% less) |
 | `on_hit_effect` | `effect`, `duration` (ticks), `amplifier`, `apply_to` (`target`/`self`) | Potion effect on a melee hit (or a hit by the thrown relic) |
 | `on_hit_fire` | `value` (seconds) | Sets the target on fire on a melee hit (or a hit by the thrown relic) |
-| `lifesteal` | `value` | Heals that fraction of melee damage dealt (after armor), or the thrown relic's |
+| `lifesteal` | `value` | Heals that fraction of melee damage dealt (the final damage: after armor and every other mod's change to it), or the thrown relic's |
 | `thorns` | `value` | Sends that fraction of damage taken back to the attacker (never answers thorns with thorns) |
 | `on_hurt_effect` | `effect`, `duration`, `amplifier`, `apply_to` (`attacker`/`self`) | Potion effect when you're hit |
 | `passive_effect` | `effect`, `amplifier` | Kept on a player while held/worn (checked once a second; a stronger potion isn't replaced) |

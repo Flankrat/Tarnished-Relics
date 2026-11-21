@@ -55,6 +55,7 @@ public class EffectHandlerGameTests {
         add(files, "fn_hurt", "{\"type\": \"function\", \"function\": \"tarnishedrelics:test/mark\", \"trigger\": \"hurt\"}");
         add(files, "thorns", "{\"type\": \"thorns\", \"value\": 0.5}");
         add(files, "fire", "{\"type\": \"on_hit_fire\", \"value\": 4}");
+        add(files, "steal", "{\"type\": \"lifesteal\", \"value\": 0.5}");
         TRData.load(files);
     }
 
@@ -151,6 +152,36 @@ public class EffectHandlerGameTests {
             helper.assertTrue(z.isOnFire(), "a melee hit didn't set the target on fire");
             helper.succeed();
         } finally {
+            TestUtil.remove(p);
+        }
+    }
+
+    // Lifesteal heals from the damage the hit really does: other mods change it in LivingDamageEvent too (JLME's
+    // Advanced Protection, after armor) or cancel the hit, so it's read last, after them. Read earlier, a hit another
+    // mod halved healed as if it hadn't been, and a cancelled one healed too.
+    @GameTest(template = "gametest/empty", batch = BATCH)
+    public static void lifestealUsesTheFinalDamage(GameTestHelper helper) {
+        ServerPlayer p = TestUtil.player(helper);
+        boolean[] cancel = {false};
+        java.util.function.Consumer<net.minecraftforge.event.entity.living.LivingDamageEvent> otherMod = e -> {
+            if (!(e.getEntity() instanceof Zombie)) return;
+            if (cancel[0]) e.setCanceled(true);
+            else e.setAmount(e.getAmount() / 2);   // like a protection enchantment applied after armor
+        };
+        MinecraftForge.EVENT_BUS.addListener(net.minecraftforge.eventbus.api.EventPriority.LOW, false,
+                net.minecraftforge.event.entity.living.LivingDamageEvent.class, otherMod);
+        try {
+            Zombie z = zombie(helper, 2);
+            p.setItemInHand(InteractionHand.MAIN_HAND, sword("steal"));
+            p.setHealth(10);
+            MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.entity.living.LivingDamageEvent(z, p.damageSources().playerAttack(p), 8));
+            helper.assertTrue(Math.abs(p.getHealth() - 12) < 1e-4, "50% lifesteal of a hit halved to 4 should heal 2, health is " + p.getHealth());
+            cancel[0] = true;
+            MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.entity.living.LivingDamageEvent(z, p.damageSources().playerAttack(p), 8));
+            helper.assertTrue(Math.abs(p.getHealth() - 12) < 1e-4, "a cancelled hit healed: health " + p.getHealth());
+            helper.succeed();
+        } finally {
+            MinecraftForge.EVENT_BUS.unregister(otherMod);
             TestUtil.remove(p);
         }
     }
