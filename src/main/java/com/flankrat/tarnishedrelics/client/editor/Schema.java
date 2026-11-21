@@ -207,7 +207,7 @@ public final class Schema {
                 f("apply_to", Kind.ENUM, Pick.NONE, "Who gets the effect", () -> str("target"), "target", "attacker", "self"),
                 f("blocks", Kind.TEXT, Pick.BLOCK, "Only for this block or #tag (optional)", () -> str("#minecraft:mineable/pickaxe")),
                 f("function", Kind.TEXT, Pick.NONE, "Datapack function id", () -> str("mypack:on_hit")),
-                f("trigger", Kind.ENUM, Pick.NONE, "When the function runs", () -> str("hit"), "hit", "kill", "hurt", "tick"),
+                f("trigger", Kind.ENUM, Pick.NONE, "When the function runs (tick: once a second while held/worn)", () -> str("hit"), "hit", "kill", "hurt", "tick"),
                 f("as", Kind.ENUM, Pick.NONE, "Who the function runs as", () -> str("wielder"), "wielder", "target"),
                 f("conditions", Kind.CONDITIONS, Pick.NONE, "Only when all of these are true", JsonObject::new),
                 f("tooltip", Kind.TEXT, Pick.NONE, "Own tooltip line instead of the built-in one (lang key or text; %1$s = value as a percent, %2$s = plain number)", () -> str("%1$s more of something")),

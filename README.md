@@ -197,7 +197,7 @@ already found, and a perfect roll stays perfect. Affixes removed from the datapa
 | `durability` | `value` | Chance each point of wear is ignored (negative: sometimes wears twice) |
 | `xp_bonus` | `value` | ±% XP from kills |
 | `looting` | `value` | Extra Looting levels |
-| `function` | `function`, `trigger` (`hit`, `kill`, `hurt`, `tick`), `as` (`wielder`/`target`) | Runs a datapack function: the catch-all for anything else |
+| `function` | `function`, `trigger` (`hit`, `kill`, `hurt`, `tick`), `as` (`wielder`/`target`) | Runs a datapack function: the catch-all for anything else. `tick` runs it once a second while held/worn, not every game tick |
 
 Every effect can also have:
 
