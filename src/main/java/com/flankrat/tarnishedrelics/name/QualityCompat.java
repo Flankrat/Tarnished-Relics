@@ -10,6 +10,7 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.ModList;
 import net.minecraftforge.fml.loading.FMLEnvironment;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Map;
@@ -26,12 +27,34 @@ public final class QualityCompat {
     private static Boolean loaded;
     private static boolean failed;   // stop trying after the first error
 
+    // Quality's classes and members, looked up once (the name is built every time an item's name is shown, and
+    // looking them up each time was most of its cost)
+    // (client and integrated server threads can both get here: getQualities is volatile and set last, and a
+    // quality's two methods are kept as one object, so a thread never sees half of a lookup)
+    private static Field clientQualities;              // ClientEvents.CLIENT_QUALITIES (client only)
+    private static Method getRandomQuality;            // QualityLoader.getRandomQuality(ItemStack, RandomSource)
+    private static volatile Method getQualities;       // QualityLoader.getQualities()
+    private static volatile QualityMethods qualityMethods;
+
+    /** A quality object's getAttributes() and getName(), for its class. */
+    private record QualityMethods(Class<?> type, Method attributes, Method name) {
+    }
+
     private QualityCompat() {
     }
 
     private static boolean loaded() {
         if (loaded == null) loaded = ModList.get() != null && ModList.get().isLoaded(MODID);
         return loaded && !failed;
+    }
+
+    // finds Quality's members the first time they're needed
+    private static void lookUp() throws ReflectiveOperationException {
+        if (getQualities != null) return;
+        Class<?> loader = Class.forName("com.kettle.qualityequipment.data.QualityLoader");
+        if (FMLEnvironment.dist == Dist.CLIENT) clientQualities = Class.forName("com.kettle.qualityequipment.events.ClientEvents").getField("CLIENT_QUALITIES");
+        getRandomQuality = loader.getMethod("getRandomQuality", ItemStack.class, RandomSource.class);
+        getQualities = loader.getMethod("getQualities");
     }
 
     /**
@@ -45,9 +68,10 @@ public final class QualityCompat {
         int id = stack.getTag().getInt("tool_quality");
         String name = null;
         try {
+            lookUp();
             // The client has the qualities the server sent; the server (and single player) has its own loaded list
-            if (FMLEnvironment.dist == Dist.CLIENT) name = nameFrom(Class.forName("com.kettle.qualityequipment.events.ClientEvents").getField("CLIENT_QUALITIES").get(null), id);
-            if (name == null) name = nameFrom(Class.forName("com.kettle.qualityequipment.data.QualityLoader").getMethod("getQualities").invoke(null), id);
+            if (clientQualities != null) name = nameFrom(clientQualities.get(null), id);
+            if (name == null) name = nameFrom(getQualities.invoke(null), id);
         } catch (ReflectiveOperationException | LinkageError | RuntimeException e) {
             failed = true;
             TarnishedRelics.LOGGER.warn("[Tarnished Relics] couldn't read Quality Equipment's qualities, names won't show the quality word", e);
@@ -70,9 +94,14 @@ public final class QualityCompat {
         if (!(map instanceof Map<?, ?> m)) return null;
         Object quality = m.get(id);
         if (quality == null) return null;
-        Object attributes = quality.getClass().getMethod("getAttributes").invoke(quality);
+        QualityMethods q = qualityMethods;
+        if (q == null || q.type != quality.getClass()) {
+            q = new QualityMethods(quality.getClass(), quality.getClass().getMethod("getAttributes"), quality.getClass().getMethod("getName"));
+            qualityMethods = q;
+        }
+        Object attributes = q.attributes.invoke(quality);
         if (attributes instanceof Collection<?> c && c.isEmpty()) return null;
-        return (String) quality.getClass().getMethod("getName").invoke(quality);
+        return (String) q.name.invoke(quality);
     }
 
     /**
@@ -82,8 +111,8 @@ public final class QualityCompat {
     public static void rollQuality(ItemStack stack, RandomSource random) {
         if (!loaded() || (stack.getTag() != null && stack.getTag().contains("tool_quality"))) return;
         try {
-            Method m = Class.forName("com.kettle.qualityequipment.data.QualityLoader").getMethod("getRandomQuality", ItemStack.class, RandomSource.class);
-            m.invoke(null, stack, random);
+            lookUp();
+            getRandomQuality.invoke(null, stack, random);
         } catch (ReflectiveOperationException | LinkageError e) {
             failed = true;
             TarnishedRelics.LOGGER.warn("[Tarnished Relics] couldn't give a relic its Quality Equipment quality", e);

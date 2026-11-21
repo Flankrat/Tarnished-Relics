@@ -4,9 +4,6 @@ import com.flankrat.tarnishedrelics.data.Effect;
 import com.flankrat.tarnishedrelics.data.IdOrTag;
 import com.flankrat.tarnishedrelics.relic.RelicTag;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.StringTag;
-import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.RandomSource;
@@ -24,7 +21,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraftforge.event.ItemAttributeModifierEvent;
-import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.living.LivingDamageEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingExperienceDropEvent;
@@ -38,15 +34,14 @@ import net.minecraftforge.registries.ForgeRegistries;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import javax.annotation.Nullable;
 
 /**
  * Makes relic affixes do things. An affix only works while its item is in the slot its category names (a sword in the
  * main hand, a helmet on the head...), or the slot an effect names with "slot". Numbers come from the current datapack and the roll stored on the item.
+ * Passive effects and "tick" functions are in {@link PassiveEffects}.
  */
 public final class RelicEffects {
 
@@ -244,69 +239,6 @@ public final class RelicEffects {
         if (event.getSource().getEntity() instanceof LivingEntity killer) runFunctions(killer, event.getEntity(), "kill");
     }
 
-    // passive effects and "tick" functions, once a second
-    private static final String PASSIVE_KEY = "TarnishedRelicsPassive";
-    private static final int PASSIVE_DURATION = 400;
-    private static final int PASSIVE_REFRESH_BELOW = 220;
-
-    @SubscribeEvent
-    public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
-        Player player = event.player;
-        if (event.phase != TickEvent.Phase.END || player.level().isClientSide || player.tickCount % 20 != 0) return;
-        // the strongest amplifier each effect is given at (two items with the same effect: the stronger one counts)
-        Map<MobEffect, Integer> wanted = new LinkedHashMap<>();
-        for (Active a : active(player, Effect.Type.PASSIVE_EFFECT)) {
-            if (!a.effect.conditions.test(player, null, player.getRandom())) continue;
-            MobEffect effect = ForgeRegistries.MOB_EFFECTS.getValue(a.effect.mobEffect);
-            if (effect != null) wanted.merge(effect, a.effect.amplifier, Math::max);
-        }
-        ListTag given = new ListTag();
-        wanted.forEach((effect, amp) -> {
-            given.add(StringTag.valueOf(String.valueOf(ForgeRegistries.MOB_EFFECTS.getKey(effect))));
-            keepUp(player, effect, amp);
-        });
-        // the long duration would outlast the item: take back effects we gave that nothing gives any more
-        ListTag before = player.getPersistentData().getList(PASSIVE_KEY, Tag.TAG_STRING);
-        for (int i = 0; i < before.size(); i++) {
-            if (given.contains(before.get(i))) continue;
-            MobEffect effect = ForgeRegistries.MOB_EFFECTS.getValue(ResourceLocation.tryParse(before.getString(i)));
-            if (effect != null && isOurs(player.getEffect(effect))) player.removeEffect(effect);
-        }
-        if (given.isEmpty()) player.getPersistentData().remove(PASSIVE_KEY);
-        else player.getPersistentData().put(PASSIVE_KEY, given);
-        runFunctions(player, null, "tick");
-    }
-
-    /**
-     * Gives a passive effect, or keeps it going. Topped up only when it runs low, not every second: night vision
-     * flickers under 10 seconds, and effects that act on a timer (regeneration heals when the duration is a multiple
-     * of 50) would act too often if the duration was reset all the time. Ambient and without particles so it
-     * doesn't clutter the screen.
-     * <ul>
-     *   <li>weaker (a potion or an item taken off): replaced right away. Before, anything at the same or a lower
-     *       amplifier blocked the change until it ran low, so a jump boost I potion kept jump boost II boots at I,
-     *       and swapping to stronger boots took up to 9 seconds;</li>
-     *   <li>stronger, but ours (a stronger item was taken off): replaced with this one right away, instead of
-     *       lasting its full 20 seconds;</li>
-     *   <li>stronger and not ours (a potion): left alone.</li>
-     * </ul>
-     */
-    private static void keepUp(Player player, MobEffect effect, int amp) {
-        MobEffectInstance now = player.getEffect(effect);
-        boolean give = now == null || now.getAmplifier() < amp || (now.getAmplifier() == amp && now.getDuration() < PASSIVE_REFRESH_BELOW);
-        if (now != null && now.getAmplifier() > amp && isOurs(now)) {
-            player.removeEffect(effect);
-            give = true;
-        }
-        // a weaker potion under it is kept by the game and comes back when this one ends
-        if (give) player.addEffect(new MobEffectInstance(effect, PASSIVE_DURATION, amp, true, false, true));
-    }
-
-    // our kind of instance (ambient, no particles, not longer than we give), so a potion is never taken away
-    private static boolean isOurs(@Nullable MobEffectInstance i) {
-        return i != null && i.isAmbient() && !i.isVisible() && i.getDuration() <= PASSIVE_DURATION;
-    }
-
     /** Durability: called from ItemStackMixin with the wear about to be applied. */
     public static int adjustWear(ItemStack stack, int amount, RandomSource random) {
         CompoundTag relic = RelicTag.get(stack);
@@ -333,7 +265,7 @@ public final class RelicEffects {
     }
 
     // "function" effects: run the datapack function as the wielder (or the target), at their position
-    private static void runFunctions(LivingEntity wielder, @Nullable LivingEntity target, String trigger) {
+    static void runFunctions(LivingEntity wielder, @Nullable LivingEntity target, String trigger) {
         MinecraftServer server = wielder.getServer();
         if (server == null) return;
         for (Active a : active(wielder, Effect.Type.FUNCTION)) {

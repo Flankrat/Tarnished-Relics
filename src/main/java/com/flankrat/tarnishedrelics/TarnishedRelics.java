@@ -7,6 +7,7 @@ import com.flankrat.tarnishedrelics.data.TRData;
 import com.flankrat.tarnishedrelics.data.TRDataLoader;
 import com.flankrat.tarnishedrelics.editor.EditorServer;
 import com.flankrat.tarnishedrelics.editor.ModpackPack;
+import com.flankrat.tarnishedrelics.effect.PassiveEffects;
 import com.flankrat.tarnishedrelics.effect.RelicEffects;
 import com.flankrat.tarnishedrelics.network.TRNetwork;
 import com.flankrat.tarnishedrelics.smith.Blacksmith;
@@ -53,6 +54,7 @@ public final class TarnishedRelics {
             if (e.getEntity() instanceof ServerPlayer player) EditorServer.forget(player);
         });
         forge.register(RelicEffects.class);
+        forge.register(PassiveEffects.class);
         forge.register(Blacksmith.class);
         forge.register(TRCommands.class);
         forge.register(TRNetwork.class);

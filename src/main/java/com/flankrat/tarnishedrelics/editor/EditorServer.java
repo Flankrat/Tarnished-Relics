@@ -10,7 +10,6 @@ import com.flankrat.tarnishedrelics.data.TRDataLoader;
 import com.flankrat.tarnishedrelics.network.TRNetwork;
 import com.flankrat.tarnishedrelics.relic.Roller;
 import com.flankrat.tarnishedrelics.relic.UnidentifiedItem;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -26,7 +25,6 @@ import net.minecraft.world.level.storage.LevelResource;
 import net.minecraftforge.network.PacketDistributor;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -182,7 +180,7 @@ public final class EditorServer {
         Path modpackPack = ModpackPack.folder().toAbsolutePath().normalize();
         boolean packFiles = changes.keySet().stream().anyMatch(id -> !id.equals(CONFIG_FILE));
         try {
-            if (packFiles && !modpack) writePackMeta(worldPack);
+            if (packFiles && !modpack) EditorFiles.writePackMeta(worldPack);
             if (packFiles && modpack) ModpackPack.ensure();
             for (Map.Entry<ResourceLocation, String> e : changes.entrySet()) {
                 ResourceLocation id = e.getKey();
@@ -192,13 +190,13 @@ public final class EditorServer {
                     continue;
                 }
                 if (e.getValue().isEmpty()) {
-                    remove(server, worldPack, modpackPack, id);
+                    EditorFiles.remove(server, worldPack, modpackPack, id);
                     continue;
                 }
                 String json = isTag(id) ? EditorTags.toWrite(server, id, JsonParser.parseString(e.getValue()).getAsJsonObject()) : e.getValue();
-                write(modpack ? modpackPack : worldPack, id, json);
+                EditorFiles.write(modpack ? modpackPack : worldPack, id, json);
                 // saved for the whole modpack: the world's own copy would hide it, so it goes
-                if (modpack) Files.deleteIfExists(file(worldPack, id));
+                if (modpack) Files.deleteIfExists(EditorFiles.file(worldPack, id));
             }
         } catch (IOException | RuntimeException ex) {
             TarnishedRelics.LOGGER.error("[Tarnished Relics] editor couldn't save", ex);
@@ -261,39 +259,5 @@ public final class EditorServer {
             if (!player.getInventory().add(out)) player.drop(out, false);
             player.sendSystemMessage(Component.translatable("tarnishedrelics.editor.given", name));
         }
-    }
-
-    // removed: delete the copy in use if it's one of ours, so the version underneath is used again
-    private static void remove(MinecraftServer server, Path worldPack, Path modpackPack, ResourceLocation id) throws IOException {
-        List<String> packs = isTag(id)
-                ? server.getResourceManager().getResourceStack(new ResourceLocation(id.getNamespace(), id.getPath() + ".json")).stream().map(Resource::sourcePackId).toList()
-                : TRDataLoader.origins().getOrDefault(id, List.of());
-        String top = packs.isEmpty() ? "" : packs.get(packs.size() - 1);
-        if (top.equals(PACK_ID)) Files.deleteIfExists(file(worldPack, id));
-        else if (top.equals(ModpackPack.ID)) Files.deleteIfExists(file(modpackPack, id));
-    }
-
-    private static void writePackMeta(Path pack) throws IOException {
-        Files.createDirectories(pack);
-        Path meta = pack.resolve("pack.mcmeta");
-        if (!Files.exists(meta)) {
-            Files.writeString(meta, "{\n  \"pack\": {\n    \"pack_format\": 15,\n    \"description\": \"Tarnished Relics changes made in the in-game editor\"\n  }\n}\n");
-        }
-    }
-
-    /** Where a file lives inside a pack: tags in data/ns/tags/, the rest in data/ns/tarnished_relics/. */
-    private static Path file(Path pack, ResourceLocation id) throws IOException {
-        Path data = pack.resolve("data").resolve(id.getNamespace());
-        Path file = isTag(id) ? data.resolve(id.getPath() + ".json") : data.resolve(TRDataLoader.FOLDER).resolve(id.getPath() + ".json");
-        if (!file.normalize().startsWith(pack)) throw new IOException("bad file id " + id);   // no ../ tricks
-        return file;
-    }
-
-    private static void write(Path pack, ResourceLocation id, String json) throws IOException {
-        Path file = file(pack, id);
-        Files.createDirectories(file.getParent());
-        // pretty-print so the saved pack is readable and diffs nicely
-        String pretty = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create().toJson(JsonParser.parseString(json));
-        Files.writeString(file, pretty + "\n", StandardCharsets.UTF_8);
     }
 }
