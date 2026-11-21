@@ -294,8 +294,13 @@ public final class RelicEffects {
     public static void onXp(LivingExperienceDropEvent event) {
         Player player = event.getAttackingPlayer();
         if (player == null) return;
+        // what made the kill, like looting: a thrown relic's own bonus (not the hands'), else what's held and worn
+        DamageSource killedBy = event.getEntity().getLastDamageSource();
+        // (only a hit by this player: the last damage can be someone else's, or lava after the player's hit)
+        List<Active> effects = killedBy != null && killedBy.getEntity() == player ? forHit(player, killedBy, Effect.Type.XP_BONUS)
+                : active(player, Effect.Type.XP_BONUS);
         double bonus = 0;
-        for (Active a : active(player, Effect.Type.XP_BONUS)) if (a.effect.conditions.test(player, event.getEntity(), player.getRandom())) bonus += a.value;
+        for (Active a : effects) if (a.effect.conditions.test(player, event.getEntity(), player.getRandom())) bonus += a.value;
         if (bonus != 0) event.setDroppedExperience((int) Math.round(event.getDroppedExperience() * Math.max(0, 1 + bonus)));
     }
 

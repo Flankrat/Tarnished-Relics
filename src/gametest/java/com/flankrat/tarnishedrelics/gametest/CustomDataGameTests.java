@@ -56,6 +56,8 @@ public class CustomDataGameTests {
                 "{\"pool\": \"trtest\", \"weight\": 0, \"effects\": [{\"type\": \"crit_chance\", \"value\": 1.0}]}"));
         files.put(new ResourceLocation("trtest", "affixes/harder_crits"), JsonParser.parseString(
                 "{\"pool\": \"trtest\", \"weight\": 0, \"effects\": [{\"type\": \"crit_damage\", \"value\": 0.5}]}"));
+        files.put(new ResourceLocation("trtest", "affixes/wise"), JsonParser.parseString(
+                "{\"pool\": \"trtest\", \"weight\": 0, \"effects\": [{\"type\": \"xp_bonus\", \"value\": 1.0}]}"));
         files.put(new ResourceLocation("trtest", "affixes/thrown_kit"), JsonParser.parseString(
                 "{\"pool\": \"trtest\", \"weight\": 0, \"effects\": [{\"type\": \"damage_vs\", \"value\": 0.5},"
                         + " {\"type\": \"on_hit_effect\", \"effect\": \"minecraft:slowness\", \"duration\": 100},"
@@ -269,6 +271,32 @@ public class CustomDataGameTests {
             MinecraftForge.EVENT_BUS.post(hurt);
             helper.assertTrue(Math.abs(hurt.getAmount() - 10) < 1e-4, "the held sword's bonus counted for the thrown trident: " + hurt.getAmount());
             helper.assertFalse(z.hasEffect(MobEffects.MOVEMENT_SLOWDOWN), "the held sword's on-hit effect counted for the thrown trident");
+            helper.succeed();
+        } finally {
+            TestUtil.remove(p);
+        }
+    }
+
+    // Bug (round 8): xp_bonus counted what the killer held and wore, not what made the kill (looting already did):
+    // a thrown relic trident's xp_bonus did nothing, and a held sword's counted for a trident kill
+    @GameTest(template = "gametest/empty", batch = BATCH)
+    public static void xpBonusFollowsTheThrownRelic(GameTestHelper helper) {
+        ServerPlayer p = TestUtil.player(helper);
+        try {
+            Zombie thrownKill = helper.spawn(EntityType.ZOMBIE, new BlockPos(3, 1, 3));
+            ThrownTrident wise = thrown(helper, p, TestUtil.relic(Items.TRIDENT, "rare", "trident", "mainhand", "trtest:wise", 0.5));
+            thrownKill.hurt(p.damageSources().trident(wise, p), 1);   // the hit that "killed" it
+            net.minecraftforge.event.entity.living.LivingExperienceDropEvent own = new net.minecraftforge.event.entity.living.LivingExperienceDropEvent(thrownKill, p, 10);
+            MinecraftForge.EVENT_BUS.post(own);
+
+            Zombie heldKill = helper.spawn(EntityType.ZOMBIE, new BlockPos(1, 1, 1));
+            p.setItemInHand(InteractionHand.MAIN_HAND, TestUtil.relic(Items.IRON_SWORD, "rare", "sword", "mainhand", "trtest:wise", 0.5));
+            ThrownTrident plain = thrown(helper, p, TestUtil.relic(Items.TRIDENT, "rare", "trident", "mainhand"));
+            heldKill.hurt(p.damageSources().trident(plain, p), 1);
+            net.minecraftforge.event.entity.living.LivingExperienceDropEvent held = new net.minecraftforge.event.entity.living.LivingExperienceDropEvent(heldKill, p, 10);
+            MinecraftForge.EVENT_BUS.post(held);
+            helper.assertTrue(own.getDroppedExperience() == 20, "the thrown trident's +100% xp: " + own.getDroppedExperience());
+            helper.assertTrue(held.getDroppedExperience() == 10, "the held sword's xp bonus counted for a trident kill: " + held.getDroppedExperience());
             helper.succeed();
         } finally {
             TestUtil.remove(p);
