@@ -2,6 +2,7 @@
   "required": true,
   "minVersion": "0.8",
   "package": "com.flankrat.tarnishedrelics.mixin",
+  "plugin": "com.flankrat.tarnishedrelics.TRMixinPlugin",
   "compatibilityLevel": "JAVA_17",
   "refmap": "tarnishedrelics.refmap.json",
   "mixins": [

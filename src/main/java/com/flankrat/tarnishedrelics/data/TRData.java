@@ -3,6 +3,7 @@ package com.flankrat.tarnishedrelics.data;
 import com.flankrat.tarnishedrelics.TarnishedRelics;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
@@ -43,7 +44,13 @@ public final class TRData {
 
     /** Parses a full set of files and makes it the current data. Ids are "<folder>/<name>" under tarnished_relics/. */
     public static TRData load(Map<ResourceLocation, JsonElement> files) {
+        return load(files, List.of());
+    }
+
+    /** Same, with errors from reading the files (ones that weren't valid JSON), reported first. */
+    public static TRData load(Map<ResourceLocation, JsonElement> files, List<String> readErrors) {
         TRData data = parseOnly(files);
+        data.errors.addAll(0, readErrors);
         data.logResult();
         current = data;
         return data;
@@ -88,6 +95,9 @@ public final class TRData {
                     case "levels" -> levels.add(o);
                     case "exclusions" -> {
                         List<String> entries = Conditions.strings(o.get("items"));
+                        // "*" is "every item that has a category": asking that while working out an item's category
+                        // looped (categoryOf -> exclusions -> categoryOf), so it's refused like in categories
+                        if (entries.contains("*")) throw new JsonParseException("\"*\" only works in rarities");
                         entries.forEach(ItemList::check);   // a bad entry is reported, not found when loot is rolled
                         exclusionEntries.addAll(entries);
                     }

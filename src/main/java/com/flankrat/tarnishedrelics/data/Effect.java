@@ -29,7 +29,7 @@ import javax.annotation.Nullable;
  *   passive_effect effect, amplifier (kept up while held/worn)
  *   crit_chance    value (extra chance for a player's hit to crit)
  *   crit_damage    value (+0.5 = crits hit 50% harder)
- *   break_speed    value (+0.3 = mine 30% faster), blocks (optional block id/#tag)
+ *   break_speed    value (+0.3 = mine 30% faster), blocks (optional block id/#tag); its "chance" condition is ignored
  *   durability     value (chance each point of wear is ignored; negative wears out faster)
  *   xp_bonus       value (+0.5 = 50% more XP from kills)
  *   looting        value (extra Looting levels)

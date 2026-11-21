@@ -4,9 +4,6 @@ import com.flankrat.tarnishedrelics.data.Effect;
 import com.flankrat.tarnishedrelics.data.IdOrTag;
 import com.flankrat.tarnishedrelics.relic.RelicTag;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.StringTag;
-import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.RandomSource;
@@ -24,7 +21,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraftforge.event.ItemAttributeModifierEvent;
-import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.living.LivingDamageEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingExperienceDropEvent;
@@ -45,6 +41,7 @@ import javax.annotation.Nullable;
 /**
  * Makes relic affixes do things. An affix only works while its item is in the slot its category names (a sword in the
  * main hand, a helmet on the head...), or the slot an effect names with "slot". Numbers come from the current datapack and the roll stored on the item.
+ * Passive effects and "tick" functions are in {@link PassiveEffects}.
  */
 public final class RelicEffects {
 
@@ -210,7 +207,9 @@ public final class RelicEffects {
         for (Active a : active(player, Effect.Type.BREAK_SPEED)) {
             IdOrTag<Block> blocks = a.effect.blocks;
             if (blocks != null && !blocks.matches(event.getState().getBlockHolder())) continue;
-            if (a.effect.conditions.test(player, null, player.getRandom())) bonus += a.value;
+            // the client works out the same speed to show the cracks, so no random "chance" here: a roll on each
+            // side gave the two different speeds, and the block cracked at one speed and broke at the other
+            if (a.effect.conditions.testIgnoringChance(player, null)) bonus += a.value;
         }
         if (bonus != 0) event.setNewSpeed((float) (event.getNewSpeed() * Math.max(0, 1 + bonus)));
     }
@@ -240,43 +239,6 @@ public final class RelicEffects {
         if (event.getSource().getEntity() instanceof LivingEntity killer) runFunctions(killer, event.getEntity(), "kill");
     }
 
-    // passive effects and "tick" functions, once a second
-    private static final String PASSIVE_KEY = "TarnishedRelicsPassive";
-    private static final int PASSIVE_DURATION = 400;
-    private static final int PASSIVE_REFRESH_BELOW = 220;
-
-    @SubscribeEvent
-    public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
-        Player player = event.player;
-        if (event.phase != TickEvent.Phase.END || player.level().isClientSide || player.tickCount % 20 != 0) return;
-        ListTag given = new ListTag();
-        for (Active a : active(player, Effect.Type.PASSIVE_EFFECT)) {
-            if (!a.effect.conditions.test(player, null, player.getRandom())) continue;
-            MobEffect effect = ForgeRegistries.MOB_EFFECTS.getValue(a.effect.mobEffect);
-            if (effect == null) continue;
-            given.add(StringTag.valueOf(a.effect.mobEffect.toString()));
-            // Topped up only when it runs low, not every second: night vision flickers under 10 seconds, and effects
-            // that act on a timer (regeneration heals when the duration is a multiple of 50) would act too often if
-            // the duration was reset all the time. Ambient and without particles so it doesn't clutter the screen.
-            MobEffectInstance now = player.getEffect(effect);
-            if (now == null || (now.getAmplifier() <= a.effect.amplifier && now.getDuration() < PASSIVE_REFRESH_BELOW)) {
-                player.addEffect(new MobEffectInstance(effect, PASSIVE_DURATION, a.effect.amplifier, true, false, true));
-            }
-        }
-        // the long duration would outlast the item: take back effects we gave that nothing gives any more
-        ListTag before = player.getPersistentData().getList(PASSIVE_KEY, Tag.TAG_STRING);
-        for (int i = 0; i < before.size(); i++) {
-            if (given.contains(before.get(i))) continue;
-            MobEffect effect = ForgeRegistries.MOB_EFFECTS.getValue(ResourceLocation.tryParse(before.getString(i)));
-            MobEffectInstance now = effect == null ? null : player.getEffect(effect);
-            // only our kind of instance (ambient, no particles, not longer than we give), so a potion isn't removed
-            if (now != null && now.isAmbient() && !now.isVisible() && now.getDuration() <= PASSIVE_DURATION) player.removeEffect(effect);
-        }
-        if (given.isEmpty()) player.getPersistentData().remove(PASSIVE_KEY);
-        else player.getPersistentData().put(PASSIVE_KEY, given);
-        runFunctions(player, null, "tick");
-    }
-
     /** Durability: called from ItemStackMixin with the wear about to be applied. */
     public static int adjustWear(ItemStack stack, int amount, RandomSource random) {
         CompoundTag relic = RelicTag.get(stack);
@@ -303,7 +265,7 @@ public final class RelicEffects {
     }
 
     // "function" effects: run the datapack function as the wielder (or the target), at their position
-    private static void runFunctions(LivingEntity wielder, @Nullable LivingEntity target, String trigger) {
+    static void runFunctions(LivingEntity wielder, @Nullable LivingEntity target, String trigger) {
         MinecraftServer server = wielder.getServer();
         if (server == null) return;
         for (Active a : active(wielder, Effect.Type.FUNCTION)) {
