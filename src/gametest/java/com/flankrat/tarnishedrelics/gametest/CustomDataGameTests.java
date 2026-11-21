@@ -198,6 +198,31 @@ public class CustomDataGameTests {
         }
     }
 
+    // Bug (round 8): only vanilla's player_attack / mob_attack counted as melee. Combat mods give melee hits their own
+    // damage types (by weapon: slashing, blunt...), and then a sword's on-hit effects, on-hit fire, lifesteal and hit
+    // functions did nothing. Melee hits are now the damage types in #tarnishedrelics:melee; minecraft:sting (a bee's
+    // attack, also a melee hit) stands in here for a mod's type.
+    @GameTest(template = "gametest/empty", batch = BATCH)
+    public static void meleeHitWithAnotherMeleeDamageType(GameTestHelper helper) {
+        ServerPlayer p = TestUtil.player(helper);
+        try {
+            Zombie z = helper.spawn(EntityType.ZOMBIE, new BlockPos(3, 1, 3));
+            z.setNoAi(true);
+            p.setItemInHand(InteractionHand.MAIN_HAND, TestUtil.relic(Items.IRON_SWORD, "rare", "sword", "mainhand", "trtest:thrown_kit", 0.5));
+            var sting = helper.getLevel().registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.DAMAGE_TYPE)
+                    .getHolderOrThrow(net.minecraft.world.damagesource.DamageTypes.STING);
+            net.minecraft.world.damagesource.DamageSource hit = new net.minecraft.world.damagesource.DamageSource(sting, p);
+            MinecraftForge.EVENT_BUS.post(new LivingHurtEvent(z, hit, 10));
+            helper.assertTrue(z.hasEffect(MobEffects.MOVEMENT_SLOWDOWN), "the sword's on-hit slowness didn't land on a melee hit of another type");
+            p.setHealth(10);
+            MinecraftForge.EVENT_BUS.post(new LivingDamageEvent(z, hit, 4));
+            helper.assertTrue(Math.abs(p.getHealth() - 12) < 1e-4, "the sword's lifesteal on that hit: health " + p.getHealth());
+            helper.succeed();
+        } finally {
+            TestUtil.remove(p);
+        }
+    }
+
     // ---- thrown relic weapons hit with their own effects ----
 
     private static ItemStack kitTrident() {

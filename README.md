@@ -173,9 +173,10 @@ enchantments 1-3 levels above max, 35% drawback, 30% hand-made instead, Master, 
 | `effects` | What it does (below) |
 
 **Values.** Any `value` can be a number (`3`), a range (`[2, 5]`), or per tier (`{ "magic": [1, 2], "rare": [2, 4],
-"default": 1 }`). Negative values are drawbacks. An item stores *where in the range* it rolled (0-1), not the final
-number, so changing the numbers in a datapack also changes items already found, and a perfect roll stays perfect.
-Affixes removed from the datapack simply stop working on old items.
+"default": 1 }`). A tier the list leaves out gets `default`, or 0 without one: an affix a rarity rolls with no value
+for it does nothing there, so `/tarnishedrelics errors` reports it. Negative values are drawbacks. An item stores
+*where in the range* it rolled (0-1), not the final number, so changing the numbers in a datapack also changes items
+already found, and a perfect roll stays perfect. Affixes removed from the datapack simply stop working on old items.
 
 #### Effect types
 
@@ -319,8 +320,15 @@ weaponsmith and toolsmith by default).
 
 A projectile that carries a relic weapon (a thrown trident, or a modded javelin or throwing knife built on the
 arrow class) hits with that weapon's effects, as if it were in its slot, plus your armor's. What's in your hands at
-that moment doesn't count for that hit. Arrows don't carry the bow, so a bow's bonus damage counts from your hand as
-usual, and on-hit effects stay melee (and thrown relic) only.
+that moment doesn't count for that hit. Arrows don't carry the bow, so a bow's bonus damage and crits count from your
+hand as usual, and on-hit effects stay melee (and thrown relic) only.
+
+### Melee hits
+
+On-hit effects, on-hit fire, lifesteal and `hit` functions work on melee hits: a hit dealt by the attacker itself with
+a damage type in `#tarnishedrelics:melee` (vanilla's player and mob attacks and a bee's sting, plus Spartan Weaponry's
+armor-piercing hits when it's installed). A combat mod that gives melee hits its own damage types (by weapon:
+slashing, blunt...) needs those added to the tag, or those effects don't work with it.
 
 ## Config (`config/tarnishedrelics-common.toml`)
 
@@ -356,9 +364,9 @@ included), the mod's tags and the config.
   `+ field` adds optional fields; `Raw JSON` edits the text directly. New files get a readable name from their file
   name.
 - **Tags**: the blacksmith professions (`villager_profession/blacksmiths`), the `undead` and `arthropods` mob lists the
-  affixes use, and any new tag in the `tarnishedrelics` namespace (name it like `entity_types/dragons`). Tags from every
-  pack add up, so the editor shows them all together; taking out something another pack adds saves the tag with
-  `"replace": true`.
+  affixes use, the `damage_type/melee` list of melee hits, and any new tag in the `tarnishedrelics` namespace (name it
+  like `entity_types/dragons`). Tags from every pack add up, so the editor shows them all together; taking out something
+  another pack adds saves the tag with `"replace": true`.
 - **Settings**: the config file's options. Saving writes `config/tarnishedrelics-common.toml` at once.
 - **Pickers** (`...` buttons) list what's actually loaded: items with icons, tags, whole mods, mobs, villager
   professions, blocks, attributes, potion effects, damage types, biomes, dimensions, categories and rarities,

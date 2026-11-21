@@ -1,14 +1,17 @@
 package com.flankrat.tarnishedrelics.effect;
 
+import com.flankrat.tarnishedrelics.TarnishedRelics;
 import com.flankrat.tarnishedrelics.data.Effect;
 import com.flankrat.tarnishedrelics.data.IdOrTag;
 import com.flankrat.tarnishedrelics.mixin.AbstractArrowAccessor;
 import com.flankrat.tarnishedrelics.relic.RelicTag;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.TagKey;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageType;
@@ -223,9 +226,17 @@ public final class RelicEffects {
         return (float) (1.5 * Math.max(0, 1 + damage));
     }
 
+    /**
+     * Damage types that are a melee hit ({@code #tarnishedrelics:melee}): vanilla's player and mob attacks and a bee's
+     * sting. Combat mods give melee hits their own damage types (by weapon: slashing, blunt...); with only vanilla's
+     * types counted, a sword's on-hit effects, on-hit fire, lifesteal and hit functions did nothing with those mods.
+     * Packs add such types to the tag.
+     */
+    public static final TagKey<DamageType> MELEE = TagKey.create(Registries.DAMAGE_TYPE, new ResourceLocation(TarnishedRelics.MODID, "melee"));
+
     static boolean isMelee(DamageSource source, LivingEntity attacker) {
         if (source.getDirectEntity() != attacker) return false;
-        return source.is(DamageTypes.PLAYER_ATTACK) || source.is(DamageTypes.MOB_ATTACK) || source.is(DamageTypes.MOB_ATTACK_NO_AGGRO);
+        return source.is(MELEE);
     }
 
     private static boolean matchesDamage(IdOrTag<DamageType> t, DamageSource source) {
