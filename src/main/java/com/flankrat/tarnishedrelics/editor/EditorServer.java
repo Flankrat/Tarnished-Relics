@@ -129,22 +129,51 @@ public final class EditorServer {
         Map<ResourceLocation, String> changes = PENDING.remove(player.getUUID());
         // always answer, or the client's editor waits on "Saving..." forever
         if (!allowed(player)) {
-            TRNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
-                    new TRNetwork.EditorResult(false, List.of(Component.translatable("tarnishedrelics.editor.no_permission").getString())));
+            reply(player, false, List.of(Component.translatable("tarnishedrelics.editor.no_permission").getString()));
             return;
         }
         if (changes != null && changes.containsKey(TOO_BIG)) {
-            TRNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
-                    new TRNetwork.EditorResult(false, List.of("Too much data in one save (over " + MAX_PENDING_CHARS / 1024 / 1024 + " MB of text)")));
+            reply(player, false, List.of("Too much data in one save (over " + MAX_PENDING_CHARS / 1024 / 1024 + " MB of text)"));
             return;
         }
         if (changes == null || changes.isEmpty()) {
-            TRNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new TRNetwork.EditorResult(true, TRData.get().errors()));
+            reply(player, true, TRData.get().errors());
             return;
         }
+        // 1. check: nothing is written if a changed file has an error
+        List<String> errors = check(changes);
+        if (!errors.isEmpty()) {
+            reply(player, false, errors);
+            return;
+        }
+        // 2. write: config values to the toml, files to the chosen pack
         MinecraftServer server = player.server;
+        try {
+            write(server, changes, modpack);
+        } catch (IOException | RuntimeException ex) {
+            TarnishedRelics.LOGGER.error("[Tarnished Relics] editor couldn't save", ex);
+            reply(player, false, List.of("Couldn't write the datapack: " + ex.getMessage()));
+            return;
+        }
+        TarnishedRelics.LOGGER.info("[Tarnished Relics] {} saved {} file(s) in the editor ({})", player.getGameProfile().getName(), changes.size(),
+                modpack ? "whole modpack: " + ModpackPack.folder().toAbsolutePath().normalize() : "this world");
 
-        // 1. check: current files with the changes applied must parse without errors in the changed files
+        Runnable done = () -> {
+            player.sendSystemMessage(Component.translatable(modpack ? "tarnishedrelics.editor.saved_chat_modpack" : "tarnishedrelics.editor.saved_chat", changes.size()));
+            reply(player, true, TRData.get().errors());
+            open(player, true);
+        };
+        // 3. reload (only the config changed: nothing to reload), then refresh the editor
+        if (changes.keySet().stream().anyMatch(id -> !id.equals(CONFIG_FILE))) reloadThen(player, done);
+        else done.run();
+    }
+
+    private static void reply(ServerPlayer player, boolean saved, List<String> errors) {
+        TRNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new TRNetwork.EditorResult(saved, errors));
+    }
+
+    /** The errors in the changed files: the current files with the changes applied are parsed together. */
+    static List<String> check(Map<ResourceLocation, String> changes) {
         List<String> errors = new ArrayList<>();
         Map<ResourceLocation, JsonElement> merged = new LinkedHashMap<>();
         TRData.get().rawJson().forEach((id, s) -> merged.put(id, JsonParser.parseString(s)));
@@ -170,54 +199,37 @@ public final class EditorServer {
                 if (changes.keySet().stream().anyMatch(id -> err.startsWith(id + ":"))) errors.add(err);
             }
         }
-        if (!errors.isEmpty()) {
-            TRNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new TRNetwork.EditorResult(false, errors));
-            return;
-        }
+        return errors;
+    }
 
-        // 2. write: config values to the toml, files to the chosen pack
+    // writes the checked changes: the config to the toml, the rest to the world's or the modpack's pack
+    private static void write(MinecraftServer server, Map<ResourceLocation, String> changes, boolean modpack) throws IOException {
         Path worldPack = server.getWorldPath(LevelResource.DATAPACK_DIR).resolve(PACK).toAbsolutePath().normalize();
         Path modpackPack = ModpackPack.folder().toAbsolutePath().normalize();
         boolean packFiles = changes.keySet().stream().anyMatch(id -> !id.equals(CONFIG_FILE));
-        try {
-            if (packFiles && !modpack) EditorFiles.writePackMeta(worldPack);
-            if (packFiles && modpack) ModpackPack.ensure();
-            for (Map.Entry<ResourceLocation, String> e : changes.entrySet()) {
-                ResourceLocation id = e.getKey();
-                if (id.equals(CONFIG_FILE)) {
-                    ConfigFile.write(JsonParser.parseString(e.getValue()).getAsJsonObject());
-                    TRNetwork.sendSettings();   // players show what the server set, not their own config
-                    continue;
-                }
-                if (e.getValue().isEmpty()) {
-                    EditorFiles.remove(server, worldPack, modpackPack, id);
-                    continue;
-                }
-                String json = isTag(id) ? EditorTags.toWrite(server, id, JsonParser.parseString(e.getValue()).getAsJsonObject()) : e.getValue();
-                EditorFiles.write(modpack ? modpackPack : worldPack, id, json);
-                // saved for the whole modpack: the world's own copy would hide it, so it goes
-                if (modpack) Files.deleteIfExists(EditorFiles.file(worldPack, id));
+        if (packFiles && !modpack) EditorFiles.writePackMeta(worldPack);
+        if (packFiles && modpack) ModpackPack.ensure();
+        for (Map.Entry<ResourceLocation, String> e : changes.entrySet()) {
+            ResourceLocation id = e.getKey();
+            if (id.equals(CONFIG_FILE)) {
+                ConfigFile.write(JsonParser.parseString(e.getValue()).getAsJsonObject());
+                TRNetwork.sendSettings();   // players show what the server set, not their own config
+                continue;
             }
-        } catch (IOException | RuntimeException ex) {
-            TarnishedRelics.LOGGER.error("[Tarnished Relics] editor couldn't save", ex);
-            TRNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
-                    new TRNetwork.EditorResult(false, List.of("Couldn't write the datapack: " + ex.getMessage())));
-            return;
+            if (e.getValue().isEmpty()) {
+                EditorFiles.remove(server, worldPack, modpackPack, id);
+                continue;
+            }
+            String json = isTag(id) ? EditorTags.toWrite(server, id, JsonParser.parseString(e.getValue()).getAsJsonObject()) : e.getValue();
+            EditorFiles.write(modpack ? modpackPack : worldPack, id, json);
+            // saved for the whole modpack: the world's own copy would hide it, so it goes
+            if (modpack) Files.deleteIfExists(EditorFiles.file(worldPack, id));
         }
-        TarnishedRelics.LOGGER.info("[Tarnished Relics] {} saved {} file(s) in the editor ({})", player.getGameProfile().getName(), changes.size(),
-                modpack ? "whole modpack: " + modpackPack : "this world");
+    }
 
-        Runnable done = () -> {
-            player.sendSystemMessage(Component.translatable(modpack ? "tarnishedrelics.editor.saved_chat_modpack" : "tarnishedrelics.editor.saved_chat", changes.size()));
-            TRNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new TRNetwork.EditorResult(true, TRData.get().errors()));
-            open(player, true);
-        };
-        if (!packFiles) {
-            // only the config changed: nothing to reload
-            done.run();
-            return;
-        }
-        // 3. turn the world pack on (at the top), make sure the modpack pack is on, reload, then refresh the editor
+    // turns the world pack on (at the top), makes sure the modpack pack is on, reloads, then runs done
+    private static void reloadThen(ServerPlayer player, Runnable done) {
+        MinecraftServer server = player.server;
         PackRepository repo = server.getPackRepository();
         repo.reload();
         List<String> selected = new ArrayList<>(repo.getSelectedIds());
@@ -229,8 +241,7 @@ public final class EditorServer {
         server.reloadResources(selected).thenRunAsync(done, server).exceptionally(ex -> {
             // a failed reload (another pack broke it): the files are written, but say so instead of waiting forever
             TarnishedRelics.LOGGER.error("[Tarnished Relics] reload after the editor's save failed", ex);
-            server.execute(() -> TRNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
-                    new TRNetwork.EditorResult(false, List.of("Saved, but the reload failed: " + ex.getMessage()))));
+            server.execute(() -> reply(player, false, List.of("Saved, but the reload failed: " + ex.getMessage())));
             return null;
         });
     }

@@ -129,45 +129,13 @@ public final class TRData {
                 if (!legendaries.containsKey(c)) errors.add(fileId("legendaries", l.id()) + ": no legendary " + c + " (companions)");
             }
         }
-        checkCategoryNames();
+        CategoryNames.check(this, exclusionFiles, disabledCategories, errors);
         exclusions = ItemList.of(exclusionEntries);
         // lists look up categories/levels in this data set, not whatever is current
         exclusions.owner(this);
         categories.values().forEach(c -> c.items().owner(this));
         rarities.values().forEach(r -> r.items().owner(this));
         legendaries.values().forEach(l -> l.items().owner(this));
-    }
-
-    /**
-     * Reports category ids that name no category: a legendary's "category", an affix's "applies_to" and "@category"
-     * item entries. A typo there used to fail silently (the legendary never dropped, the affix never rolled, the
-     * entry matched nothing). A category switched off with "disabled" isn't an error: that's on purpose.
-     */
-    private void checkCategoryNames() {
-        for (Legendary l : legendaries.values()) {
-            if (l.category() != null) checkCategory(fileId("legendaries", l.id()), l.category().toString(), "category");
-            checkAtEntries(fileId("legendaries", l.id()), l.items());
-        }
-        for (Affix a : affixes.values()) {
-            if (a.pool().equals(Legendary.POOL)) continue;   // a legendary's own effects
-            for (String c : a.appliesTo()) if (!c.equals("*")) checkCategory(fileId("affixes", a.id()), c, "applies_to");
-        }
-        for (Category c : categories.values()) checkAtEntries(fileId("categories", c.id()), c.items());
-        for (Rarity r : rarities.values()) checkAtEntries(fileId("rarities", r.id()), r.items());
-        exclusionFiles.forEach((file, entries) -> {
-            for (String e : entries) if (e.startsWith("@")) checkCategory(file.toString(), e.substring(1), "items");
-        });
-    }
-
-    private void checkAtEntries(String file, ItemList list) {
-        for (String e : list.entries()) if (e.startsWith("@")) checkCategory(file, e.substring(1), "items");
-        for (String e : list.excluded()) if (e.startsWith("@")) checkCategory(file, e.substring(1), "exclude");
-    }
-
-    private void checkCategory(String file, String category, String field) {
-        ResourceLocation id = ResourceLocation.tryParse(category);
-        if (id == null || categories.containsKey(id) || disabledCategories.contains(id)) return;
-        errors.add(file + ": no category " + id + " (" + field + ")");
     }
 
     private void logResult() {
@@ -198,7 +166,7 @@ public final class TRData {
         return Collections.unmodifiableMap(legendaries);
     }
 
-    private static String fileId(String folder, ResourceLocation id) {
+    static String fileId(String folder, ResourceLocation id) {
         return id.getNamespace() + ":" + folder + "/" + id.getPath();
     }
 
