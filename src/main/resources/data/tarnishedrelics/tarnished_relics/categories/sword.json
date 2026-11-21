@@ -6,5 +6,8 @@
     "#minecraft:swords"
   ],
   "slot": "mainhand",
-  "silhouette": "sword"
+  "silhouette": "sword",
+  "smiths": [
+    "#tarnishedrelics:weaponsmiths"
+  ]
 }

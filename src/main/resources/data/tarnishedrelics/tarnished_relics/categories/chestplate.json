@@ -6,5 +6,8 @@
     "#forge:armors/chestplates"
   ],
   "slot": "chest",
-  "silhouette": "chestplate"
+  "silhouette": "chestplate",
+  "smiths": [
+    "#tarnishedrelics:armorers"
+  ]
 }

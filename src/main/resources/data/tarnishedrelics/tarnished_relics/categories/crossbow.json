@@ -7,5 +7,8 @@
     "#forge:tools/crossbows"
   ],
   "slot": "mainhand",
-  "silhouette": "crossbow"
+  "silhouette": "crossbow",
+  "smiths": [
+    "#tarnishedrelics:weaponsmiths"
+  ]
 }

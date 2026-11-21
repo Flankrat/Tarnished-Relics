@@ -6,5 +6,8 @@
     "#forge:armors/leggings"
   ],
   "slot": "legs",
-  "silhouette": "leggings"
+  "silhouette": "leggings",
+  "smiths": [
+    "#tarnishedrelics:armorers"
+  ]
 }

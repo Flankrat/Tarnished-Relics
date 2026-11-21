@@ -22,6 +22,8 @@ import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.gametest.GameTestHolder;
 import net.minecraftforge.gametest.PrefixGameTestTemplate;
 
+import java.util.List;
+
 import static com.flankrat.tarnishedrelics.gametest.TestUtil.tr;
 
 /**
@@ -41,7 +43,11 @@ public class BlacksmithGameTests {
     }
 
     private static ItemStack relic(String rarity) {
-        return Roller.generate(RandomSource.create(rarity.hashCode()), TRData.get().rarities().get(tr(rarity)), TRData.get().categories().get(tr("sword")));
+        return relic(rarity, "sword");
+    }
+
+    private static ItemStack relic(String rarity, String category) {
+        return Roller.generate(RandomSource.create(rarity.hashCode()), TRData.get().rarities().get(tr(rarity)), TRData.get().categories().get(tr(category)));
     }
 
     private static ServerPlayer holding(GameTestHelper helper, ItemStack relic, int emeralds) {
@@ -66,7 +72,7 @@ public class BlacksmithGameTests {
 
     @GameTest(template = "gametest/empty")
     public static void priceThenConfirmIdentifies(GameTestHelper helper) {
-        Villager v = smith(helper, VillagerProfession.ARMORER, 2, 1);
+        Villager v = smith(helper, VillagerProfession.WEAPONSMITH, 2, 1);
         ItemStack relic = relic("magic");
         int cost = relic.getTag().getInt("Cost"), xp = relic.getTag().getInt("Xp");
         ServerPlayer p = holding(helper, relic, 20);
@@ -100,7 +106,7 @@ public class BlacksmithGameTests {
 
     @GameTest(template = "gametest/empty")
     public static void notEnoughEmeraldsKeepsTheRelic(GameTestHelper helper) {
-        Villager v = smith(helper, VillagerProfession.TOOLSMITH, 2, 1);
+        Villager v = smith(helper, VillagerProfession.WEAPONSMITH, 2, 1);
         ServerPlayer p = holding(helper, relic("magic"), 1);   // magic costs 2-4
         try {
             use(p, v);
@@ -129,8 +135,8 @@ public class BlacksmithGameTests {
     // the price named by one smith isn't accepted by another
     @GameTest(template = "gametest/empty")
     public static void confirmIsPerVillager(GameTestHelper helper) {
-        Villager a = smith(helper, VillagerProfession.ARMORER, 2, 1);
-        Villager b = smith(helper, VillagerProfession.ARMORER, 2, 3);
+        Villager a = smith(helper, VillagerProfession.WEAPONSMITH, 2, 1);
+        Villager b = smith(helper, VillagerProfession.WEAPONSMITH, 2, 3);
         ServerPlayer p = holding(helper, relic("magic"), 64);
         try {
             use(p, a);
@@ -145,7 +151,7 @@ public class BlacksmithGameTests {
     // after the confirm window the next use names the price again instead of paying
     @GameTest(template = "gametest/empty", timeoutTicks = 400)
     public static void confirmWindowExpires(GameTestHelper helper) {
-        Villager v = smith(helper, VillagerProfession.ARMORER, 2, 1);
+        Villager v = smith(helper, VillagerProfession.WEAPONSMITH, 2, 1);
         ServerPlayer p = holding(helper, relic("magic"), 64);
         use(p, v);
         helper.runAfterDelay(TRConfig.CONFIRM_SECONDS.get() * 20L + 5, () -> {
@@ -159,5 +165,71 @@ public class BlacksmithGameTests {
                 TestUtil.remove(p);
             }
         });
+    }
+
+    // ---- which smith identifies what ----
+
+    /** True if this kind of villager identifies a magic relic of this category (price, then pay). */
+    private static boolean identifies(GameTestHelper helper, VillagerProfession profession, ItemStack relic, int x) {
+        Villager v = smith(helper, profession, 5, x);
+        ServerPlayer p = holding(helper, relic, 64);
+        try {
+            use(p, v);
+            use(p, v);
+            return !stillUnidentified(p);
+        } finally {
+            TestUtil.remove(p);
+            v.discard();
+        }
+    }
+
+    private static void only(GameTestHelper helper, String category, VillagerProfession... yes) {
+        List<VillagerProfession> all = List.of(VillagerProfession.TOOLSMITH, VillagerProfession.ARMORER, VillagerProfession.WEAPONSMITH,
+                VillagerProfession.FARMER);
+        int x = 0;
+        for (VillagerProfession prof : all) {
+            boolean expected = List.of(yes).contains(prof);
+            // rare: magic only makes level 1-2 items, and a trident is level 3
+            ItemStack relic = relic("rare", category);
+            helper.assertTrue(relic.is(TRItems.UNIDENTIFIED.get()) && relic.getTag().getString("Category").equals("tarnishedrelics:" + category),
+                    "couldn't make a " + category + " relic: " + relic.getTag());
+            boolean did = identifies(helper, prof, relic, x++ % 5);
+            helper.assertTrue(did == expected, category + " relic at a " + prof + ": " + (did ? "identified" : "refused") + ", expected " + (expected ? "identified" : "refused"));
+        }
+    }
+
+    // tools need a toolsmith, armor an armorer, weapons a weaponsmith; an axe is both a tool and a weapon
+    @GameTest(template = "gametest/empty")
+    public static void toolsNeedAToolsmith(GameTestHelper helper) {
+        for (String c : new String[]{"pickaxe", "shovel", "hoe"}) only(helper, c, VillagerProfession.TOOLSMITH);
+        helper.succeed();
+    }
+
+    @GameTest(template = "gametest/empty")
+    public static void armorNeedsAnArmorer(GameTestHelper helper) {
+        for (String c : new String[]{"helmet", "chestplate", "leggings", "boots", "shield"}) only(helper, c, VillagerProfession.ARMORER);
+        helper.succeed();
+    }
+
+    @GameTest(template = "gametest/empty")
+    public static void weaponsNeedAWeaponsmith(GameTestHelper helper) {
+        for (String c : new String[]{"sword", "trident", "bow", "crossbow"}) only(helper, c, VillagerProfession.WEAPONSMITH);
+        helper.succeed();
+    }
+
+    @GameTest(template = "gametest/empty")
+    public static void axesTakeEitherSmith(GameTestHelper helper) {
+        only(helper, "axe", VillagerProfession.TOOLSMITH, VillagerProfession.WEAPONSMITH);
+        helper.succeed();
+    }
+
+    // a relic whose category isn't there any more (removed from the datapack) still goes to any blacksmith
+    @GameTest(template = "gametest/empty")
+    public static void unknownCategoryTakesAnyBlacksmith(GameTestHelper helper) {
+        ItemStack relic = relic("magic", "pickaxe");
+        relic.getTag().putString("Category", "somepack:gone");
+        helper.assertTrue(identifies(helper, VillagerProfession.ARMORER, relic.copy(), 0), "an armorer refused a relic of a removed category");
+        helper.assertFalse(identifies(helper, VillagerProfession.FARMER, relic.copy(), 1), "a farmer identified a relic");
+        helper.succeed();
     }
 }

@@ -6,5 +6,8 @@
     "#minecraft:shovels"
   ],
   "slot": "mainhand",
-  "silhouette": "shovel"
+  "silhouette": "shovel",
+  "smiths": [
+    "#tarnishedrelics:toolsmiths"
+  ]
 }

@@ -113,7 +113,8 @@ final class EditorSections {
     }
 
     private static String tagHelp(String path) {
-        if (path.equals("villager_profession/blacksmiths")) return "Villager professions that can identify relics (add a mod's smith here).";
+        if (path.equals("villager_profession/blacksmiths")) return "Villager professions that identify relics of categories without \"smiths\" (add a mod's smith here).";
+        if (path.startsWith("villager_profession/")) return "Villager professions that identify the categories whose \"smiths\" name #tarnishedrelics:" + path.substring(20) + " (add a mod's smith here).";
         if (path.startsWith("entity_types/")) return "Mobs in this tag; affixes target it as #tarnishedrelics:" + path.substring(13) + ".";
         return "Tags from every pack add up; this list is all of them together. Taking out one another pack adds makes it replace the tag.";
     }

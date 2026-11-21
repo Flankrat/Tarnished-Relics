@@ -13,12 +13,19 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.monster.Zombie;
+import net.minecraft.world.entity.projectile.Arrow;
+import net.minecraft.world.entity.projectile.ThrownTrident;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraftforge.common.ForgeHooks;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.event.entity.living.LivingDamageEvent;
+import net.minecraftforge.event.entity.living.LivingHurtEvent;
+import net.minecraftforge.event.entity.living.LootingLevelEvent;
 import net.minecraftforge.event.entity.player.CriticalHitEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.gametest.GameTestHolder;
@@ -49,6 +56,10 @@ public class CustomDataGameTests {
                 "{\"pool\": \"trtest\", \"weight\": 0, \"effects\": [{\"type\": \"crit_chance\", \"value\": 1.0}]}"));
         files.put(new ResourceLocation("trtest", "affixes/harder_crits"), JsonParser.parseString(
                 "{\"pool\": \"trtest\", \"weight\": 0, \"effects\": [{\"type\": \"crit_damage\", \"value\": 0.5}]}"));
+        files.put(new ResourceLocation("trtest", "affixes/thrown_kit"), JsonParser.parseString(
+                "{\"pool\": \"trtest\", \"weight\": 0, \"effects\": [{\"type\": \"damage_vs\", \"value\": 0.5},"
+                        + " {\"type\": \"on_hit_effect\", \"effect\": \"minecraft:slowness\", \"duration\": 100},"
+                        + " {\"type\": \"lifesteal\", \"value\": 0.5}, {\"type\": \"looting\", \"value\": 2}]}"));
         TRData.load(files);
     }
 
@@ -111,6 +122,77 @@ public class CustomDataGameTests {
             float vanilla = critMultiplier(p, z, true);
             helper.assertTrue(Math.abs(vanilla - 2.25F) < 1e-4, "vanilla crit with +50% crit damage: " + vanilla);
             helper.assertTrue(critMultiplier(p, z, false) == 1.0F, "crit_damage made a plain hit a crit");
+            helper.succeed();
+        } finally {
+            TestUtil.remove(p);
+        }
+    }
+
+    // ---- thrown relic weapons hit with their own effects ----
+
+    private static ItemStack kitTrident() {
+        return TestUtil.relic(Items.TRIDENT, "rare", "trident", "mainhand", "trtest:thrown_kit", 0.5);
+    }
+
+    private static ThrownTrident thrown(GameTestHelper helper, ServerPlayer p, ItemStack trident) {
+        return new ThrownTrident(helper.getLevel(), p, trident);
+    }
+
+    @GameTest(template = "gametest/empty", batch = BATCH)
+    public static void thrownTridentHitsWithItsEffects(GameTestHelper helper) {
+        ServerPlayer p = TestUtil.player(helper);
+        try {
+            Zombie z = helper.spawn(EntityType.ZOMBIE, new BlockPos(3, 1, 3));
+            z.setNoAi(true);
+            ThrownTrident t = thrown(helper, p, kitTrident());   // the hands are empty: it was thrown
+            LivingHurtEvent hurt = new LivingHurtEvent(z, p.damageSources().trident(t, p), 10);
+            MinecraftForge.EVENT_BUS.post(hurt);
+            helper.assertTrue(Math.abs(hurt.getAmount() - 15) < 1e-4, "thrown trident's +50% damage: " + hurt.getAmount());
+            helper.assertTrue(z.hasEffect(MobEffects.MOVEMENT_SLOWDOWN), "thrown trident's on-hit slowness didn't land");
+            p.setHealth(10);
+            MinecraftForge.EVENT_BUS.post(new LivingDamageEvent(z, p.damageSources().trident(t, p), 4));
+            helper.assertTrue(Math.abs(p.getHealth() - 12) < 1e-4, "thrown trident's 50% lifesteal: health " + p.getHealth());
+            LootingLevelEvent loot = new LootingLevelEvent(z, p.damageSources().trident(t, p), 0);
+            MinecraftForge.EVENT_BUS.post(loot);
+            helper.assertTrue(loot.getLootingLevel() == 2, "thrown trident's +2 looting: " + loot.getLootingLevel());
+            helper.succeed();
+        } finally {
+            TestUtil.remove(p);
+        }
+    }
+
+    // what's in the hands when a relic is thrown didn't make that hit: its effects don't count
+    @GameTest(template = "gametest/empty", batch = BATCH)
+    public static void handsDontCountForAThrownRelic(GameTestHelper helper) {
+        ServerPlayer p = TestUtil.player(helper);
+        try {
+            Zombie z = helper.spawn(EntityType.ZOMBIE, new BlockPos(3, 1, 3));
+            z.setNoAi(true);
+            p.setItemInHand(InteractionHand.MAIN_HAND, TestUtil.relic(Items.IRON_SWORD, "rare", "sword", "mainhand", "trtest:thrown_kit", 0.5));
+            ThrownTrident t = thrown(helper, p, TestUtil.relic(Items.TRIDENT, "rare", "trident", "mainhand"));   // a relic without affixes
+            LivingHurtEvent hurt = new LivingHurtEvent(z, p.damageSources().trident(t, p), 10);
+            MinecraftForge.EVENT_BUS.post(hurt);
+            helper.assertTrue(Math.abs(hurt.getAmount() - 10) < 1e-4, "the held sword's bonus counted for the thrown trident: " + hurt.getAmount());
+            helper.assertFalse(z.hasEffect(MobEffects.MOVEMENT_SLOWDOWN), "the held sword's on-hit effect counted for the thrown trident");
+            helper.succeed();
+        } finally {
+            TestUtil.remove(p);
+        }
+    }
+
+    // arrows stay as they were: the bow's damage bonus counts (it's in the hand), its on-hit effects don't (not melee)
+    @GameTest(template = "gametest/empty", batch = BATCH)
+    public static void arrowsUnchanged(GameTestHelper helper) {
+        ServerPlayer p = TestUtil.player(helper);
+        try {
+            Zombie z = helper.spawn(EntityType.ZOMBIE, new BlockPos(3, 1, 3));
+            z.setNoAi(true);
+            p.setItemInHand(InteractionHand.MAIN_HAND, TestUtil.relic(Items.BOW, "rare", "bow", "mainhand", "trtest:thrown_kit", 0.5));
+            Arrow arrow = new Arrow(helper.getLevel(), p);
+            LivingHurtEvent hurt = new LivingHurtEvent(z, p.damageSources().arrow(arrow, p), 10);
+            MinecraftForge.EVENT_BUS.post(hurt);
+            helper.assertTrue(Math.abs(hurt.getAmount() - 15) < 1e-4, "the bow's +50% damage on its arrow: " + hurt.getAmount());
+            helper.assertFalse(z.hasEffect(MobEffects.MOVEMENT_SLOWDOWN), "an arrow set off the bow's on-hit effect");
             helper.succeed();
         } finally {
             TestUtil.remove(p);

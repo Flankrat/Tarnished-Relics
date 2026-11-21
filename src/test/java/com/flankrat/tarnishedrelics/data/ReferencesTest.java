@@ -71,4 +71,18 @@ class ReferencesTest {
     void exclusionsWithAnUnknownCategory() {
         reported(with("exclusions/typo", "{\"items\": [\"@tarnishedrelics:swrod\"]}"), "exclusions/typo");
     }
+
+    // a category's "smiths": a profession id that doesn't exist would make its relics impossible to identify
+    @Test
+    void smithThatIsntAProfession() {
+        TRData data = with("categories/odd", "{\"slot\": \"mainhand\", \"items\": [\"minecraft:stick\"], \"smiths\": [\"minecraft:weponsmith\"]}");
+        assertTrue(data.errors().stream().anyMatch(e -> e.startsWith("testpack:categories/odd:") && e.contains("minecraft:weponsmith")), "errors: " + data.errors());
+    }
+
+    // professions and profession tags (from any pack, checked when tags are known) are fine
+    @Test
+    void smithsThatAreFine() {
+        TRData data = with("categories/odd", "{\"slot\": \"mainhand\", \"items\": [\"minecraft:stick\"], \"smiths\": [\"minecraft:toolsmith\", \"#somepack:smiths\"]}");
+        assertEquals(java.util.List.of(), data.errors());
+    }
 }

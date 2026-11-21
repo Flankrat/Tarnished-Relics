@@ -67,6 +67,8 @@ minecraft {
         }
         // ./gradlew runGameTestServer: runs the in-world tests (src/gametest) and stops, failing on a failed test
         gameTestServer {
+            // its own folder, emptied before every run (see below): leftovers from other dev runs can't change results
+            workingDirectory project.file('run/gametest')
             property 'forge.enabledGameTestNamespaces', mod_id
             mods {
                 "${mod_id}" {
@@ -103,6 +105,12 @@ dependencies {
     if (project.hasProperty('optionalMods')) {
         fileTree('libs').matching { include '*-1.jar' }.each { f -> runtimeOnly fg.deobf("blank:${f.name - '-1.jar'}:1") }
     }
+}
+
+// every GameTest run starts from a new world and config: a file left in the world by an earlier dev run (a
+// switched-off category, an exclusion) quietly changed what the tests saw
+tasks.matching { it.name == 'runGameTestServer' }.configureEach {
+    doFirst { delete 'run/gametest' }
 }
 
 test {

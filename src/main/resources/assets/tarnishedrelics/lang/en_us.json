@@ -23,6 +23,8 @@
   "tarnishedrelics.name.unique": "of %s",
   "tarnishedrelics.smith.says": "<%s> %s",
   "tarnishedrelics.smith.not_smith": "I'm no blacksmith. Find someone who works metal.",
+  "tarnishedrelics.smith.wrong_smith": "That's not my trade. Take it to a %s.",
+  "tarnishedrelics.smith.or": " or ",
   "tarnishedrelics.smith.too_hard": "This is beyond my skill. Seek a %s smith or better.",
   "tarnishedrelics.smith.price": "I can identify this for %s emeralds. Hand it to me again to pay.",
   "tarnishedrelics.smith.poor": "You'll need %s emeralds for that.",
