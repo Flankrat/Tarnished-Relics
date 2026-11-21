@@ -118,6 +118,28 @@ public class BlacksmithGameTests {
         }
     }
 
+    // Bug (round 8): a relic whose hidden item is from a mod that was removed since holds nothing (the item loads as
+    // air). The smith took the emeralds and "identified" it into nothing, and /tarnishedrelics identify deleted it.
+    @GameTest(template = "gametest/empty")
+    public static void relicOfAMissingItemIsntIdentified(GameTestHelper helper) {
+        Villager v = smith(helper, VillagerProfession.WEAPONSMITH, 2, 1);
+        ItemStack relic = relic("magic");
+        relic.getTag().getCompound("Hidden").putString("id", "notamod:gone_sword");
+        ServerPlayer p = holding(helper, relic, 20);
+        try {
+            use(p, v);
+            use(p, v);
+            helper.assertTrue(stillUnidentified(p), "the smith turned the relic into nothing");
+            helper.assertTrue(emeralds(p) == 20, "the smith took emeralds for nothing: " + emeralds(p) + " left");
+            TestUtil.op(p);
+            p.server.getCommands().performPrefixedCommand(p.createCommandSourceStack(), "tarnishedrelics identify");
+            helper.assertTrue(stillUnidentified(p), "/tarnishedrelics identify turned the relic into nothing");
+            helper.succeed();
+        } finally {
+            TestUtil.remove(p);
+        }
+    }
+
     @GameTest(template = "gametest/empty")
     public static void nonSmithRefusesAndNoTradeScreen(GameTestHelper helper) {
         Villager v = smith(helper, VillagerProfession.FARMER, 5, 1);

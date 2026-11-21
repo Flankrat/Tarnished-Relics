@@ -10,13 +10,14 @@
   "effects": [
     {
       "type": "damage_vs",
-      "target": [
-        "#tarnishedrelics:airborne"
-      ],
       "value": [
         0.5,
         0.8
-      ]
+      ],
+      "conditions": {
+        "target_in_air": true
+      },
+      "tooltip": "tarnishedrelics.effect.legendary.skyfall.0"
     }
   ]
 }

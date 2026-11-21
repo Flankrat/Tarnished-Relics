@@ -1,12 +1,17 @@
 package com.flankrat.tarnishedrelics.effect;
 
+import com.flankrat.tarnishedrelics.TarnishedRelics;
 import com.flankrat.tarnishedrelics.data.Effect;
 import com.flankrat.tarnishedrelics.data.IdOrTag;
 import com.flankrat.tarnishedrelics.mixin.AbstractArrowAccessor;
 import com.flankrat.tarnishedrelics.relic.RelicTag;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.TagKey;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageType;
@@ -20,6 +25,7 @@ import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.AbstractArrow;
+import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.entity.projectile.ThrowableItemProjectile;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
@@ -147,6 +153,10 @@ public final class RelicEffects {
                 if ((a.effect.targets.isEmpty() || a.effect.targets.stream().anyMatch(t -> t.matches(holder))) && a.effect.conditions.test(attacker, victim, random)) bonus += a.value;
             }
             amount *= (float) Math.max(0, 1 + bonus);
+
+            // crits for a projectile hit (an arrow or bolt, or a thrown relic): Forge's crit event (onCrit) only fires
+            // for melee attacks, so crit_chance and crit_damage did nothing on bows, crossbows and thrown relics
+            if (isProjectileHit(source, attacker)) amount *= projectileCrit(attacker, victim, source, random);
         }
 
         // damage_taken: +/- % damage from matching damage types (armor and held items of the victim)
@@ -193,9 +203,40 @@ public final class RelicEffects {
         return isMelee(source, attacker) || !thrownRelic(source, attacker).isEmpty();
     }
 
+    /** A hit by a projectile the attacker shot or threw (not a melee hit, not thorns). */
+    static boolean isProjectileHit(DamageSource source, LivingEntity attacker) {
+        return source.getDirectEntity() instanceof Projectile && source.getDirectEntity() != attacker;
+    }
+
+    /**
+     * The damage multiplier for a projectile hit: crit_chance rolls a crit (1.5x like a melee crit), and crit_damage
+     * makes that crit hit harder. 1 when it doesn't crit. Only crits rolled here count: an arrow from a fully drawn
+     * bow is a vanilla "crit arrow" on almost every shot, and crit_damage boosting all of those would be much stronger
+     * than on melee crits.
+     */
+    static float projectileCrit(LivingEntity attacker, LivingEntity victim, DamageSource source, RandomSource random) {
+        double chance = 0, damage = 0;
+        for (Active a : forHit(attacker, source, Effect.Type.CRIT_CHANCE)) if (a.effect.conditions.test(attacker, victim, random)) chance += a.value;
+        if (chance <= 0 || random.nextDouble() >= chance) return 1;
+        for (Active a : forHit(attacker, source, Effect.Type.CRIT_DAMAGE)) if (a.effect.conditions.test(attacker, victim, random)) damage += a.value;
+        // the crit sparks a melee crit shows, so players can see the arrow crit
+        if (victim.level() instanceof ServerLevel level) {
+            level.sendParticles(ParticleTypes.CRIT, victim.getX(), victim.getY(0.5), victim.getZ(), 12, victim.getBbWidth() / 2, victim.getBbHeight() / 4, victim.getBbWidth() / 2, 0.2);
+        }
+        return (float) (1.5 * Math.max(0, 1 + damage));
+    }
+
+    /**
+     * Damage types that are a melee hit ({@code #tarnishedrelics:melee}): vanilla's player and mob attacks and a bee's
+     * sting. Combat mods give melee hits their own damage types (by weapon: slashing, blunt...); with only vanilla's
+     * types counted, a sword's on-hit effects, on-hit fire, lifesteal and hit functions did nothing with those mods.
+     * Packs add such types to the tag.
+     */
+    public static final TagKey<DamageType> MELEE = TagKey.create(Registries.DAMAGE_TYPE, new ResourceLocation(TarnishedRelics.MODID, "melee"));
+
     static boolean isMelee(DamageSource source, LivingEntity attacker) {
         if (source.getDirectEntity() != attacker) return false;
-        return source.is(DamageTypes.PLAYER_ATTACK) || source.is(DamageTypes.MOB_ATTACK) || source.is(DamageTypes.MOB_ATTACK_NO_AGGRO);
+        return source.is(MELEE);
     }
 
     private static boolean matchesDamage(IdOrTag<DamageType> t, DamageSource source) {
@@ -253,8 +294,13 @@ public final class RelicEffects {
     public static void onXp(LivingExperienceDropEvent event) {
         Player player = event.getAttackingPlayer();
         if (player == null) return;
+        // what made the kill, like looting: a thrown relic's own bonus (not the hands'), else what's held and worn
+        DamageSource killedBy = event.getEntity().getLastDamageSource();
+        // (only a hit by this player: the last damage can be someone else's, or lava after the player's hit)
+        List<Active> effects = killedBy != null && killedBy.getEntity() == player ? forHit(player, killedBy, Effect.Type.XP_BONUS)
+                : active(player, Effect.Type.XP_BONUS);
         double bonus = 0;
-        for (Active a : active(player, Effect.Type.XP_BONUS)) if (a.effect.conditions.test(player, event.getEntity(), player.getRandom())) bonus += a.value;
+        for (Active a : effects) if (a.effect.conditions.test(player, event.getEntity(), player.getRandom())) bonus += a.value;
         if (bonus != 0) event.setDroppedExperience((int) Math.round(event.getDroppedExperience() * Math.max(0, 1 + bonus)));
     }
 

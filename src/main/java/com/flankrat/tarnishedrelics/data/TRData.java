@@ -131,6 +131,7 @@ public final class TRData {
                 if (!legendaries.containsKey(c)) errors.add(fileId("legendaries", l.id()) + ": no legendary " + c + " (companions)");
             }
         }
+        checkAffixValues();
         CategoryNames.check(this, exclusionFiles, disabledCategories, errors);
         exclusions = ItemList.of(exclusionEntries);
         // lists look up categories/levels in this data set, not whatever is current
@@ -138,6 +139,27 @@ public final class TRData {
         categories.values().forEach(c -> c.items().owner(this));
         rarities.values().forEach(r -> r.items().owner(this));
         legendaries.values().forEach(l -> l.items().owner(this));
+    }
+
+    /**
+     * An affix a rarity can roll whose value is written per rarity without that one (and without "default") is 0 on
+     * that rarity: it rolls and does nothing. Generated legendaries roll "normal" affixes, and the built-in ones only
+     * listed magic, rare and unique, so a legendary's normal affixes did nothing.
+     */
+    private void checkAffixValues() {
+        for (Rarity r : rarities.values()) {
+            Set<String> pools = new HashSet<>(r.rolls().keySet());
+            if (r.drawbackChance() > 0) pools.add(r.drawbackPool());
+            for (Affix a : affixes.values()) {
+                if (!pools.contains(a.pool()) || a.weightFor(r.id()) <= 0) continue;
+                for (Effect e : a.effects()) {
+                    if (e.value.covers(r.id())) continue;
+                    errors.add(fileId("affixes", a.id()) + ": its " + e.type.key() + " value has no \"" + r.id().getPath() + "\" (or \"default\"), so on "
+                            + r.id() + " relics, which roll it, it does nothing");
+                    break;
+                }
+            }
+        }
     }
 
     private void logResult() {

@@ -173,9 +173,10 @@ enchantments 1-3 levels above max, 35% drawback, 30% hand-made instead, Master, 
 | `effects` | What it does (below) |
 
 **Values.** Any `value` can be a number (`3`), a range (`[2, 5]`), or per tier (`{ "magic": [1, 2], "rare": [2, 4],
-"default": 1 }`). Negative values are drawbacks. An item stores *where in the range* it rolled (0-1), not the final
-number, so changing the numbers in a datapack also changes items already found, and a perfect roll stays perfect.
-Affixes removed from the datapack simply stop working on old items.
+"default": 1 }`). A tier the list leaves out gets `default`, or 0 without one: an affix a rarity rolls with no value
+for it does nothing there, so `/tarnishedrelics errors` reports it. Negative values are drawbacks. An item stores
+*where in the range* it rolled (0-1), not the final number, so changing the numbers in a datapack also changes items
+already found, and a perfect roll stays perfect. Affixes removed from the datapack simply stop working on old items.
 
 #### Effect types
 
@@ -190,20 +191,21 @@ Affixes removed from the datapack simply stop working on old items.
 | `thorns` | `value` | Sends that fraction of damage taken back to the attacker |
 | `on_hurt_effect` | `effect`, `duration`, `amplifier`, `apply_to` (`attacker`/`self`) | Potion effect when you're hit |
 | `passive_effect` | `effect`, `amplifier` | Kept on you while held/worn |
-| `crit_chance` | `value` | Extra chance for your hits to crit |
-| `crit_damage` | `value` | Crits hit harder (`0.5` = +50%) |
+| `crit_chance` | `value` | Extra chance for your hits to crit: melee hits, and arrows, bolts and thrown relics (1.5x damage) |
+| `crit_damage` | `value` | Crits hit harder (`0.5` = +50%). On projectiles, only crits from `crit_chance` |
 | `break_speed` | `value`, `blocks` (optional block id/#tag) | ±% mining speed |
 | `durability` | `value` | Chance each point of wear is ignored (negative: sometimes wears twice) |
 | `xp_bonus` | `value` | ±% XP from kills |
 | `looting` | `value` | Extra Looting levels |
-| `function` | `function`, `trigger` (`hit`, `kill`, `hurt`, `tick`), `as` (`wielder`/`target`) | Runs a datapack function: the catch-all for anything else |
+| `function` | `function`, `trigger` (`hit`, `kill`, `hurt`, `tick`), `as` (`wielder`/`target`) | Runs a datapack function: the catch-all for anything else. `tick` runs it once a second while held/worn, not every game tick |
 
 Every effect can also have:
 
-- `"conditions"`: all must pass. `chance` (0-1), `health_below` / `health_above` (fraction of the wielder's max
-  health), `in_water`, `is_night`, `is_day`, `sneaking`, `on_fire`, `y_below`, `y_above`, `dimensions` (list),
-  `biomes` (ids/#tags), `target` (entity ids/#tags). `break_speed` ignores `chance` (the client works out the
-  mining speed too, and a roll on each side would disagree).
+- `"conditions"`: all must pass. `chance` (0-1), `health_below` / `health_above` (fraction of the wielder's max health),
+  `in_water`, `is_night`, `is_day`, `sneaking`, `on_fire`, `y_below`, `y_above`, `dimensions` (list), `biomes`
+  (ids/#tags), `target` (entity ids/#tags), `target_in_air` (the target isn't standing on anything, swimming or riding:
+  flying, jumping, falling or knocked up). `break_speed` ignores `chance` (the client works out the mining speed too,
+  and a roll on each side would disagree).
 - `"slot"`: works while the item is in that slot instead of its category's (`offhand` for a dagger that helps from
   the offhand).
 - `"tooltip"`: its own tooltip line, a lang key or plain text (`%1$s` = value as a percent, `%2$s` = plain number).
@@ -318,8 +320,15 @@ weaponsmith and toolsmith by default).
 
 A projectile that carries a relic weapon (a thrown trident, or a modded javelin or throwing knife built on the
 arrow class) hits with that weapon's effects, as if it were in its slot, plus your armor's. What's in your hands at
-that moment doesn't count for that hit. Arrows don't carry the bow, so a bow's bonus damage counts from your hand as
-usual, and on-hit effects stay melee (and thrown relic) only.
+that moment doesn't count for that hit. Arrows don't carry the bow, so a bow's bonus damage and crits count from your
+hand as usual, and on-hit effects stay melee (and thrown relic) only.
+
+### Melee hits
+
+On-hit effects, on-hit fire, lifesteal and `hit` functions work on melee hits: a hit dealt by the attacker itself with
+a damage type in `#tarnishedrelics:melee` (vanilla's player and mob attacks and a bee's sting, plus Spartan Weaponry's
+armor-piercing hits when it's installed). A combat mod that gives melee hits its own damage types (by weapon:
+slashing, blunt...) needs those added to the tag, or those effects don't work with it.
 
 ## Config (`config/tarnishedrelics-common.toml`)
 
@@ -354,9 +363,9 @@ included), the mod's tags and the config.
   files (from the mod, KubeJS, datapacks...); pick one to edit it as a form. Hover a field's name for what it does.
   `+ field` adds optional fields; `Raw JSON` edits the text directly. New files get a readable name from their file
   name.
-- **Tags**: the blacksmith professions (`villager_profession/blacksmiths`), the `undead`, `arthropods` and `airborne`
-  (flying mobs) lists the affixes use, and any new tag in the `tarnishedrelics` namespace (name it like
-  `entity_types/dragons`). Tags from every pack add up, so the editor shows them all together; taking out something
+- **Tags**: the blacksmith professions (`villager_profession/blacksmiths`), the `undead` and `arthropods` mob lists the
+  affixes use, the `damage_type/melee` list of melee hits, and any new tag in the `tarnishedrelics` namespace (name it
+  like `entity_types/dragons`). Tags from every pack add up, so the editor shows them all together; taking out something
   another pack adds saves the tag with `"replace": true`.
 - **Settings**: the config file's options. Saving writes `config/tarnishedrelics-common.toml` at once.
 - **Pickers** (`...` buttons) list what's actually loaded: items with icons, tags, whole mods, mobs, villager

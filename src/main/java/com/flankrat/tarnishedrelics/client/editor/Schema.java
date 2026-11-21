@@ -192,7 +192,8 @@ public final class Schema {
                 f("y_above", Kind.NUMBER, Pick.NONE, "Above this height", () -> num(100)),
                 f("dimensions", Kind.LIST, Pick.DIMENSION, "Only in these dimensions", JsonArray::new),
                 f("biomes", Kind.LIST, Pick.BIOME, "Only in these biomes (ids or #tags)", JsonArray::new),
-                f("target", Kind.LIST, Pick.ENTITY, "Only against these mobs (ids or #tags)", JsonArray::new));
+                f("target", Kind.LIST, Pick.ENTITY, "Only against these mobs (ids or #tags)", JsonArray::new),
+                f("target_in_air", Kind.BOOL, Pick.NONE, "Only against mobs in the air (flying, jumping, falling, knocked up)", () -> new JsonPrimitive(true)));
 
         for (Field fl : List.of(
                 f("value", Kind.VALUE, Pick.NONE, "Strength: a number, a [min, max] roll, or per rarity", () -> num(0.1)),
@@ -206,7 +207,7 @@ public final class Schema {
                 f("apply_to", Kind.ENUM, Pick.NONE, "Who gets the effect", () -> str("target"), "target", "attacker", "self"),
                 f("blocks", Kind.TEXT, Pick.BLOCK, "Only for this block or #tag (optional)", () -> str("#minecraft:mineable/pickaxe")),
                 f("function", Kind.TEXT, Pick.NONE, "Datapack function id", () -> str("mypack:on_hit")),
-                f("trigger", Kind.ENUM, Pick.NONE, "When the function runs", () -> str("hit"), "hit", "kill", "hurt", "tick"),
+                f("trigger", Kind.ENUM, Pick.NONE, "When the function runs (tick: once a second while held/worn)", () -> str("hit"), "hit", "kill", "hurt", "tick"),
                 f("as", Kind.ENUM, Pick.NONE, "Who the function runs as", () -> str("wielder"), "wielder", "target"),
                 f("conditions", Kind.CONDITIONS, Pick.NONE, "Only when all of these are true", JsonObject::new),
                 f("tooltip", Kind.TEXT, Pick.NONE, "Own tooltip line instead of the built-in one (lang key or text; %1$s = value as a percent, %2$s = plain number)", () -> str("%1$s more of something")),

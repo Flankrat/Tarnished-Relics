@@ -27,14 +27,16 @@ public final class ValueSpec {
         }
     }
 
-    public static final ValueSpec ZERO = new ValueSpec(new Range(0, 0), Map.of());
+    public static final ValueSpec ZERO = new ValueSpec(new Range(0, 0), Map.of(), false);
 
     private final Range fallback;              // used when no rarity-specific range matches
     private final Map<String, Range> byRarity; // keyed by full rarity id and by its path
+    private final boolean perRarity;           // written per rarity ({...}) without a "default"
 
-    private ValueSpec(Range fallback, Map<String, Range> byRarity) {
+    private ValueSpec(Range fallback, Map<String, Range> byRarity, boolean perRarity) {
         this.fallback = fallback;
         this.byRarity = byRarity;
+        this.perRarity = perRarity;
     }
 
     public static ValueSpec parse(JsonElement json) {
@@ -49,9 +51,9 @@ public final class ValueSpec {
                 else map.put(e.getKey(), r);
             }
             // No "default": rarities that aren't listed get 0
-            return new ValueSpec(fallback != null ? fallback : new Range(0, 0), map);
+            return new ValueSpec(fallback != null ? fallback : new Range(0, 0), map, fallback == null);
         }
-        return new ValueSpec(range(json), Map.of());
+        return new ValueSpec(range(json), Map.of(), false);
     }
 
     private static Range range(JsonElement json) {
@@ -66,6 +68,11 @@ public final class ValueSpec {
     /** The value for an item of this rarity with this 0-1 roll. */
     public double get(ResourceLocation rarity, double roll) {
         return rangeFor(rarity).at(roll);
+    }
+
+    /** False when the value is written per rarity, without "default", and this rarity isn't listed (it gets 0). */
+    public boolean covers(ResourceLocation rarity) {
+        return !perRarity || byRarity.containsKey(rarity.toString()) || byRarity.containsKey(rarity.getPath());
     }
 
     public Range rangeFor(ResourceLocation rarity) {

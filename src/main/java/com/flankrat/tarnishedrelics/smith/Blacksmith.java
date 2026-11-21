@@ -97,6 +97,13 @@ public final class Blacksmith {
             return;
         }
         if (tag == null || !tag.contains("Hidden")) return;   // an empty relic (e.g. from /give) has nothing to identify
+        // the item inside is from a mod that was removed since (it loads as air): identifying it would take the
+        // emeralds and leave nothing, so the smith refuses
+        if (UnidentifiedItem.hidden(held).isEmpty()) {
+            say(player, villager, Component.translatable("tarnishedrelics.smith.gone"));
+            refuse(villager);
+            return;
+        }
         int needed = Math.max(1, tag.getInt("Level"));
         int cost = Math.max(0, tag.getInt("Cost"));
         if (villager.getVillagerData().getLevel() < needed) {
