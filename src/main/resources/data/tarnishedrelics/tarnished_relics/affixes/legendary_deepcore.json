@@ -1,0 +1,31 @@
+{
+  "kind": "hidden",
+  "pool": "legendary",
+  "applies_to": [
+    "tarnishedrelics:pickaxe",
+    "tarnishedrelics:shovel"
+  ],
+  "weight": 10,
+  "effects": [
+    {
+      "type": "break_speed",
+      "value": [
+        0.8,
+        1.2
+      ],
+      "conditions": {
+        "y_below": 0
+      },
+      "tooltip": "tarnishedrelics.effect.legendary.deepcore.0"
+    },
+    {
+      "type": "passive_effect",
+      "effect": "minecraft:night_vision",
+      "amplifier": 0,
+      "conditions": {
+        "y_below": 0
+      },
+      "tooltip": "tarnishedrelics.effect.legendary.deepcore.1"
+    }
+  ]
+}

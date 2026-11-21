@@ -1,0 +1,23 @@
+{
+  "kind": "hidden",
+  "pool": "legendary",
+  "applies_to": [
+    "tarnishedrelics:bow",
+    "tarnishedrelics:crossbow",
+    "tarnishedrelics:ranged"
+  ],
+  "weight": 10,
+  "effects": [
+    {
+      "type": "damage_vs",
+      "value": [
+        0.4,
+        0.7
+      ],
+      "conditions": {
+        "sneaking": true
+      },
+      "tooltip": "tarnishedrelics.effect.legendary.patient_eye.0"
+    }
+  ]
+}

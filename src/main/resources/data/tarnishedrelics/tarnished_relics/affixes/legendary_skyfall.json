@@ -1,0 +1,22 @@
+{
+  "kind": "hidden",
+  "pool": "legendary",
+  "applies_to": [
+    "tarnishedrelics:bow",
+    "tarnishedrelics:crossbow",
+    "tarnishedrelics:ranged"
+  ],
+  "weight": 10,
+  "effects": [
+    {
+      "type": "damage_vs",
+      "target": [
+        "#tarnishedrelics:airborne"
+      ],
+      "value": [
+        0.5,
+        0.8
+      ]
+    }
+  ]
+}

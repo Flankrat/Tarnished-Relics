@@ -1,0 +1,26 @@
+{
+  "kind": "hidden",
+  "pool": "legendary",
+  "applies_to": [
+    "tarnishedrelics:pickaxe",
+    "tarnishedrelics:shovel",
+    "tarnishedrelics:hoe"
+  ],
+  "weight": 10,
+  "effects": [
+    {
+      "type": "damage_taken",
+      "damage": [
+        "#minecraft:is_explosion",
+        "minecraft:falling_block",
+        "minecraft:falling_stalactite",
+        "minecraft:falling_anvil",
+        "minecraft:in_wall"
+      ],
+      "value": [
+        -0.5,
+        -0.3
+      ]
+    }
+  ]
+}

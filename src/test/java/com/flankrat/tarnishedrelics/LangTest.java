@@ -84,6 +84,23 @@ class LangTest {
         assertEquals(Set.of(), missing);
     }
 
+    // an effect's own "tooltip" (used for conditional effects) is a lang key or plain text; a key with no text showed raw
+    @Test
+    void everyEffectTooltipHasItsText() throws IOException {
+        JsonObject lang = lang();
+        TRData data = BuiltInData.data();
+        Set<String> missing = new TreeSet<>();
+        for (Affix a : data.affixes().values()) for (Effect e : a.effects()) tooltip(missing, lang, e, "affix " + a.id());
+        for (Legendary l : data.legendaries().values()) for (Effect e : l.affix().effects()) tooltip(missing, lang, e, "legendary " + l.id());
+        assertEquals(Set.of(), missing);
+    }
+
+    private static void tooltip(Set<String> missing, JsonObject lang, Effect e, String where) {
+        if (!e.json.has("tooltip")) return;
+        String t = e.json.get("tooltip").getAsString();
+        if (isKey(t)) need(missing, lang, t, where + " tooltip");
+    }
+
     // every Component.translatable("tarnishedrelics...") written in the code (ones with a fallback are fine either way)
     @Test
     void everyKeyInTheCodeHasItsText() throws IOException {

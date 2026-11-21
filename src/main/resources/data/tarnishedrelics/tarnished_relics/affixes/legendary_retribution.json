@@ -1,0 +1,30 @@
+{
+  "kind": "hidden",
+  "pool": "legendary",
+  "applies_to": [
+    "tarnishedrelics:shield"
+  ],
+  "weight": 10,
+  "effects": [
+    {
+      "type": "on_hurt_effect",
+      "effect": "minecraft:slowness",
+      "duration": 60,
+      "amplifier": 1,
+      "apply_to": "target",
+      "conditions": {
+        "chance": 0.35
+      }
+    },
+    {
+      "type": "on_hurt_effect",
+      "effect": "minecraft:weakness",
+      "duration": 60,
+      "amplifier": 0,
+      "apply_to": "target",
+      "conditions": {
+        "chance": 0.35
+      }
+    }
+  ]
+}

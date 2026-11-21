@@ -1,0 +1,29 @@
+{
+  "kind": "hidden",
+  "pool": "legendary",
+  "applies_to": [
+    "tarnishedrelics:leggings",
+    "tarnishedrelics:chestplate"
+  ],
+  "weight": 10,
+  "effects": [
+    {
+      "type": "attribute",
+      "attribute": "minecraft:generic.knockback_resistance",
+      "operation": "add",
+      "value": [
+        0.3,
+        0.5
+      ]
+    },
+    {
+      "type": "attribute",
+      "attribute": "minecraft:generic.armor_toughness",
+      "operation": "add",
+      "value": [
+        2,
+        4
+      ]
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "kind": "hidden",
+  "pool": "legendary",
+  "applies_to": [
+    "tarnishedrelics:shield"
+  ],
+  "weight": 10,
+  "effects": [
+    {
+      "type": "damage_taken",
+      "value": [
+        -0.4,
+        -0.3
+      ],
+      "conditions": {
+        "health_below": 0.3
+      },
+      "tooltip": "tarnishedrelics.effect.legendary.last_stand.0"
+    }
+  ]
+}
