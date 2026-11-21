@@ -6,6 +6,8 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
 
+import java.math.BigDecimal;
+import java.math.MathContext;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -69,16 +71,24 @@ final class FormJson {
         return pair(num(a), num(b));
     }
 
+    /**
+     * A number as it's saved: whole numbers without ".0", others to 12 significant digits, which cleans float
+     * noise (0.1 + 0.2 = 0.30000000000000004 saves as 0.3). This used to round to 4 decimals, so a chance of
+     * 0.00002 was saved as 0.
+     */
     static JsonPrimitive num(double d) {
         if (d == Math.rint(d) && Math.abs(d) < 1e9) return new JsonPrimitive((long) d);
-        return new JsonPrimitive(Math.round(d * 10000) / 10000.0);
+        if (!Double.isFinite(d)) return new JsonPrimitive(0);   // JSON can't hold NaN or infinity
+        return new JsonPrimitive(new BigDecimal(d).round(new MathContext(12)).doubleValue());
     }
 
+    /** A typed number, or null if it isn't one (the box turns red). NaN and infinity aren't numbers here. */
     @Nullable
     static JsonPrimitive parseNumber(String s, boolean integer) {
         try {
             if (integer) return new JsonPrimitive(Integer.parseInt(s.trim()));
-            return num(Double.parseDouble(s.trim()));
+            double d = Double.parseDouble(s.trim());
+            return Double.isFinite(d) ? num(d) : null;
         } catch (NumberFormatException e) {
             return null;
         }
