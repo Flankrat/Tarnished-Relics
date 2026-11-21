@@ -6,5 +6,8 @@
     "#forge:tools/shields"
   ],
   "slot": "offhand",
-  "silhouette": "shield"
+  "silhouette": "shield",
+  "smiths": [
+    "#tarnishedrelics:armorers"
+  ]
 }

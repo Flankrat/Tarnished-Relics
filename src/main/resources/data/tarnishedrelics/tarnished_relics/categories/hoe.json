@@ -6,5 +6,8 @@
     "#minecraft:hoes"
   ],
   "slot": "mainhand",
-  "silhouette": "hoe"
+  "silhouette": "hoe",
+  "smiths": [
+    "#tarnishedrelics:toolsmiths"
+  ]
 }

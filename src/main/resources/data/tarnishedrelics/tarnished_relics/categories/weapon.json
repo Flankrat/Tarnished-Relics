@@ -4,5 +4,8 @@
   ],
   "slot": "mainhand",
   "silhouette": "sword",
-  "priority": -10
+  "priority": -10,
+  "smiths": [
+    "#tarnishedrelics:weaponsmiths"
+  ]
 }

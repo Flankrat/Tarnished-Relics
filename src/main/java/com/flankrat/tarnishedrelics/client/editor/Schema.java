@@ -121,7 +121,8 @@ public final class Schema {
                 f("slot", Kind.ENUM, Pick.NONE, "Slot the affixes work in", () -> str("mainhand"), SLOTS),
                 f("silhouette", Kind.ENUM, Pick.NONE, "Shape shown while unidentified", () -> str("generic"), TRClient.SILHOUETTES.toArray(String[]::new)),
                 f("priority", Kind.INT, Pick.NONE, "When an item fits several categories, the highest priority wins", () -> num(0)),
-                f("weight", Kind.INT, Pick.NONE, "How often a relic is this category, relative to the others (default 10)", () -> num(10))));
+                f("weight", Kind.INT, Pick.NONE, "How often a relic is this category, relative to the others (default 10)", () -> num(10)),
+                f("smiths", Kind.LIST, Pick.PROFESSION, "Villagers who identify its relics: professions or #tags like #tarnishedrelics:toolsmiths (none = any blacksmith)", () -> arr("#tarnishedrelics:weaponsmiths"))));
         FILES.put("rarities", List.of(
                 f("name", Kind.TEXT, Pick.NONE, "Shown name (lang key or plain text). Default: tarnishedrelics.rarity.<ns>.<file>", () -> str("New Rarity")),
                 f("weight", Kind.INT, Pick.NONE, "How often it drops, relative to the other rarities", () -> num(10)),

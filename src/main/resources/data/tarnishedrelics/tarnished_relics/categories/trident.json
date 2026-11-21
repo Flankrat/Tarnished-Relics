@@ -7,5 +7,8 @@
     "#forge:tools/tridents"
   ],
   "slot": "mainhand",
-  "silhouette": "trident"
+  "silhouette": "trident",
+  "smiths": [
+    "#tarnishedrelics:weaponsmiths"
+  ]
 }

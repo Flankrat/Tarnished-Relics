@@ -3,11 +3,14 @@ package com.flankrat.tarnishedrelics.smith;
 import com.flankrat.tarnishedrelics.TRConfig;
 import com.flankrat.tarnishedrelics.TRItems;
 import com.flankrat.tarnishedrelics.TarnishedRelics;
+import com.flankrat.tarnishedrelics.data.Category;
+import com.flankrat.tarnishedrelics.data.TRData;
 import com.flankrat.tarnishedrelics.name.QualityCompat;
 import com.flankrat.tarnishedrelics.relic.UnidentifiedItem;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -31,19 +34,22 @@ import net.minecraftforge.registries.ForgeRegistries;
 
 import java.lang.reflect.Method;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import javax.annotation.Nullable;
 
 /**
- * Identifying at a blacksmith. Use an unidentified relic on a villager whose profession is in the tag
- * {@code #tarnishedrelics:blacksmiths} (armorer, weaponsmith and toolsmith by default):
+ * Identifying at a blacksmith. Use an unidentified relic on a villager who works on its kind: the professions its
+ * category's "smiths" name (tools a toolsmith, armor an armorer, weapons a weaponsmith by default), or, for a category
+ * that names none, any in {@code #tarnishedrelics:blacksmiths}:
  * <ol>
  *   <li>If the villager's level is too low for the relic's rarity, they shake their head and say what level is needed.
  *       This is the only place the player finds out.</li>
  *   <li>Otherwise they name their price in emeralds. Using the relic on them again within [identify] confirmSeconds
  *       pays and identifies it: the real item replaces the relic in your hand, and the villager gets trade XP.</li>
  * </ol>
- * Non-blacksmith villagers say they can't help (so holding a relic doesn't open their trade screen by accident).
+ * Other villagers say who can help (so holding a relic doesn't open their trade screen by accident).
  */
 public final class Blacksmith {
 
@@ -75,13 +81,21 @@ public final class Blacksmith {
 
     private static void handle(ServerPlayer player, Villager villager, InteractionHand hand, ItemStack held) {
         VillagerProfession profession = villager.getVillagerData().getProfession();
-        var tags = ForgeRegistries.VILLAGER_PROFESSIONS.tags();
-        if (tags == null || !tags.getTag(BLACKSMITHS).contains(profession)) {
-            say(player, villager, Component.translatable("tarnishedrelics.smith.not_smith"));
+        CompoundTag tag = held.getTag();
+        // who works on this kind of relic: its category's smiths (a toolsmith for tools...), or any blacksmith
+        List<VillagerProfession> smiths = smithsFor(tag);
+        if (smiths.isEmpty()) {
+            var tags = ForgeRegistries.VILLAGER_PROFESSIONS.tags();
+            if (tags == null || !tags.getTag(BLACKSMITHS).contains(profession)) {
+                say(player, villager, Component.translatable("tarnishedrelics.smith.not_smith"));
+                refuse(villager);
+                return;
+            }
+        } else if (!smiths.contains(profession)) {
+            say(player, villager, Component.translatable("tarnishedrelics.smith.wrong_smith", names(smiths)));
             refuse(villager);
             return;
         }
-        CompoundTag tag = held.getTag();
         if (tag == null || !tag.contains("Hidden")) return;   // an empty relic (e.g. from /give) has nothing to identify
         int needed = Math.max(1, tag.getInt("Level"));
         int cost = Math.max(0, tag.getInt("Cost"));
@@ -115,6 +129,26 @@ public final class Blacksmith {
         villager.playSound(SoundEvents.VILLAGER_YES, 1, villager.getVoicePitch());
         player.level().playSound(null, villager.blockPosition(), SoundEvents.ANVIL_USE, SoundSource.NEUTRAL, 0.6F, 1.2F);
         say(player, villager, Component.translatable("tarnishedrelics.smith.done", real.getHoverName()));
+    }
+
+    // the professions the relic's category names (empty: none named, or the category isn't in the datapack any more)
+    private static List<VillagerProfession> smithsFor(@Nullable CompoundTag tag) {
+        ResourceLocation id = tag == null ? null : ResourceLocation.tryParse(tag.getString("Category"));
+        Category category = id == null ? null : TRData.get().categories().get(id);
+        return category == null ? List.of() : category.smithProfessions();
+    }
+
+    // "Toolsmith or Weaponsmith", in the game's own names for the professions
+    private static Component names(List<VillagerProfession> professions) {
+        MutableComponent out = Component.empty();
+        for (int i = 0; i < professions.size(); i++) {
+            if (i > 0) out.append(Component.translatable("tarnishedrelics.smith.or"));
+            ResourceLocation id = ForgeRegistries.VILLAGER_PROFESSIONS.getKey(professions.get(i));
+            // the same key the game uses for a villager's name ("entity.minecraft.villager.toolsmith")
+            String key = id == null ? "entity.minecraft.villager" : "entity.minecraft.villager." + (id.getNamespace().equals("minecraft") ? "" : id.getNamespace() + ".") + id.getPath();
+            out.append(Component.translatable(key));
+        }
+        return out;
     }
 
     /** The real item inside a relic, ready to use (also used by /tarnishedrelics identify). */
