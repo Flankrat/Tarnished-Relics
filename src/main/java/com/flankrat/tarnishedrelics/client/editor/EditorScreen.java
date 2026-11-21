@@ -4,7 +4,6 @@ import com.flankrat.tarnishedrelics.client.editor.Schema.Field;
 import com.flankrat.tarnishedrelics.client.editor.Schema.Pick;
 import com.flankrat.tarnishedrelics.editor.EditorServer;
 import com.flankrat.tarnishedrelics.editor.ModpackPack;
-import com.flankrat.tarnishedrelics.name.NameFallback;
 import com.flankrat.tarnishedrelics.network.TRNetwork;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
@@ -310,17 +309,7 @@ public class EditorScreen extends Screen implements EditorForm.Host {
             setStatus(t("exists", "There already is a file called %s.", name), RED, List.of());
             return;
         }
-        JsonObject start = copyFrom != null && model.get(copyFrom) != null ? model.get(copyFrom).deepCopy() : Schema.template(folder);
-        start.remove("disabled");
-        // a readable name from the file name, so it never shows a raw lang key
-        String title = NameFallback.title(name);
-        switch (folder) {
-            case "categories" -> start.addProperty("name", "Unidentified " + title);
-            case "rarities" -> start.addProperty("name", title);
-            case "affixes" -> start.addProperty("name", title);
-            default -> { }
-        }
-        model.put(id, start);
+        model.put(id, Schema.newFile(folder, name, copyFrom != null ? model.get(copyFrom) : null));
         selected = id;
         newName = null;
         copyFrom = null;
