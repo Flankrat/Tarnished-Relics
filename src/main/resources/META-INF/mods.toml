@@ -7,10 +7,13 @@ issueTrackerURL="https://github.com/Flankrat/Tarnished-Relics/issues"
 modId="${mod_id}"
 version="${mod_version}"
 displayName="${mod_name}"
+displayURL="https://github.com/Flankrat/Tarnished-Relics"
 authors="${mod_authors}"
 description='''
-Diablo-style loot: rare unidentified weapons, armor and tools turn up in any loot. Take them to a blacksmith villager to
-learn what they are: random affixes, a generated name, and sometimes a one-of-a-kind Unique. Everything is datapack-driven.
+Diablo-style loot: unidentified weapons, armor and tools turn up in loot chests. Take one to the right blacksmith villager to
+find out what it is: a Magic, Rare or Unique relic with random affixes and a generated name, or a Legendary with its own
+name, lore and signature enchantments. Modded gear is picked up automatically, and everything is datapack-driven, with
+an in-game editor.
 '''
 
 [[dependencies.${mod_id}]]

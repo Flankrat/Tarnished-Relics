@@ -171,6 +171,13 @@ reobf {
     gametestJar {}
 }
 tasks.named('gametestJar').configure { finalizedBy('reobfGametestJar') }
+// ForgeGradle adds every reobf task to assemble, so ./gradlew build also made the gametest jar, next to the release
+// jar in build/libs: it's only built when asked for
+afterEvaluate {
+    tasks.named('assemble').configure { t ->
+        t.setDependsOn(t.getDependsOn().findAll { d -> !(d.toString().toLowerCase().contains('gametest')) })
+    }
+}
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'

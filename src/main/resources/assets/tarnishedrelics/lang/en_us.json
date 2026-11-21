@@ -139,5 +139,11 @@
   "tarnishedrelics.slot.head": "on the head",
   "tarnishedrelics.slot.chest": "on the body",
   "tarnishedrelics.slot.legs": "on the legs",
-  "tarnishedrelics.slot.feet": "on the feet"
+  "tarnishedrelics.slot.feet": "on the feet",
+  "tarnishedrelics.editor.title": "Tarnished Relics Editor",
+  "tarnishedrelics.editor.pick": "Pick a value",
+  "tarnishedrelics.editor.search": "Search...",
+  "tarnishedrelics.editor.select": "Select",
+  "tarnishedrelics.editor.exclude_uncraftable": "Exclude no-recipe items",
+  "tarnishedrelics.editor.exclude_uncraftable.tip": "Excludes every relic item in this list that no recipe makes. Those are often for a mod that isn't installed (e.g. aluminum weapons with no aluminum)."
 }
