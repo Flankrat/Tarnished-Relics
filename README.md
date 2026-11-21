@@ -60,7 +60,8 @@ swords doesn't make nearly every relic a sword.
 ## Datapack format
 
 Everything lives in `data/<namespace>/tarnished_relics/`. Files from all datapacks are merged; a file with the same
-id replaces the earlier one. `/reload` applies changes. `/tarnishedrelics errors` lists files that failed to load.
+id replaces the earlier one. `/reload` applies changes. `/tarnishedrelics errors` lists files that failed to load, including
+ones with an item entry that isn't a valid id (ids are lowercase, like `minecraft:iron_sword`).
 Any file with `"disabled": true` is ignored, which switches off a file another pack (or the mod) ships.
 
 Item lists anywhere accept an item id (`"minecraft:iron_sword"`), an item tag (`"#minecraft:swords"`), every item of a
@@ -243,7 +244,7 @@ A hand-made legendary always has the same name, lore, signature enchantments and
 | Field | Meaning |
 |---|---|
 | `name`, `lore` | Its name and the lines under it (lang keys or plain text). Nothing else is added to the name |
-| `items` | Base items, one is picked (ids, #tags, `mod:*`) |
+| `items`, `exclude` | Base items, one is picked (ids, #tags, `mod:*`); `exclude` takes some back out |
 | `category` | Optional: the category (slot, silhouette) if the base item has none |
 | `enchantments` | Put on as they are: above the normal max level, and any combination |
 | `effects` | Like an affix's effects. `"slot"` on an effect makes it work from another slot (offhand bonus) |
@@ -308,7 +309,7 @@ profession to let it identify relics.
 | `[loot] entityNeedsPlayerKill` | `true` | If `entity` is on: mob drops only count for kills by a player (no mob farms) |
 | `[loot] excludeTables` | the spawn bonus chest | Loot tables that never get relics (`*` wildcards) |
 | `[identify] confirmSeconds` | `10` | Time to use the relic on the smith again to pay |
-| `[display] showRarityColorUnidentified` | `false` | Unidentified relics show their tier's color as a hint |
+| `[display] showRarityColorUnidentified` | `false` | Unidentified relics show their tier's color as a hint. On a server, the server's value is used for every player |
 
 ## Commands (op)
 

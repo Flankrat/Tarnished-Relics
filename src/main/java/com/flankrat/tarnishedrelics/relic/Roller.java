@@ -86,7 +86,7 @@ public final class Roller {
             legendary = handmade;
         }
         if (legendary == null) return List.of();
-        ItemStack main = roll.handmade(rarity, legendary);
+        ItemStack main = roll.handmade(rarity, legendary, category);
         if (main.isEmpty()) return List.of();
         List<ItemStack> out = new ArrayList<>();
         out.add(main);
@@ -94,7 +94,7 @@ public final class Roller {
         for (ResourceLocation c : legendary.companions()) {
             Legendary companion = data.legendaries().get(c);
             if (companion == null || companion == legendary) continue;
-            ItemStack extra = roll.handmade(rarity, companion);
+            ItemStack extra = roll.handmade(rarity, companion, null);   // a set's other pieces can be any category
             if (!extra.isEmpty()) out.add(extra);
         }
         return out;
@@ -112,7 +112,7 @@ public final class Roller {
         List<Legendary> usable = new ArrayList<>();
         for (Legendary l : data.legendaries().values()) {
             if (l.weight() <= 0) continue;
-            if (category != null && legendaryCategory(data, l, firstItem(l)) != category) continue;
+            if (category != null && !fits(data, l, category)) continue;
             if (firstItem(l) == null) continue;
             usable.add(l);
         }
@@ -123,6 +123,17 @@ public final class Roller {
     private static Item firstItem(Legendary l) {
         var items = l.items().resolve();
         return items.isEmpty() ? null : items.iterator().next();
+    }
+
+    /**
+     * True if the legendary can be made as this category: its own "category" is it, or (without one) one of its
+     * base items is in it. Checking only its first item let a legendary with mixed items be picked for a category,
+     * then made on an item of another one.
+     */
+    private static boolean fits(TRData data, Legendary l, Category category) {
+        if (l.category() != null) return data.categories().get(l.category()) == category;
+        for (Item item : l.items().resolve()) if (data.categoryOf(item) == category) return true;
+        return false;
     }
 
     @Nullable
@@ -149,7 +160,7 @@ public final class Roller {
     // true if the rarity can make an item (of the asked category)
     private static boolean canMake(TRData data, Rarity r, @Nullable Category category) {
         if (r.legendary() && data.legendaries().values().stream().anyMatch(l -> l.weight() > 0
-                && (category == null || legendaryCategory(data, l, firstItem(l)) == category))) {
+                && (category == null || fits(data, l, category)))) {
             return true;   // a hand-made one can drop (generated ones are checked below)
         }
         return r.items().resolve().stream().anyMatch(i -> {
@@ -258,10 +269,12 @@ public final class Roller {
         /**
          * One hand-made legendary: its base item, its fixed name/lore/enchantments, and one 0-1 roll for all its
          * value ranges. Its effects are stored like an affix (the legendary's hidden affix), so they work like any
-         * other relic's.
+         * other relic's. category (may be null): only base items of that category.
          */
-        ItemStack handmade(Rarity rarity, Legendary l) {
+        ItemStack handmade(Rarity rarity, Legendary l, @Nullable Category category) {
             List<Item> items = new ArrayList<>(l.items().resolve());
+            // asked for a category: only the base items in it (unless the legendary sets its own category)
+            if (category != null && l.category() == null) items.removeIf(i -> data.categoryOf(i) != category);
             if (items.isEmpty()) return ItemStack.EMPTY;
             ItemStack real = new ItemStack(items.get(random.nextInt(items.size())));
             Category cat = legendaryCategory(data, l, real.getItem());

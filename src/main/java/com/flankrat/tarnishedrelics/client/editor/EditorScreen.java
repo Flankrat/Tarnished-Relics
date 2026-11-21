@@ -66,6 +66,7 @@ public class EditorScreen extends Screen implements EditorForm.Host {
     private double scroll;
     private double fileListScroll;
     @Nullable private String newName;
+    @Nullable private ResourceLocation copyFrom;   // the file a new file starts as a copy of (null: a blank one)
     @Nullable private Component status;
     private int statusColor = TEXT;
     private List<String> statusDetails = List.of();
@@ -155,6 +156,7 @@ public class EditorScreen extends Screen implements EditorForm.Host {
                     raw = false;
                     scroll = 0;
                     newName = null;
+                    copyFrom = null;
                     fileList = null;   // so the old tab's list scroll isn't carried over
                     fileListScroll = 0;
                     rebuildWidgets();
@@ -198,10 +200,13 @@ public class EditorScreen extends Screen implements EditorForm.Host {
         if (newName == null) {
             addRenderableWidget(Button.builder(t("new", "+ New"), b -> {
                 newName = "";
+                copyFrom = null;
                 rebuildWidgets();
             }).bounds(8, height - 52, leftW / 2 - 1, 18).tooltip(Tooltip.create(t("new.tip", "Make a new file in this folder"))).build());
             Button copy = Button.builder(t("copy", "Copy"), b -> {
                 newName = selected == null ? "" : EditorModel.shortId(selected).getPath() + "_copy";
+                // remembered now: the copy is of this file whatever the new one is called, even if another is clicked
+                copyFrom = selected;
                 rebuildWidgets();
             }).bounds(8 + leftW / 2 + 1, height - 52, leftW / 2 - 1, 18).tooltip(Tooltip.create(t("copy.tip", "New file starting as a copy of the selected one"))).build();
             copy.active = selected != null && model.get(selected) != null;
@@ -218,6 +223,7 @@ public class EditorScreen extends Screen implements EditorForm.Host {
                     .bounds(8 + leftW - 40, height - 52, 19, 18).tooltip(Tooltip.create(t("create", "Create"))).build());
             addRenderableWidget(Button.builder(Component.literal("✖"), b -> {
                 newName = null;
+                copyFrom = null;
                 rebuildWidgets();
             }).bounds(8 + leftW - 19, height - 52, 19, 18).build());
         }
@@ -312,8 +318,7 @@ public class EditorScreen extends Screen implements EditorForm.Host {
             setStatus(t("exists", "There already is a file called %s.", name), RED, List.of());
             return;
         }
-        JsonObject start = selected != null && model.get(selected) != null && name.endsWith("_copy")
-                ? model.get(selected).deepCopy() : Schema.template(folder);
+        JsonObject start = copyFrom != null && model.get(copyFrom) != null ? model.get(copyFrom).deepCopy() : Schema.template(folder);
         start.remove("disabled");
         // a readable name from the file name, so it never shows a raw lang key
         String title = NameFallback.title(name);
@@ -326,6 +331,7 @@ public class EditorScreen extends Screen implements EditorForm.Host {
         model.put(id, start);
         selected = id;
         newName = null;
+        copyFrom = null;
         raw = false;
         scroll = 0;
         rebuildWidgets();
@@ -341,11 +347,7 @@ public class EditorScreen extends Screen implements EditorForm.Host {
             setStatus(t("fix_first", "Fix the errors first."), RED, errs);
             return;
         }
-        List<String> tooBig = EditorClient.save(model, saveToModpack);
-        if (!tooBig.isEmpty()) {
-            setStatus(t("too_big", "A file is too big to send."), RED, tooBig);
-            return;
-        }
+        EditorClient.save(model, saveToModpack);
         saving = true;
         setStatus(t("saving", "Saving..."), TEXT, List.of());
         rebuildWidgets();
@@ -422,7 +424,7 @@ public class EditorScreen extends Screen implements EditorForm.Host {
     private void buildRaw(JsonObject json) {
         MultiLineEditBox box = new MultiLineEditBox(font, formX, formTop, formW, formBottom - formTop - 14,
                 Component.empty(), Component.literal("json"));
-        box.setCharacterLimit(32000);
+        box.setCharacterLimit(Integer.MAX_VALUE);   // never cut a big file short (that would lose its end on save)
         box.setValue(new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create().toJson(json));
         box.setValueListener(text -> {
             try {

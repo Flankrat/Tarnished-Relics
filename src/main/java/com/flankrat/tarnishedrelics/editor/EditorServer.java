@@ -103,9 +103,28 @@ public final class EditorServer {
         TRNetwork.sendEditor(player, files, origin, refresh);
     }
 
-    public static void receiveFile(ServerPlayer player, ResourceLocation id, String json) {
+    /** Most text one save can send (all files together), so a broken client can't fill the server's memory. */
+    private static final int MAX_PENDING_CHARS = 16 * 1024 * 1024;
+
+    /** A file (or, with append, the next piece of one) sent for the next commit. */
+    public static void receiveFile(ServerPlayer player, ResourceLocation id, String json, boolean append) {
         if (!allowed(player)) return;
-        PENDING.computeIfAbsent(player.getUUID(), u -> new LinkedHashMap<>()).put(id, json);
+        Map<ResourceLocation, String> files = PENDING.computeIfAbsent(player.getUUID(), u -> new LinkedHashMap<>());
+        if (append) files.merge(id, json, String::concat);
+        else files.put(id, json);
+        int total = files.values().stream().mapToInt(String::length).sum();
+        if (total > MAX_PENDING_CHARS) {
+            files.clear();
+            files.put(TOO_BIG, "");   // commit answers with an error instead of saving part of it
+        }
+    }
+
+    // marks a save that sent more than MAX_PENDING_CHARS
+    private static final ResourceLocation TOO_BIG = new ResourceLocation(TarnishedRelics.MODID, "editor/too_big");
+
+    /** Forgets a player's unsent save (they logged out). */
+    public static void forget(ServerPlayer player) {
+        PENDING.remove(player.getUUID());
     }
 
     public static void commit(ServerPlayer player, boolean modpack) {
@@ -114,6 +133,11 @@ public final class EditorServer {
         if (!allowed(player)) {
             TRNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
                     new TRNetwork.EditorResult(false, List.of(Component.translatable("tarnishedrelics.editor.no_permission").getString())));
+            return;
+        }
+        if (changes != null && changes.containsKey(TOO_BIG)) {
+            TRNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
+                    new TRNetwork.EditorResult(false, List.of("Too much data in one save (over " + MAX_PENDING_CHARS / 1024 / 1024 + " MB of text)")));
             return;
         }
         if (changes == null || changes.isEmpty()) {
@@ -164,6 +188,7 @@ public final class EditorServer {
                 ResourceLocation id = e.getKey();
                 if (id.equals(CONFIG_FILE)) {
                     ConfigFile.write(JsonParser.parseString(e.getValue()).getAsJsonObject());
+                    TRNetwork.sendSettings();   // players show what the server set, not their own config
                     continue;
                 }
                 if (e.getValue().isEmpty()) {

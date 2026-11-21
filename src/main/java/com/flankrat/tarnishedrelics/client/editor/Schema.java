@@ -149,6 +149,7 @@ public final class Schema {
                 f("name", Kind.TEXT, Pick.NONE, "Its name (lang key or plain text)", () -> str("Nameless Blade")),
                 f("lore", Kind.LIST, Pick.NONE, "Lines under the name (lang keys or plain text)", JsonArray::new),
                 f("items", Kind.LIST, Pick.ITEM, "Base items, one is picked: ids, #tags, mod:*", JsonArray::new),
+                f("exclude", Kind.LIST, Pick.ITEM, "Items it's never made on (taken out of the items above)", JsonArray::new),
                 f("category", Kind.TEXT, Pick.CATEGORY, "Category (slot, silhouette) if the base item has none of its own", () -> str("tarnishedrelics:sword")),
                 f("enchantments", Kind.MAP_INT, Pick.ENCHANTMENT, "Put on as they are: above the normal max level, and any combination", JsonObject::new),
                 f("effects", Kind.EFFECTS, Pick.NONE, "What it does; value ranges are rolled once per copy", JsonArray::new),

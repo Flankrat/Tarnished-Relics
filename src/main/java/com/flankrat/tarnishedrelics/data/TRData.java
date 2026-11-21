@@ -86,7 +86,11 @@ public final class TRData {
                     case "affixes" -> affixes.put(id, Affix.parse(id, o));
                     case "names" -> names.add(o);
                     case "levels" -> levels.add(o);
-                    case "exclusions" -> exclusionEntries.addAll(Conditions.strings(o.get("items")));
+                    case "exclusions" -> {
+                        List<String> entries = Conditions.strings(o.get("items"));
+                        entries.forEach(ItemList::check);   // a bad entry is reported, not found when loot is rolled
+                        exclusionEntries.addAll(entries);
+                    }
                     case "legendaries" -> legendaries.put(id, Legendary.parse(id, o));
                     default -> errors.add(file + ": unknown folder \"" + folder + "\"");
                 }

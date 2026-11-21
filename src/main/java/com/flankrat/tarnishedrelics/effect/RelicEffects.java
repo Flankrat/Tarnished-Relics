@@ -188,6 +188,9 @@ public final class RelicEffects {
     @SubscribeEvent
     public static void onCrit(CriticalHitEvent event) {
         Player player = event.getEntity();
+        // The client runs the attack too (for its own crit particles), but its random roll isn't the server's:
+        // rolling there showed crits that didn't happen and hid ones that did. The server's crit is sent to clients.
+        if (player.level().isClientSide) return;
         LivingEntity target = event.getTarget() instanceof LivingEntity l ? l : null;
         double chance = 0, damage = 0;
         for (Active a : active(player, Effect.Type.CRIT_CHANCE)) if (a.effect.conditions.test(player, target, player.getRandom())) chance += a.value;

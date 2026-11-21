@@ -3,6 +3,7 @@ package com.flankrat.tarnishedrelics.client.editor;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
 
 import java.util.ArrayList;
@@ -102,5 +103,28 @@ final class FormJson {
         } catch (NumberFormatException e) {
             return -1;
         }
+    }
+
+    /**
+     * A list entry from its text. Most are plain strings, but tag files can have objects like
+     * {"id": "somemod:thing", "required": false} (for optional mods): text that is a JSON object or list stays one.
+     */
+    static JsonElement listEntry(String text) {
+        String t = text.trim();
+        if (t.startsWith("{") || t.startsWith("[")) {
+            try {
+                JsonElement e = JsonParser.parseString(t);
+                if (e.isJsonObject() || e.isJsonArray()) return e;
+            } catch (RuntimeException ignored) {
+                // not finished typing it yet: kept as text until it's valid JSON
+            }
+        }
+        return new JsonPrimitive(text);
+    }
+
+    /** The id a list entry names: its text, or the "id" of an object entry. */
+    static String entryId(JsonElement entry) {
+        if (entry.isJsonObject() && entry.getAsJsonObject().get("id") instanceof JsonPrimitive id) return id.getAsString();
+        return entry.isJsonPrimitive() ? entry.getAsString() : entry.toString();
     }
 }

@@ -314,11 +314,12 @@ final class EditorForm {
             FormRow r = row(indent + 12, "", null);
             int w = valueW(indent) - 22 - (f.pick() != Pick.NONE ? 22 : 0);
             EditBox box = text(arr.get(i).isJsonPrimitive() ? arr.get(i).getAsString() : arr.get(i).toString(), w, s -> { });
-            if (f.pick() != Pick.NONE) checkBox(box, f.pick(), box.getValue());
+            if (f.pick() != Pick.NONE) checkBox(box, f.pick(), entryId(arr.get(i)));
             box.setResponder(s -> {
-                arr.set(index, new JsonPrimitive(s));
+                JsonElement entry = listEntry(s);
+                arr.set(index, entry);
                 obj.add(key, arr);
-                if (f.pick() != Pick.NONE) checkBox(box, f.pick(), s);
+                if (f.pick() != Pick.NONE) checkBox(box, f.pick(), entryId(entry));
                 host.changed();
             });
             place(r, box, valueX(indent));
@@ -470,7 +471,7 @@ final class EditorForm {
             if (!effects.get(i).isJsonObject()) continue;
             JsonObject effect = effects.get(i).getAsJsonObject();
             int index = i;
-            String type = effect.has("type") ? effect.get("type").getAsString() : "";
+            String type = effect.get("type") instanceof JsonPrimitive t ? t.getAsString() : "";   // an odd "type" shows as blank, not a crash
             FormRow r = row(indent + 8, "Effect " + (i + 1), Schema.effectHelp(type));
             r.labelColor = 0xFFD080;
             List<String> opts = new ArrayList<>(types);
@@ -499,7 +500,7 @@ final class EditorForm {
 
     private EditBox text(String value, int w, Consumer<String> onChange) {
         EditBox box = new EditBox(font, 0, 0, Math.max(30, w), 18, Component.literal("value"));
-        box.setMaxLength(32000);
+        box.setMaxLength(Integer.MAX_VALUE);   // a value is never cut short
         box.setValue(value);
         box.moveCursorToStart();
         box.setResponder(s -> {

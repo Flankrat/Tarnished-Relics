@@ -5,15 +5,18 @@ import com.flankrat.tarnishedrelics.client.TRClient;
 import com.flankrat.tarnishedrelics.command.TRCommands;
 import com.flankrat.tarnishedrelics.data.TRData;
 import com.flankrat.tarnishedrelics.data.TRDataLoader;
+import com.flankrat.tarnishedrelics.editor.EditorServer;
 import com.flankrat.tarnishedrelics.editor.ModpackPack;
 import com.flankrat.tarnishedrelics.effect.RelicEffects;
 import com.flankrat.tarnishedrelics.network.TRNetwork;
 import com.flankrat.tarnishedrelics.smith.Blacksmith;
 import com.mojang.logging.LogUtils;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.AddReloadListenerEvent;
 import net.minecraftforge.event.TagsUpdatedEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.common.Mod;
@@ -45,6 +48,10 @@ public final class TarnishedRelics {
         IEventBus forge = MinecraftForge.EVENT_BUS;
         forge.addListener((AddReloadListenerEvent e) -> e.addListener(new TRDataLoader()));
         forge.addListener((TagsUpdatedEvent e) -> TRData.get().clearCaches());   // item tags changed: re-resolve item lists
+        // an editor save that never got its commit (the op logged out) is forgotten
+        forge.addListener((PlayerEvent.PlayerLoggedOutEvent e) -> {
+            if (e.getEntity() instanceof ServerPlayer player) EditorServer.forget(player);
+        });
         forge.register(RelicEffects.class);
         forge.register(Blacksmith.class);
         forge.register(TRCommands.class);

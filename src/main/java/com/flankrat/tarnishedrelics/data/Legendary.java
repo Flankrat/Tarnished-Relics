@@ -19,6 +19,7 @@ import java.util.Map;
  * <pre>
  * {
  *   "items": ["minecraft:netherite_sword", "minecraft:diamond_sword"],   base items (ids, #tags, mod:*), one is picked
+ *   "exclude": ["minecraft:wooden_sword"],    optional: items taken out of "items"
  *   "category": "tarnishedrelics:sword",       optional: category (slot, silhouette) if the item has none of its own
  *   "name": "Dawnbreaker",                      lang key or plain text
  *   "lore": ["The first light of the last day."],   lines under the name (lang keys or text)
@@ -44,7 +45,10 @@ public record Legendary(ResourceLocation id, ItemList items, @Nullable ResourceL
         List<String> lore = Conditions.strings(o.get("lore"));
         Map<String, Integer> enchants = new LinkedHashMap<>();
         if (o.has("enchantments")) {
-            for (Map.Entry<String, JsonElement> e : o.getAsJsonObject("enchantments").entrySet()) enchants.put(e.getKey(), e.getValue().getAsInt());
+            for (Map.Entry<String, JsonElement> e : o.getAsJsonObject("enchantments").entrySet()) {
+                if (ResourceLocation.tryParse(e.getKey()) == null) throw new JsonParseException("bad enchantment id \"" + e.getKey() + "\"");
+                enchants.put(e.getKey(), e.getValue().getAsInt());
+            }
         }
         List<Effect> effects = new ArrayList<>();
         if (o.has("effects")) for (JsonElement e : o.getAsJsonArray("effects")) effects.add(Effect.parse(e.getAsJsonObject()));

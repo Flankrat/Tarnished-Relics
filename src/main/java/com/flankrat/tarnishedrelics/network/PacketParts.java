@@ -24,23 +24,58 @@ final class PacketParts {
         return id.toString().length() + value.getBytes(StandardCharsets.UTF_8).length + 10;
     }
 
-    /** Splits a map into parts of at most budget bytes each (an entry bigger than that gets a part to itself). */
+    /**
+     * Longest text one entry carries in a packet. FriendlyByteBuf refuses strings over the limit it's given
+     * (262144 characters for these packets), and at up to 3 bytes a character this also keeps a piece under the
+     * budget.
+     */
+    static final int MAX_PIECE_CHARS = 100_000;
+
+    /**
+     * Splits a map into parts of at most budget bytes each. A value too long for one packet (a huge datapack file)
+     * is cut into pieces, each in a part of its own and in order; {@link #join} puts them back together.
+     */
     static List<Map<ResourceLocation, String>> split(Map<ResourceLocation, String> map, int budget) {
+        int pieceChars = Math.max(2, Math.min(MAX_PIECE_CHARS, (budget - 64) / 3));
         List<Map<ResourceLocation, String>> parts = new ArrayList<>();
         Map<ResourceLocation, String> part = new LinkedHashMap<>();
         int used = 0;
         for (Map.Entry<ResourceLocation, String> e : map.entrySet()) {
-            int n = size(e.getKey(), e.getValue());
-            if (!part.isEmpty() && used + n > budget) {
-                parts.add(part);
-                part = new LinkedHashMap<>();
-                used = 0;
+            ResourceLocation id = e.getKey();
+            for (String piece : pieces(e.getValue(), pieceChars)) {
+                int n = size(id, piece);
+                // the same id can't be twice in one part, so each further piece starts a new part
+                if (!part.isEmpty() && (used + n > budget || part.containsKey(id))) {
+                    parts.add(part);
+                    part = new LinkedHashMap<>();
+                    used = 0;
+                }
+                part.put(id, piece);
+                used += n;
             }
-            part.put(e.getKey(), e.getValue());
-            used += n;
         }
         parts.add(part);   // always at least one part, so an empty datapack still syncs
         return parts;
+    }
+
+    /** The text cut into pieces of at most max characters (one piece if it fits), never between a surrogate pair. */
+    static List<String> pieces(String text, int max) {
+        if (text.length() <= max) return List.of(text);
+        List<String> out = new ArrayList<>();
+        int i = 0;
+        while (i < text.length()) {
+            int end = Math.min(text.length(), i + max);
+            // don't split an emoji or other character made of two chars
+            if (end < text.length() && Character.isHighSurrogate(text.charAt(end - 1))) end--;
+            out.add(text.substring(i, end));
+            i = end;
+        }
+        return out;
+    }
+
+    /** Adds a part's entries to the whole; pieces of one value are joined in the order their parts came in. */
+    static void join(Map<ResourceLocation, String> whole, Map<ResourceLocation, String> part) {
+        part.forEach((id, piece) -> whole.merge(id, piece, String::concat));
     }
 
     /**

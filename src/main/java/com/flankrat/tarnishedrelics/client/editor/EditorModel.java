@@ -198,8 +198,7 @@ public final class EditorModel {
     public boolean excludedEntry(String entry) {
         for (ResourceLocation id : filesIn("exclusions")) {
             if (isDisabled(id)) continue;
-            JsonElement items = files.get(id).get("items");
-            if (items != null && items.isJsonArray()) for (JsonElement e : items.getAsJsonArray()) if (e.getAsString().equals(entry)) return true;
+            for (JsonElement e : entries(files.get(id).get("items"))) if (isEntry(e, entry)) return true;
         }
         return false;
     }
@@ -218,12 +217,34 @@ public final class EditorModel {
             o.getAsJsonArray("items").add(entry);
         } else {
             for (ResourceLocation id : filesIn("exclusions")) {
-                JsonElement items = files.get(id).get("items");
-                if (items == null || !items.isJsonArray()) continue;
-                JsonArray arr = items.getAsJsonArray();
-                for (int i = arr.size() - 1; i >= 0; i--) if (arr.get(i).getAsString().equals(entry)) arr.remove(i);
+                JsonObject o = files.get(id);
+                JsonElement items = o.get("items");
+                if (items == null) continue;
+                // a single string counts as a one-entry list (like the loader reads it); written back as a list
+                JsonArray arr = entries(items);
+                boolean removed = false;
+                for (int i = arr.size() - 1; i >= 0; i--) {
+                    if (isEntry(arr.get(i), entry)) {
+                        arr.remove(i);
+                        removed = true;
+                    }
+                }
+                if (removed) o.add("items", arr);   // files that don't have the entry stay untouched
             }
         }
         edited();
+    }
+
+    // an "items" value as a list: a single string is a one-entry list (as the loader reads it)
+    private static JsonArray entries(@Nullable JsonElement items) {
+        if (items != null && items.isJsonArray()) return items.getAsJsonArray();
+        JsonArray a = new JsonArray();
+        if (items != null && items.isJsonPrimitive()) a.add(items);
+        return a;
+    }
+
+    // true if a list entry is this text (entries of another shape never are)
+    private static boolean isEntry(JsonElement e, String entry) {
+        return e.isJsonPrimitive() && e.getAsString().equals(entry);
     }
 }

@@ -1,6 +1,5 @@
 package com.flankrat.tarnishedrelics.relic;
 
-import com.flankrat.tarnishedrelics.TRConfig;
 import com.flankrat.tarnishedrelics.name.NameFallback;
 import net.minecraft.ChatFormatting;
 import net.minecraft.nbt.CompoundTag;
@@ -29,7 +28,7 @@ public class UnidentifiedItem extends Item {
         super(properties);
     }
 
-    // "Unidentified Sword" from the category; plain white unless the config shows rarity colors
+    // "Unidentified Sword" from the category; plain white unless the server's config shows rarity colors
     @Override
     public Component getName(ItemStack stack) {
         CompoundTag tag = stack.getTag();
@@ -37,7 +36,7 @@ public class UnidentifiedItem extends Item {
         // a category made in a datapack/the editor may have no lang entry: "Unidentified Spear" from its id
         String category = tag != null ? tag.getString("Category") : "";
         MutableComponent name = Component.translatableWithFallback(key, NameFallback.unidentified(category));
-        if (tag != null && tag.contains("Color") && TRConfig.SHOW_RARITY_COLOR.get()) {
+        if (tag != null && tag.contains("Color") && DisplaySettings.showRarityColor()) {
             name = name.withStyle(s -> s.withColor(tag.getInt("Color")));
         }
         return name;

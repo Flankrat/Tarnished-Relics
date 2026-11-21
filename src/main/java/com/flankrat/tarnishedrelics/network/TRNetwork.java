@@ -1,9 +1,11 @@
 package com.flankrat.tarnishedrelics.network;
 
+import com.flankrat.tarnishedrelics.TRConfig;
 import com.flankrat.tarnishedrelics.TarnishedRelics;
 import com.flankrat.tarnishedrelics.client.editor.EditorClient;
 import com.flankrat.tarnishedrelics.data.TRData;
 import com.flankrat.tarnishedrelics.editor.EditorServer;
+import com.flankrat.tarnishedrelics.relic.DisplaySettings;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -31,7 +33,7 @@ import java.util.function.Supplier;
  */
 public final class TRNetwork {
 
-    private static final String VERSION = "5";
+    private static final String VERSION = "6";
 
     /**
      * Most data one packet carries. A server-to-client packet can be at most 1 MB (1048576 bytes) or the player is
@@ -59,6 +61,8 @@ public final class TRNetwork {
                 Optional.of(NetworkDirection.PLAY_TO_CLIENT));
         CHANNEL.registerMessage(5, EditorGive.class, EditorGive::encode, EditorGive::decode, EditorGive::handle,
                 Optional.of(NetworkDirection.PLAY_TO_SERVER));
+        CHANNEL.registerMessage(6, Settings.class, Settings::encode, Settings::decode, Settings::handle,
+                Optional.of(NetworkDirection.PLAY_TO_CLIENT));
     }
 
     // joining (player set) or /reload (player null = everyone)
@@ -70,6 +74,34 @@ public final class TRNetwork {
             SyncData packet = new SyncData(batch, i, parts.size(), parts.get(i));
             if (event.getPlayer() != null) CHANNEL.send(PacketDistributor.PLAYER.with(event::getPlayer), packet);
             else CHANNEL.send(PacketDistributor.ALL.noArg(), packet);
+        }
+        if (event.getPlayer() != null) CHANNEL.send(PacketDistributor.PLAYER.with(event::getPlayer), Settings.current());
+        else sendSettings();
+    }
+
+    /** Sends the server's display settings to every player (after they change in the editor). */
+    public static void sendSettings() {
+        CHANNEL.send(PacketDistributor.ALL.noArg(), Settings.current());
+    }
+
+    /** Server -> client: the server's display settings (see DisplaySettings). */
+    public record Settings(boolean showRarityColor) {
+
+        static Settings current() {
+            return new Settings(TRConfig.SHOW_RARITY_COLOR.get());
+        }
+
+        static void encode(Settings p, FriendlyByteBuf buf) {
+            buf.writeBoolean(p.showRarityColor);
+        }
+
+        static Settings decode(FriendlyByteBuf buf) {
+            return new Settings(buf.readBoolean());
+        }
+
+        static void handle(Settings p, Supplier<NetworkEvent.Context> ctx) {
+            ctx.get().enqueueWork(() -> DisplaySettings.fromServer(p.showRarityColor));
+            ctx.get().setPacketHandled(true);
         }
     }
 
@@ -96,7 +128,7 @@ public final class TRNetwork {
                 List<Object[]> all = SYNC_PARTS.add(p.batch, p.index, p.count, new Object[]{p.files});
                 if (all == null) return;   // more parts to come
                 Map<ResourceLocation, String> files = new LinkedHashMap<>();
-                for (Object[] part : all) files.putAll((Map<ResourceLocation, String>) part[0]);
+                for (Object[] part : all) PacketParts.join(files, (Map<ResourceLocation, String>) part[0]);
                 TRData.loadFromSync(files);
             });
             ctx.get().setPacketHandled(true);
@@ -155,8 +187,8 @@ public final class TRNetwork {
                 Map<ResourceLocation, String> files = new LinkedHashMap<>();
                 Map<ResourceLocation, String> origins = new LinkedHashMap<>();
                 for (Object[] part : all) {
-                    files.putAll((Map<ResourceLocation, String>) part[0]);
-                    origins.putAll((Map<ResourceLocation, String>) part[1]);
+                    PacketParts.join(files, (Map<ResourceLocation, String>) part[0]);
+                    PacketParts.join(origins, (Map<ResourceLocation, String>) part[1]);
                 }
                 DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () ->
                         EditorClient.open(files, origins, p.refresh));
@@ -165,22 +197,26 @@ public final class TRNetwork {
         }
     }
 
-    /** Op -> server: one changed file ("" = removed). Sent one per packet, then EditorCommit. */
-    public record EditorFile(ResourceLocation id, String json) {
+    /**
+     * Op -> server: one changed file ("" = removed), then EditorCommit. A client packet can be at most 32 KB, so a
+     * bigger file is sent in pieces: the first has append = false, the rest append = true (see EditorClient.save).
+     */
+    public record EditorFile(ResourceLocation id, String json, boolean append) {
 
         static void encode(EditorFile p, FriendlyByteBuf buf) {
             buf.writeResourceLocation(p.id);
             buf.writeUtf(p.json, 32767);
+            buf.writeBoolean(p.append);
         }
 
         static EditorFile decode(FriendlyByteBuf buf) {
-            return new EditorFile(buf.readResourceLocation(), buf.readUtf(32767));
+            return new EditorFile(buf.readResourceLocation(), buf.readUtf(32767), buf.readBoolean());
         }
 
         static void handle(EditorFile p, Supplier<NetworkEvent.Context> ctx) {
             ServerPlayer player = ctx.get().getSender();
             ctx.get().enqueueWork(() -> {
-                if (player != null) EditorServer.receiveFile(player, p.id, p.json);
+                if (player != null) EditorServer.receiveFile(player, p.id, p.json, p.append);
             });
             ctx.get().setPacketHandled(true);
         }
