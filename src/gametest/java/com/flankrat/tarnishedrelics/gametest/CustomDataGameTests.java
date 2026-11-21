@@ -114,6 +114,31 @@ public class CustomDataGameTests {
         }
     }
 
+    // Another mod refused the crit (DENY): crit_chance still rolls, and a crit it rolls overrides the refusal. Without
+    // a crit_chance crit the refusal stands (crit_damage doesn't make one). A denied hit that was a vanilla crit
+    // counted as a crit already, so crit_chance never rolled and the hit didn't crit at all.
+    @GameTest(template = "gametest/empty", batch = BATCH)
+    public static void critChanceOverridesADeniedCrit(GameTestHelper helper) {
+        ServerPlayer p = TestUtil.player(helper);
+        java.util.function.Consumer<CriticalHitEvent> otherMod = e -> {
+            if (e.getEntity() == p) e.setResult(net.minecraftforge.eventbus.api.Event.Result.DENY);
+        };
+        MinecraftForge.EVENT_BUS.addListener(net.minecraftforge.eventbus.api.EventPriority.HIGH, false, CriticalHitEvent.class, otherMod);
+        try {
+            Zombie z = helper.spawn(EntityType.ZOMBIE, new BlockPos(3, 1, 3));
+            p.setItemInHand(InteractionHand.MAIN_HAND, TestUtil.relic(Items.IRON_SWORD, "rare", "sword", "mainhand", "trtest:always_crits", 0.5));
+            // getCriticalHit is null for "no crit"
+            helper.assertTrue(ForgeHooks.getCriticalHit(p, z, false, 1.0F) != null, "100% crit chance didn't crit a denied hit");
+            helper.assertTrue(ForgeHooks.getCriticalHit(p, z, true, 1.5F) != null, "100% crit chance didn't crit a denied vanilla crit");
+            p.setItemInHand(InteractionHand.MAIN_HAND, TestUtil.relic(Items.IRON_SWORD, "rare", "sword", "mainhand", "trtest:harder_crits", 0.5));
+            helper.assertTrue(ForgeHooks.getCriticalHit(p, z, true, 1.5F) == null, "crit_damage alone overrode a denied crit");
+            helper.succeed();
+        } finally {
+            MinecraftForge.EVENT_BUS.unregister(otherMod);
+            TestUtil.remove(p);
+        }
+    }
+
     // crit_damage on a vanilla crit, and nothing at all on a hit that isn't one
     @GameTest(template = "gametest/empty", batch = BATCH)
     public static void critDamageOnlyOnCrits(GameTestHelper helper) {

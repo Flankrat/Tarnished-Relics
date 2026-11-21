@@ -369,4 +369,22 @@ public class LegendaryAffixGameTests {
             setTime(helper, time);
         }
     }
+
+    // A general damage reduction (Bastion: less damage from anything) doesn't apply to damage meant to get through
+    // everything: falling out of the world and /kill (#minecraft:bypasses_invulnerability). Bastion made you last
+    // longer in the void. Ordinary hits are still reduced.
+    @GameTest(template = "gametest/empty")
+    public static void bastionDoesntReduceVoidOrKill(GameTestHelper helper) {
+        ServerPlayer p = TestUtil.player(helper);
+        try {
+            p.setItemSlot(EquipmentSlot.CHEST, legendary(Items.IRON_CHESTPLATE, "chestplate", "chest", "bastion"));
+            Zombie z = helper.spawn(EntityType.ZOMBIE, new BlockPos(3, 1, 3));
+            helper.assertTrue(hurt(p, z.damageSources().mobAttack(z)) < 9.9F, "an ordinary hit wasn't reduced");
+            helper.assertTrue(Math.abs(hurt(p, p.damageSources().fellOutOfWorld()) - 10) < 1e-4, "falling out of the world was reduced");
+            helper.assertTrue(Math.abs(hurt(p, p.damageSources().genericKill()) - 10) < 1e-4, "/kill was reduced");
+            helper.succeed();
+        } finally {
+            TestUtil.remove(p);
+        }
+    }
 }
