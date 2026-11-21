@@ -2,6 +2,7 @@ package com.flankrat.tarnishedrelics.effect;
 
 import com.flankrat.tarnishedrelics.data.Effect;
 import com.flankrat.tarnishedrelics.data.IdOrTag;
+import com.flankrat.tarnishedrelics.mixin.AbstractArrowAccessor;
 import com.flankrat.tarnishedrelics.relic.RelicTag;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
@@ -18,6 +19,8 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.projectile.AbstractArrow;
+import net.minecraft.world.entity.projectile.ThrowableItemProjectile;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraftforge.event.ItemAttributeModifierEvent;
@@ -60,6 +63,31 @@ public final class RelicEffects {
             collect(stack, slot, type, out);
         }
         return out;
+    }
+
+    /**
+     * The effects that count for a hit the attacker made. Usually everything they hold and wear. A relic weapon that
+     * was thrown (a trident, a modded javelin) hits with its own effects, as if it were in its slot, plus the
+     * armor's; what's in the hands then didn't make that hit, so it doesn't count.
+     */
+    static List<Active> forHit(LivingEntity attacker, DamageSource source, Effect.Type type) {
+        ItemStack thrown = thrownRelic(source, attacker);
+        if (thrown.isEmpty()) return active(attacker, type);
+        List<Active> out = new ArrayList<>();
+        for (EquipmentSlot slot : EquipmentSlot.values()) {
+            if (slot.getType() == EquipmentSlot.Type.ARMOR) collect(attacker.getItemBySlot(slot), slot, type, out);
+        }
+        collect(thrown, RelicTag.slot(RelicTag.get(thrown)), type, out);
+        return out;
+    }
+
+    /** The relic weapon a projectile hit was thrown as, or EMPTY (not a projectile, or its item isn't a relic: arrows). */
+    static ItemStack thrownRelic(DamageSource source, LivingEntity attacker) {
+        Entity direct = source.getDirectEntity();
+        if (direct == null || direct == attacker) return ItemStack.EMPTY;
+        ItemStack item = direct instanceof AbstractArrow arrow ? ((AbstractArrowAccessor) arrow).tarnishedrelics$pickupItem()
+                : direct instanceof ThrowableItemProjectile thrown ? thrown.getItem() : ItemStack.EMPTY;
+        return RelicTag.isRelic(item) ? item : ItemStack.EMPTY;
     }
 
     private static void collect(ItemStack stack, @Nullable EquipmentSlot slot, Effect.Type type, List<Active> out) {
@@ -114,7 +142,7 @@ public final class RelicEffects {
         if (attacker != null) {
             // damage_vs: +/- % damage against matching targets
             double bonus = 0;
-            for (Active a : active(attacker, Effect.Type.DAMAGE_VS)) {
+            for (Active a : forHit(attacker, source, Effect.Type.DAMAGE_VS)) {
                 var holder = victim.getType().builtInRegistryHolder();
                 if ((a.effect.targets.isEmpty() || a.effect.targets.stream().anyMatch(t -> t.matches(holder))) && a.effect.conditions.test(attacker, victim, random)) bonus += a.value;
             }
@@ -130,16 +158,16 @@ public final class RelicEffects {
         amount *= (float) Math.max(0, 1 + taken);
         event.setAmount(amount);
 
-        // On-hit effects only for melee hits (not arrows, explosions or thorns)
-        if (attacker != null && isMelee(source, attacker)) {
-            for (Active a : active(attacker, Effect.Type.ON_HIT_EFFECT)) {
+        // On-hit effects only for melee hits and thrown relic weapons (not arrows, explosions or thorns)
+        if (attacker != null && isWeaponHit(source, attacker)) {
+            for (Active a : forHit(attacker, source, Effect.Type.ON_HIT_EFFECT)) {
                 if (!a.effect.conditions.test(attacker, victim, random)) continue;
                 applyEffect(a.effect, a.effect.onSelf ? attacker : victim);
             }
-            for (Active a : active(attacker, Effect.Type.ON_HIT_FIRE)) {
+            for (Active a : forHit(attacker, source, Effect.Type.ON_HIT_FIRE)) {
                 if (a.effect.conditions.test(attacker, victim, random)) victim.setSecondsOnFire((int) Math.round(a.value));
             }
-            runFunctions(attacker, victim, "hit");
+            runFunctions(attacker, victim, "hit", forHit(attacker, source, Effect.Type.FUNCTION));
         }
 
         // On-hurt effects of the victim's gear (not for thorns damage, so two thorns wearers don't loop)
@@ -160,6 +188,11 @@ public final class RelicEffects {
      * A melee hit: a player or mob attack dealt by the attacker itself. Checking only "direct entity == attacker"
      * also counted thorns (the thorns owner is both), so thorns damage set off on-hit effects and lifesteal.
      */
+    /** A hit with a weapon itself: a melee hit, or a thrown relic weapon (whose effects then count, see forHit). */
+    static boolean isWeaponHit(DamageSource source, LivingEntity attacker) {
+        return isMelee(source, attacker) || !thrownRelic(source, attacker).isEmpty();
+    }
+
     static boolean isMelee(DamageSource source, LivingEntity attacker) {
         if (source.getDirectEntity() != attacker) return false;
         return source.is(DamageTypes.PLAYER_ATTACK) || source.is(DamageTypes.MOB_ATTACK) || source.is(DamageTypes.MOB_ATTACK_NO_AGGRO);
@@ -174,9 +207,9 @@ public final class RelicEffects {
     public static void onDamage(LivingDamageEvent event) {
         if (event.getEntity().level().isClientSide) return;
         DamageSource source = event.getSource();
-        if (!(source.getEntity() instanceof LivingEntity attacker) || !isMelee(source, attacker)) return;
+        if (!(source.getEntity() instanceof LivingEntity attacker) || !isWeaponHit(source, attacker)) return;
         double steal = 0;
-        for (Active a : active(attacker, Effect.Type.LIFESTEAL)) {
+        for (Active a : forHit(attacker, source, Effect.Type.LIFESTEAL)) {
             if (a.effect.conditions.test(attacker, event.getEntity(), attacker.getRandom())) steal += a.value;
         }
         if (steal > 0) attacker.heal((float) (event.getAmount() * steal));
@@ -229,7 +262,7 @@ public final class RelicEffects {
     public static void onLooting(LootingLevelEvent event) {
         if (event.getDamageSource() == null || !(event.getDamageSource().getEntity() instanceof LivingEntity killer)) return;
         int extra = 0;
-        for (Active a : active(killer, Effect.Type.LOOTING)) {
+        for (Active a : forHit(killer, event.getDamageSource(), Effect.Type.LOOTING)) {
             if (a.effect.conditions.test(killer, event.getEntity(), killer.getRandom())) extra += (int) Math.round(a.value);
         }
         if (extra != 0) event.setLootingLevel(Math.max(0, event.getLootingLevel() + extra));
@@ -238,7 +271,9 @@ public final class RelicEffects {
     @SubscribeEvent
     public static void onDeath(LivingDeathEvent event) {
         if (event.getEntity().level().isClientSide) return;
-        if (event.getSource().getEntity() instanceof LivingEntity killer) runFunctions(killer, event.getEntity(), "kill");
+        if (event.getSource().getEntity() instanceof LivingEntity killer) {
+            runFunctions(killer, event.getEntity(), "kill", forHit(killer, event.getSource(), Effect.Type.FUNCTION));
+        }
     }
 
     /** Durability: called from ItemStackMixin with the wear about to be applied. */
@@ -268,9 +303,14 @@ public final class RelicEffects {
 
     // "function" effects: run the datapack function as the wielder (or the target), at their position
     static void runFunctions(LivingEntity wielder, @Nullable LivingEntity target, String trigger) {
+        runFunctions(wielder, target, trigger, active(wielder, Effect.Type.FUNCTION));
+    }
+
+    // functions: the function effects that count (everything held and worn, or a hit's, see forHit)
+    static void runFunctions(LivingEntity wielder, @Nullable LivingEntity target, String trigger, List<Active> functions) {
         MinecraftServer server = wielder.getServer();
         if (server == null) return;
-        for (Active a : active(wielder, Effect.Type.FUNCTION)) {
+        for (Active a : functions) {
             if (!a.effect.trigger.equals(trigger) || !a.effect.conditions.test(wielder, target, wielder.getRandom())) continue;
             Entity runAs = a.effect.asTarget && target != null ? target : wielder;
             server.getFunctions().get(a.effect.function).ifPresent(fn -> server.getFunctions().execute(fn,
