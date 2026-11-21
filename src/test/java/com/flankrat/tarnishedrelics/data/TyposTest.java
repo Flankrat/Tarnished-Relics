@@ -43,6 +43,13 @@ class TyposTest {
         reported("{\"effects\": [{\"type\": \"function\", \"function\": \"mypack:boom\", \"as\": \"attacker\"}]}", "attacker");
     }
 
+    // these two were already refused; checked so they stay refused
+    @Test
+    void wrongOperationAndTrigger() {
+        reported("{\"effects\": [{\"type\": \"attribute\", \"attribute\": \"minecraft:generic.armor\", \"operation\": \"multiply\", \"value\": 1}]}", "multiply");
+        reported("{\"effects\": [{\"type\": \"function\", \"function\": \"mypack:f\", \"trigger\": \"attack\"}]}", "attack");
+    }
+
     // a misspelled condition was skipped, so the effect worked all the time
     @Test
     void misspelledCondition() {
