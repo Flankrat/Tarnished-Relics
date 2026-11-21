@@ -8,7 +8,7 @@ into the real item, with a tier, random affixes and a name like **"Champion's Ir
 Unique, **"Sturdy Netherite Pickaxe of Ithireal"**. The rarest are **Legendaries**: named, with lore, enchantments above
 their normal maximum and effects no ordinary relic gets.
 
-- Four tiers (Magic, Rare, Unique, Legendary), 72 built-in affixes and 10 hand-made legendaries.
+- Four tiers (Magic, Rare, Unique, Legendary), 76 built-in affixes and 10 hand-made legendaries.
 - Weapons, armor, tools and shields from **other mods become relics automatically**, by what they are.
 - Everything is **datapack-driven**: item categories, tiers, affixes and their effects, names, material levels.
 - An **in-game editor** (`/tarnishedrelics editor`) changes all of it without touching a file, for one world or a
@@ -48,15 +48,16 @@ Tidebreaker, Windstride and The Hollow Crown (riches, but cursed with Binding).
 
 ## Built-in affixes
 
-- **Normal (28)**, the name parts of Magic, Rare and Unique relics. Prefixes: Champion's (damage), Heavy (more damage, slower swings),
-  Swift (attack speed), Keen (crit chance), Vicious (crit damage), Sharpshooter's (bow damage), Reinforced (armor),
-  Hardened (armor toughness), Vital (health), Efficient (mining speed), Sturdy and Brittle (durability). Suffixes: of
-  Smiting and of the Bane (damage against undead / arthropods), of Embers (sets on fire), of Frost and of Venom
-  (slowness, poison on hit), of the Leech (lifesteal), of Thorns, of Arrow / Blast / Fire Warding (less damage of that
-  kind), of Feathers (less fall damage), of Fleetness (movement speed), of Night Sight and of the Miner (night vision,
-  haste), of Plunder (looting), of Wisdom (XP).
-- **Unique (12)**, no name part, stronger effect sets: Aegis, Berserker (more damage at low health), Deep Delver,
-  Executioner, Glass Cannon, Hunter's Mark, Phoenix, Soulreaver, Titan, Vampiric, Windwalker, Withering.
+- **Normal (30)**, the name parts of Magic, Rare and Unique relics. Prefixes: Champion's (damage), Heavy (more
+  damage, slower swings), Swift (attack speed), Keen (crit chance), Vicious (crit damage), Sharpshooter's (bow damage),
+  Reinforced (armor), Hardened (armor toughness), Vital (health), Efficient (mining speed), Far-Reaching (block reach),
+  Lucky (Luck), Sturdy and Brittle (durability). Suffixes: of Smiting and of the Bane (damage against undead /
+  arthropods), of Embers (sets on fire), of Frost and of Venom (slowness, poison on hit), of the Leech (lifesteal), of
+  Thorns, of Arrow / Blast / Fire Warding (less damage of that kind), of Feathers (less fall damage), of Fleetness
+  (movement speed), of Night Sight and of the Miner (night vision, haste), of Plunder (looting), of Wisdom (XP).
+- **Unique (14)**, no name part, stronger effect sets: Aegis, Berserker (more damage at low health), Deep Delver,
+  Executioner, Glass Cannon, Hunter's Mark, Phoenix, Prospector (Luck and night vision on tools), Soulreaver, Tireless
+  (mining speed and regeneration), Titan, Vampiric, Windwalker, Withering.
 - **Legendary (27)**: big effects, many tied to a condition, for example Skyfall (bow damage against targets in the
   air), Deepcore (mining speed and night vision below y 0), Hellforged (in the Nether), Nightstalker (at night),
   Stormstride (speed and jump boost by day), Last Stand and Second Wind (when nearly dead), Featherfall, Rampart,

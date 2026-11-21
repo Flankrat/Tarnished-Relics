@@ -1,0 +1,40 @@
+{
+  "kind": "prefix",
+  "name": "affix.tarnishedrelics.lucky",
+  "pool": "normal",
+  "applies_to": [
+    "tarnishedrelics:pickaxe",
+    "tarnishedrelics:shovel",
+    "tarnishedrelics:hoe"
+  ],
+  "weight": 10,
+  "effects": [
+    {
+      "type": "attribute",
+      "attribute": "minecraft:generic.luck",
+      "operation": "add",
+      "value": {
+        "magic": [
+          1,
+          1
+        ],
+        "rare": [
+          1,
+          2
+        ],
+        "unique": [
+          2,
+          3
+        ],
+        "legendary": [
+          2,
+          3
+        ],
+        "default": [
+          1,
+          2
+        ]
+      }
+    }
+  ]
+}

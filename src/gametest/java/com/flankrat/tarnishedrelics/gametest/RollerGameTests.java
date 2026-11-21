@@ -172,4 +172,44 @@ public class RollerGameTests {
         helper.assertTrue(together > 0, "no legendary sword out of 300 got two of Sharpness, Smite and Bane of Arthropods");
         helper.succeed();
     }
+
+    // Every kind of relic gets as many affixes as its tier asks for: a category with too few affixes that fit it (and
+    // the tier) just gets fewer, so a "Rare" hoe could have no more affixes than a Magic one. Built-in data, every
+    // built-in category, the most each tier can roll per pool.
+    @GameTest(template = "gametest/empty", timeoutTicks = 400)
+    public static void everyCategoryCanFillEveryTier(GameTestHelper helper) {
+        RandomSource random = RandomSource.create(31);
+        StringBuilder short_ = new StringBuilder();
+        for (var cat : TRData.get().categories().values()) {
+            for (String r : new String[]{"magic", "rare", "unique"}) {
+                Rarity rarity = rarity(r);
+                int want = rarity.rolls().values().stream().mapToInt(x -> x[1]).sum();
+                int most = 0;
+                for (int i = 0; i < 200; i++) {
+                    CompoundTag relic = relicOf(Roller.generate(random, rarity, cat));
+                    if (relic != null) most = Math.max(most, relic.getList("Affixes", Tag.TAG_COMPOUND).size());
+                }
+                if (most > 0 && most < want) short_.append(cat.id().getPath()).append(" ").append(r).append(": at most ").append(most)
+                        .append(" of ").append(want).append("; ");
+            }
+        }
+        helper.assertTrue(short_.isEmpty(), "categories that can't fill a tier: " + short_);
+        helper.succeed();
+    }
+
+    // every attribute a built-in affix or legendary gives exists (a missing one is skipped without a word in play)
+    @GameTest(template = "gametest/empty")
+    public static void builtInAttributesExist(GameTestHelper helper) {
+        StringBuilder missing = new StringBuilder();
+        for (var a : TRData.get().affixes().values()) {
+            if (!a.id().getNamespace().equals(TarnishedRelics.MODID)) continue;
+            for (var e : a.effects()) {
+                if (e.attribute != null && !net.minecraftforge.registries.ForgeRegistries.ATTRIBUTES.containsKey(e.attribute)) {
+                    missing.append(a.id()).append(": ").append(e.attribute).append("; ");
+                }
+            }
+        }
+        helper.assertTrue(missing.isEmpty(), "attributes that don't exist: " + missing);
+        helper.succeed();
+    }
 }

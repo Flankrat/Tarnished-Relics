@@ -1,0 +1,41 @@
+{
+  "kind": "prefix",
+  "name": "affix.tarnishedrelics.far_reaching",
+  "pool": "normal",
+  "applies_to": [
+    "tarnishedrelics:pickaxe",
+    "tarnishedrelics:shovel",
+    "tarnishedrelics:hoe",
+    "tarnishedrelics:axe"
+  ],
+  "weight": 10,
+  "effects": [
+    {
+      "type": "attribute",
+      "attribute": "forge:block_reach",
+      "operation": "add",
+      "value": {
+        "magic": [
+          0.5,
+          1.0
+        ],
+        "rare": [
+          0.75,
+          1.5
+        ],
+        "unique": [
+          1.0,
+          2.0
+        ],
+        "legendary": [
+          1.0,
+          2.0
+        ],
+        "default": [
+          0.75,
+          1.5
+        ]
+      }
+    }
+  ]
+}
