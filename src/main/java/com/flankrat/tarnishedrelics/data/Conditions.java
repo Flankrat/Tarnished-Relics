@@ -21,7 +21,8 @@ import java.util.Set;
  * <pre>
  *   "conditions": { "chance": 0.25, "health_below": 0.5, "is_night": true, "target": ["#minecraft:undead"] }
  * </pre>
- * health_below/health_above are fractions of the wielder's max health. target and target_in_air only mean something for
+ * health_below/health_above are fractions of the wielder's max health. is_night/is_day: in a dimension with days and
+ * nights (neither is true in the Nether or the End). target and target_in_air only mean something for
  * effects that have a target (on hit, damage against...). target_in_air: the target isn't standing on anything, swimming
  * or riding (flying, jumping, falling, knocked up).
  */
@@ -111,9 +112,10 @@ public final class Conditions {
         if (healthBelow >= 0 && frac >= healthBelow) return false;
         if (healthAbove >= 0 && frac <= healthAbove) return false;
         if (inWater != null && wielder.isInWater() != inWater) return false;
-        boolean night = wielder.level().isNight();
-        if (isNight != null && night != isNight) return false;
-        if (isDay != null && night == isDay) return false;
+        // the level's own day and night: both false in a dimension without days (the Nether, the End), where "not
+        // night" used to count as day
+        if (isNight != null && wielder.level().isNight() != isNight) return false;
+        if (isDay != null && wielder.level().isDay() != isDay) return false;
         if (sneaking != null && wielder.isShiftKeyDown() != sneaking) return false;
         if (onFire != null && wielder.isOnFire() != onFire) return false;
         if (yBelow != null && wielder.getY() >= yBelow) return false;
