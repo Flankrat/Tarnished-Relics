@@ -50,7 +50,8 @@ swords doesn't make nearly every relic a sword.
 - The **quality word** comes from Quality Equipment Forked if it is installed (optional). Like Quality's own tooltip,
   a quality without attributes ("normal") adds no word, and a quality with no translation is left out.
 - With **Tooltip Overhaul** installed (optional), the rating under the name shows the relic's tier ("Unique", in the
-  tier's color) instead of the item's vanilla rarity ("Common").
+  tier's color) instead of the item's vanilla rarity ("Common"). While that rating line is on (`SHOW_RATING`), the
+  tooltip body leaves out its own tier line so the tier isn't shown twice.
 - The **name prefix from other mods** is any JSON text component another mod puts in the item's
   `TarnishedRelicsNamePrefix` NBT string (for example a socket mod).
 - The first rolled prefix affix and first rolled suffix affix name the item. Uniques end with "of" + a generated name.

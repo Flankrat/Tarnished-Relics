@@ -50,7 +50,8 @@ public final class RelicTooltips {
         if (relic == null) return;
         List<Component> lines = new ArrayList<>();
         ResourceLocation rarityId = RelicTag.rarity(relic);
-        lines.add(tierName(relic));
+        // Tooltip Overhaul's rating line under the name already shows the tier
+        if (!com.flankrat.tarnishedrelics.client.compat.TooltipOverhaulCompat.showsRating()) lines.add(tierName(relic));
         // a legendary's lore lines (lang keys or plain text)
         var lore = relic.getList("Lore", net.minecraft.nbt.Tag.TAG_STRING);
         for (int i = 0; i < lore.size(); i++) {
