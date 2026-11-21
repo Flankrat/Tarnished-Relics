@@ -1,6 +1,8 @@
 package com.flankrat.tarnishedrelics.gametest;
 
 import com.flankrat.tarnishedrelics.TarnishedRelics;
+import com.flankrat.tarnishedrelics.data.Conditions;
+import com.google.gson.JsonParser;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -16,6 +18,7 @@ import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.entity.projectile.Arrow;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.common.MinecraftForge;
@@ -319,6 +322,51 @@ public class LegendaryAffixGameTests {
         } finally {
             setTime(helper, time);
             TestUtil.remove(p);
+        }
+    }
+
+    // Wrath (damage_vs on weapons) boosts hits with the weapon (melee, arrows), not other damage the wielder causes:
+    // their thorns, or an explosion they set off
+    @GameTest(template = "gametest/empty")
+    public static void damageVsOnlyBoostsWeaponAndProjectileHits(GameTestHelper helper) {
+        ServerPlayer p = TestUtil.player(helper);
+        try {
+            Zombie z = helper.spawn(EntityType.ZOMBIE, new BlockPos(3, 1, 3));
+            z.setNoAi(true);
+            p.setItemInHand(InteractionHand.MAIN_HAND, legendary(Items.IRON_SWORD, "sword", "mainhand", "wrath"));
+            helper.assertTrue(hurt(z, p.damageSources().playerAttack(p)) > 10.1F, "a melee hit wasn't boosted");
+            helper.assertTrue(Math.abs(hurt(z, p.damageSources().thorns(p)) - 10) < 1e-4, "the wielder's thorns damage was boosted");
+            helper.assertTrue(Math.abs(hurt(z, p.damageSources().explosion(null, p)) - 10) < 1e-4, "an explosion the wielder caused was boosted");
+            var potion = new net.minecraft.world.entity.projectile.ThrownPotion(helper.getLevel(), p);
+            helper.assertTrue(Math.abs(hurt(z, p.damageSources().indirectMagic(potion, p)) - 10) < 1e-4, "a Harming potion the wielder threw was boosted");
+            p.setItemInHand(InteractionHand.MAIN_HAND, legendary(Items.BOW, "bow", "mainhand", "wrath"));
+            Arrow arrow = new Arrow(helper.getLevel(), p);
+            helper.assertTrue(hurt(z, p.damageSources().arrow(arrow, p)) > 10.1F, "an arrow from the bow wasn't boosted");
+            helper.succeed();
+        } finally {
+            TestUtil.remove(p);
+        }
+    }
+
+    // is_day / is_night only in a dimension with days: the Nether and the End are neither (is_day counted them as day,
+    // so Stormstride's day buffs were always on there)
+    @GameTest(template = "gametest/empty")
+    public static void isDayIsNeverTrueInTheNether(GameTestHelper helper) {
+        Conditions day = Conditions.parse(JsonParser.parseString("{\"is_day\": true}"));
+        Conditions night = Conditions.parse(JsonParser.parseString("{\"is_night\": true}"));
+        long time = helper.getLevel().getDayTime();
+        try {
+            setTime(helper, 6000);   // noon in the overworld
+            Zombie here = helper.spawn(EntityType.ZOMBIE, new BlockPos(1, 1, 1));
+            helper.assertTrue(day.testIgnoringChance(here, null), "noon in the overworld isn't day");
+            for (var dim : java.util.List.of(Level.NETHER, Level.END)) {
+                Zombie there = EntityType.ZOMBIE.create(helper.getLevel().getServer().getLevel(dim));
+                helper.assertFalse(day.testIgnoringChance(there, null), "is_day passed in " + dim.location());
+                helper.assertFalse(night.testIgnoringChance(there, null), "is_night passed in " + dim.location());
+            }
+            helper.succeed();
+        } finally {
+            setTime(helper, time);
         }
     }
 }

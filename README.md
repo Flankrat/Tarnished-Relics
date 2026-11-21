@@ -183,7 +183,7 @@ already found, and a perfect roll stays perfect. Affixes removed from the datapa
 | `type` | Fields | Does |
 |---|---|---|
 | `attribute` | `attribute`, `operation` (`add`, `multiply_base`, `multiply_total`), `value` | Any attribute from any mod. Shown in the normal stat lines. Ignores conditions. |
-| `damage_vs` | `value`, `target` (optional entity id/#tag or list) | ±% damage dealt (to matching targets, or to everything) |
+| `damage_vs` | `value`, `target` (optional entity id/#tag or list) | ±% damage dealt with your weapons: melee hits, shots and thrown relics (to matching targets, or to everything). Not your thorns, explosions you set off or potions |
 | `damage_taken` | `value`, `damage` (optional damage type id/#tag or list) | ±% damage taken (`-0.2` = 20% less) |
 | `on_hit_effect` | `effect`, `duration` (ticks), `amplifier`, `apply_to` (`target`/`self`) | Potion effect on a melee hit (or a hit by the thrown relic) |
 | `on_hit_fire` | `value` (seconds) | Sets the target on fire on a melee hit (or a hit by the thrown relic) |
@@ -202,10 +202,11 @@ already found, and a perfect roll stays perfect. Affixes removed from the datapa
 Every effect can also have:
 
 - `"conditions"`: all must pass. `chance` (0-1), `health_below` / `health_above` (fraction of the wielder's max health),
-  `in_water`, `is_night`, `is_day`, `sneaking`, `on_fire`, `y_below`, `y_above`, `dimensions` (list), `biomes`
+  `in_water`, `is_night`, `is_day` (only in a dimension with days: neither is true in the Nether or the End), `sneaking`, `on_fire`, `y_below`, `y_above`, `dimensions` (list), `biomes`
   (ids/#tags), `target` (entity ids/#tags), `target_in_air` (the target isn't standing on anything, swimming or riding:
   flying, jumping, falling or knocked up). `break_speed` ignores `chance` (the client works out the mining speed too,
-  and a roll on each side would disagree).
+  and a roll on each side would disagree). An effect with conditions says "(sometimes)" in its tooltip; one with only a
+  `chance` too, unless its line already starts with the chance (on-hit and on-hurt effects, on-hit fire).
 - `"slot"`: works while the item is in that slot instead of its category's (`offhand` for a dagger that helps from
   the offhand).
 - `"tooltip"`: its own tooltip line, a lang key or plain text (`%1$s` = value as a percent, `%2$s` = plain number).

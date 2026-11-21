@@ -100,8 +100,15 @@ public final class RelicTooltips {
             case FUNCTION -> null;    // only shown when it has its own "tooltip"
             default -> Component.translatable(key, percent(v));   // lifesteal, thorns, crits, break speed, durability, xp
         };
-        if (line != null && e.conditions.hasOtherConditions()) line.append(Component.translatable("tarnishedrelics.effect.conditional"));
+        // "(sometimes)": it doesn't always work. A chance counts too, unless the line already says it ("35% chance on hit")
+        boolean sometimes = e.conditions.hasOtherConditions() || (e.conditions.chance() < 1 && !showsChance(e.type));
+        if (line != null && sometimes) line.append(Component.translatable("tarnishedrelics.effect.conditional"));
         return line;
+    }
+
+    // the effect types whose line starts with the chance
+    private static boolean showsChance(Effect.Type type) {
+        return type == Effect.Type.ON_HIT_EFFECT || type == Effect.Type.ON_HURT_EFFECT || type == Effect.Type.ON_HIT_FIRE;
     }
 
     private static String percent(double v) {
