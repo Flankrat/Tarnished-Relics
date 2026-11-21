@@ -28,6 +28,7 @@
   "tarnishedrelics.smith.too_hard": "This is beyond my skill. Seek a %s smith or better.",
   "tarnishedrelics.smith.price": "I can identify this for %s emeralds. Hand it to me again to pay.",
   "tarnishedrelics.smith.poor": "You'll need %s emeralds for that.",
+  "tarnishedrelics.smith.gone": "I can't make anything of this. Whatever it was, it's gone.",
   "tarnishedrelics.smith.done": "Let's see what we have here... %s!",
   "tarnishedrelics.effect.damage_vs": "%s damage against %s",
   "tarnishedrelics.effect.damage_vs.all": "%s damage",

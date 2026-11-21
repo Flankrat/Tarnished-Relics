@@ -110,6 +110,8 @@ public final class TRCommands {
         // an empty relic (e.g. from /give) has nothing inside: identifying it would just delete it
         if (held.getTag() == null || !held.getTag().contains("Hidden")) return fail(c, "This relic is empty (made with /give?); use /tarnishedrelics give");
         ItemStack real = Blacksmith.identify(held, player);
+        // the item inside is from a mod that was removed since (it loads as air): keep the relic instead of deleting it
+        if (real.isEmpty()) return fail(c, "The item inside this relic is from a mod that isn't installed any more");
         player.setItemInHand(InteractionHand.MAIN_HAND, real);
         c.getSource().sendSuccess(() -> Component.literal("Identified: ").append(real.getHoverName()), false);
         return 1;
