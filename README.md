@@ -16,12 +16,14 @@ can change all of it without touching a file.
 
 1. **Find a relic.** It's plain white, with a silhouette of its category and *"Take it to a blacksmith to identify
    it."* Nothing on it tells you its tier.
-2. **Use it on a blacksmith** (by default an armorer, weaponsmith or toolsmith: tag
-   `#tarnishedrelics:blacksmiths`). Higher tiers need a higher villager level. If the smith isn't skilled enough they
+2. **Use it on the right smith:** a toolsmith for tools, an armorer for armor (and shields), a weaponsmith for
+   weapons; an axe goes to a toolsmith or a weaponsmith. The wrong villager tells you who to see. Higher tiers need
+   a higher villager level. If the smith isn't skilled enough they
    shake their head and say which level you need. That's the only way to find out.
 3. **Pay.** The smith names a price in emeralds; use the relic on them again within 10 seconds to pay. The real item
    replaces the relic in your hand and the smith earns trade XP (they can level up from it).
 4. **Use it.** Affixes only work while the item is in its own slot (a sword in the main hand, a helmet on your head).
+   A thrown relic weapon (a trident, a modded javelin) hits with its own effects, as if it were still in your hand.
    The tooltip shows the tier and every affix effect; attribute bonuses show in the normal stat lines.
 
 Crafted gear is never affected: only relics found in loot have affixes.
@@ -91,6 +93,7 @@ has a category.
 | `priority` | If an item is in several categories, the highest priority wins |
 | `weight` | How often a relic is this category, relative to the others (default 10) |
 | `name` | Optional: the unidentified name, as a lang key or plain text |
+| `smiths` | Optional: villager professions (ids or `#tags`) that identify its relics. Without it, any in `#tarnishedrelics:blacksmiths` |
 
 The unidentified name is the lang key `item.<namespace>.unidentified.<name>` ("Unidentified Sword") unless `name` is set.
 With no lang entry either, it's made from the file name (`war_hammer` -> "Unidentified War Hammer").
@@ -181,9 +184,9 @@ Affixes removed from the datapack simply stop working on old items.
 | `attribute` | `attribute`, `operation` (`add`, `multiply_base`, `multiply_total`), `value` | Any attribute from any mod. Shown in the normal stat lines. Ignores conditions. |
 | `damage_vs` | `value`, `target` (optional entity id/#tag or list) | ±% damage dealt (to matching targets, or to everything) |
 | `damage_taken` | `value`, `damage` (optional damage type id/#tag or list) | ±% damage taken (`-0.2` = 20% less) |
-| `on_hit_effect` | `effect`, `duration` (ticks), `amplifier`, `apply_to` (`target`/`self`) | Potion effect on a melee hit |
-| `on_hit_fire` | `value` (seconds) | Sets the target on fire on a melee hit |
-| `lifesteal` | `value` | Heals that fraction of melee damage dealt |
+| `on_hit_effect` | `effect`, `duration` (ticks), `amplifier`, `apply_to` (`target`/`self`) | Potion effect on a melee hit (or a hit by the thrown relic) |
+| `on_hit_fire` | `value` (seconds) | Sets the target on fire on a melee hit (or a hit by the thrown relic) |
+| `lifesteal` | `value` | Heals that fraction of melee damage dealt (or the thrown relic's) |
 | `thorns` | `value` | Sends that fraction of damage taken back to the attacker |
 | `on_hurt_effect` | `effect`, `duration`, `amplifier`, `apply_to` (`attacker`/`self`) | Potion effect when you're hit |
 | `passive_effect` | `effect`, `amplifier` | Kept on you while held/worn |
@@ -298,8 +301,24 @@ here (it means "every item that has a category", which the exclusions are part o
 
 ### Blacksmiths
 
-`data/<namespace>/tags/villager_profession/blacksmiths.json` (tag `#tarnishedrelics:blacksmiths`). Add a mod's smith
-profession to let it identify relics.
+Each category's `smiths` says who identifies its relics. The built-in ones use three profession tags; add a mod's
+smith to one (`data/<namespace>/tags/villager_profession/...`, or the editor's Tags tab) to let it work on that kind:
+
+| Tag | By default | Categories |
+|---|---|---|
+| `#tarnishedrelics:toolsmiths` | toolsmith | pickaxe, shovel, hoe, axe |
+| `#tarnishedrelics:armorers` | armorer | helmet, chestplate, leggings, boots, shield |
+| `#tarnishedrelics:weaponsmiths` | weaponsmith | sword, axe, trident, bow, crossbow, ranged, weapon |
+
+Categories without `smiths` (a pack's own) go to any profession in `#tarnishedrelics:blacksmiths` (armorer,
+weaponsmith and toolsmith by default).
+
+### Thrown weapons
+
+A projectile that carries a relic weapon (a thrown trident, or a modded javelin or throwing knife built on the
+arrow class) hits with that weapon's effects, as if it were in its slot, plus your armor's. What's in your hands at
+that moment doesn't count for that hit. Arrows don't carry the bow, so a bow's bonus damage counts from your hand as
+usual, and on-hit effects stay melee (and thrown relic) only.
 
 ## Config (`config/tarnishedrelics-common.toml`)
 
