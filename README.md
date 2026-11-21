@@ -2,7 +2,7 @@
 
 Diablo-style loot for Minecraft Forge 1.20.1.
 
-Every time a loot chest is generated there is a small chance (1% by default) that an **unidentified relic** is added: a darkened silhouette of a weapon, piece of armor or tool, named only by its type
+Every time a loot chest is generated there is a small chance (3% by default) that an **unidentified relic** is added: a darkened silhouette of a weapon, piece of armor or tool, named only by its type
 ("Unidentified Sword"). You can't use it, enchant it, repair it or rename it until a **blacksmith villager** identifies
 it. Then it turns into the real item, with a tier, random affixes and a name like
 **"Champion's Iron Sword of Smiting"**, or for a Unique, **"Sturdy Netherite Pickaxe of Ithireal"**. The rarest
@@ -133,8 +133,8 @@ The tier's display name is the lang key `tarnishedrelics.rarity.<namespace>.<nam
 entry either, it's made from the file name).
 
 Built in: `magic` (weight 70, levels 1-2, 1-2 affixes, Novice, 2-4 emeralds), `rare` (25, levels 2-3, 3-4 affixes,
-Journeyman, 8-12), `unique` (5, levels 3 and up plus the vanilla bow and crossbow, 2-3 unique-pool + 1-2 normal
-affixes, Master, 20-30, generated name), `legendary` (1, quality 1, levels 3 and up, 2 legendary-pool + 1 unique + 1-2 normal affixes, 2-3 signature
+Journeyman, 8-12), `unique` (10, levels 3 and up plus the vanilla bow and crossbow, 2-3 unique-pool + 1-2 normal
+affixes, Master, 20-30, generated name), `legendary` (5, quality 1, levels 3 and up, 2 legendary-pool + 1 unique + 1-2 normal affixes, 2-3 signature
 enchantments 1-3 levels above max, 35% drawback, 30% hand-made instead, Master, 40-64 emeralds).
 
 ### `affixes/<name>.json`: prefixes and suffixes
@@ -299,8 +299,8 @@ profession to let it identify relics.
 | Option | Default | Meaning |
 |---|---|---|
 | `[loot] enabled` | `true` | Relics can turn up in loot |
-| `[loot] chance` | `0.01` | Chance that one relic is added each time loot is generated |
-| `[loot] lootTypes` | chest | Kinds of loot that can get one: `chest`, `entity` (mob drops: rolled on every kill, so even 1% adds up fast), `fishing`, `archaeology`, `gift`, `barter` |
+| `[loot] chance` | `0.03` | Chance that one relic is added each time loot is generated |
+| `[loot] lootTypes` | chest | Kinds of loot that can get one: `chest`, `entity` (mob drops: rolled on every kill, so even a few percent adds up fast), `fishing`, `archaeology`, `gift`, `barter` |
 | `[loot] entityNeedsPlayerKill` | `true` | If `entity` is on: mob drops only count for kills by a player (no mob farms) |
 | `[loot] excludeTables` | the spawn bonus chest | Loot tables that never get relics (`*` wildcards) |
 | `[identify] confirmSeconds` | `10` | Time to use the relic on the smith again to pay |

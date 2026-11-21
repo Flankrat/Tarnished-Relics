@@ -79,7 +79,7 @@ public final class Schema {
     /** The config file's options (config/tarnishedrelics-common.toml), shown in the Settings tab. */
     public static final List<Field> CONFIG = List.of(
             f("enabled", Kind.BOOL, Pick.NONE, "Relics can turn up in loot at all", () -> new JsonPrimitive(true)),
-            f("chance", Kind.NUMBER, Pick.NONE, "Chance (0-1) that one relic is added each time loot of the kinds below is generated", () -> num(0.01)),
+            f("chance", Kind.NUMBER, Pick.NONE, "Chance (0-1) that one relic is added each time loot of the kinds below is generated", () -> num(0.03)),
             f("lootTypes", Kind.LIST, Pick.LOOT_TYPE, "Kinds of loot that can get one: chest, entity (mob drops: rolled on every kill, so it adds up fast), fishing, archaeology, gift, barter", () -> arr("chest")),
             f("entityNeedsPlayerKill", Kind.BOOL, Pick.NONE, "If entity is on: mob drops only count for kills by a player (stops mob farms)", () -> new JsonPrimitive(true)),
             f("excludeTables", Kind.LIST, Pick.NONE, "Loot table ids that never get relics (* works as a wildcard)", JsonArray::new),
