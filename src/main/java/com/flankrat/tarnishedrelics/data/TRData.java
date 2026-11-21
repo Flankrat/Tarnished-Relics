@@ -20,6 +20,8 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
 
+import static com.flankrat.tarnishedrelics.data.JsonFields.boolOr;
+
 /**
  * Everything loaded from {@code data/<namespace>/tarnished_relics/}: categories, rarities, affixes and names.
  * The server loads it on every (re)load and sends the same JSON to clients (for tooltips and attribute display),
@@ -95,7 +97,7 @@ public final class TRData {
             try {
                 JsonObject o = e.getValue().getAsJsonObject();
                 // "disabled": true switches a file off (how the editor removes a file another pack ships)
-                if (o.has("disabled") && o.get("disabled").getAsBoolean()) {
+                if (boolOr(o, "disabled", false)) {
                     if (folder.equals("categories")) disabledCategories.add(id);
                     continue;
                 }

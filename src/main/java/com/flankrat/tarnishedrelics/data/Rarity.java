@@ -11,6 +11,11 @@ import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 
+import static com.flankrat.tarnishedrelics.data.JsonFields.boolOr;
+import static com.flankrat.tarnishedrelics.data.JsonFields.doubleOr;
+import static com.flankrat.tarnishedrelics.data.JsonFields.intOr;
+import static com.flankrat.tarnishedrelics.data.JsonFields.stringOr;
+
 /**
  * A tier ({@code tarnished_relics/rarities/<name>.json}): how often it drops, which base items it can be, how many
  * affixes it rolls from which pools, and what identifying it takes.
@@ -58,25 +63,25 @@ public record Rarity(ResourceLocation id, @Nullable String name, int weight, Ite
             int[] lv = intRange("levels", o.get("levels"));
             items.levels(lv[0], lv[1]);
         }
-        String color = o.has("color") ? o.get("color").getAsString() : "#FFFFFF";
+        String color = stringOr(o, "color", "#FFFFFF");
         // "#FFF" was read as 0x000FFF (dark blue): only the full six digits are a color here
         if (!color.matches("#?[0-9A-Fa-f]{6}")) throw new JsonParseException("color must be six hex digits like \"#FF5555\" (not \"" + color + "\")");
-        int identify = o.has("identify_level") ? o.get("identify_level").getAsInt() : 1;
+        int identify = intOr(o, "identify_level", 1);
         // villagers go up to level 5 (Master): a higher level could never be identified
         if (identify > 5) throw new JsonParseException("identify_level must be 1-5 (5 = master blacksmith), not " + identify);
-        return new Rarity(id, o.has("name") ? o.get("name").getAsString() : null, o.has("weight") ? o.get("weight").getAsInt() : 1, items,
+        return new Rarity(id, stringOr(o, "name", null), intOr(o, "weight", 1), items,
                 rolls, identify, cost[0], cost[1],
-                o.has("villager_xp") ? o.get("villager_xp").getAsInt() : 5,
+                intOr(o, "villager_xp", 5),
                 Integer.parseInt(color.replace("#", ""), 16),
-                o.has("unique_name") && o.get("unique_name").getAsBoolean(),
-                o.has("legendary") && o.get("legendary").getAsBoolean(),
-                o.has("quality") ? o.get("quality").getAsInt() : 0,
+                boolOr(o, "unique_name", false),
+                boolOr(o, "legendary", false),
+                intOr(o, "quality", 0),
                 Conditions.strings(o.get("loot_tables")),
-                o.has("handmade_chance") ? o.get("handmade_chance").getAsDouble() : 0.3,
+                doubleOr(o, "handmade_chance", 0.3),
                 o.has("signature_enchantments") ? intRange("signature_enchantments", o.get("signature_enchantments")) : new int[]{0, 0},
                 o.has("enchantment_bonus") ? intRange("enchantment_bonus", o.get("enchantment_bonus")) : new int[]{1, 1},
-                o.has("drawback_chance") ? o.get("drawback_chance").getAsDouble() : 0,
-                o.has("drawback_pool") ? o.get("drawback_pool").getAsString() : "drawback",
+                doubleOr(o, "drawback_chance", 0),
+                stringOr(o, "drawback_pool", "drawback"),
                 o.has("lore_lines") ? intRange("lore_lines", o.get("lore_lines")) : new int[]{1, 2});
     }
 

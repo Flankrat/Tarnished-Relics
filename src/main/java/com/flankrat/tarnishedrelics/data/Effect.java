@@ -15,6 +15,10 @@ import java.util.Locale;
 import java.util.Set;
 import javax.annotation.Nullable;
 
+import static com.flankrat.tarnishedrelics.data.JsonFields.idOrNull;
+import static com.flankrat.tarnishedrelics.data.JsonFields.intOr;
+import static com.flankrat.tarnishedrelics.data.JsonFields.stringOr;
+
 /**
  * One effect of an affix. Every effect has a "type", optional "conditions", and the fields its type uses:
  * <pre>
@@ -81,7 +85,7 @@ public final class Effect {
         type = Type.parse(o.get("type").getAsString());
         conditions = Conditions.parse(o.get("conditions"));
         value = ValueSpec.parse(o.get("value"));
-        attribute = o.has("attribute") ? new ResourceLocation(o.get("attribute").getAsString()) : null;
+        attribute = idOrNull(o, "attribute");
         operation = switch (oneOf(o, "operation", "add", "add", "multiply_base", "multiply_total")) {
             case "multiply_base" -> AttributeModifier.Operation.MULTIPLY_BASE;
             case "multiply_total" -> AttributeModifier.Operation.MULTIPLY_TOTAL;
@@ -90,14 +94,14 @@ public final class Effect {
         targets = Conditions.strings(o.get("target")).stream().map(s -> IdOrTag.parse(s, Registries.ENTITY_TYPE)).toList();
         damageTypes = Conditions.strings(o.get("damage")).stream().map(s -> IdOrTag.parse(s, Registries.DAMAGE_TYPE)).toList();
         blocks = o.has("blocks") ? IdOrTag.parse(o.get("blocks").getAsString(), Registries.BLOCK) : null;
-        mobEffect = o.has("effect") ? new ResourceLocation(o.get("effect").getAsString()) : null;
-        duration = o.has("duration") ? o.get("duration").getAsInt() : 100;
-        amplifier = o.has("amplifier") ? o.get("amplifier").getAsInt() : 0;
+        mobEffect = idOrNull(o, "effect");
+        duration = intOr(o, "duration", 100);
+        amplifier = intOr(o, "amplifier", 0);
         // any other word used to count as "target": "wielder" gave the enemy the buff
         onSelf = oneOf(o, "apply_to", "target", "target", "attacker", "self").equals("self");
-        function = o.has("function") ? new ResourceLocation(o.get("function").getAsString()) : null;
+        function = idOrNull(o, "function");
         // only functions use trigger, so only theirs is checked (see validate)
-        trigger = o.has("trigger") ? o.get("trigger").getAsString() : "hit";
+        trigger = stringOr(o, "trigger", "hit");
         asTarget = oneOf(o, "as", "wielder", "wielder", "target").equals("target");
         slot = o.has("slot") ? EquipmentSlot.byName(o.get("slot").getAsString()) : null;
         validate();
