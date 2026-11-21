@@ -95,19 +95,20 @@ record RelicRoll(TRData data, RandomSource random, RelicGeneratedEvent.Source so
         relic.remove("Suffix");
         relic.put("Lore", strings(data.names().lore(random, Rarity.roll(rarity.loreLines(), random), name)));
 
-        // signature enchantments: fit the item, not curses, go together with each other
+        // signature enchantments: any that fit the item (canEnchant, which other mods' item restrictions are part of),
+        // not curses, not ones the item already has. Only loot ones: isDiscoverable false keeps an enchantment out of
+        // loot and enchanting tables (Soul Speed, Swift Sneak; other mods' enchantments that come from their own
+        // crafting). Legendaries may break the usual exclusions: Sharpness and Smite can go on one sword.
         Map<Enchantment, Integer> ench = new LinkedHashMap<>(EnchantmentHelper.getEnchantments(real));
         List<Enchantment> options = new ArrayList<>();
         for (Enchantment e : ForgeRegistries.ENCHANTMENTS) {
-            if (!e.isCurse() && e.canEnchant(real)) options.add(e);
+            if (!e.isCurse() && e.isDiscoverable() && !ench.containsKey(e) && e.canEnchant(real)) options.add(e);
         }
         int count = Rarity.roll(rarity.signatureEnchantments(), random);
-        while (count > 0 && !options.isEmpty()) {
+        for (; count > 0 && !options.isEmpty(); count--) {
             Enchantment e = options.remove(random.nextInt(options.size()));
-            if (!EnchantmentHelper.isEnchantmentCompatible(ench.keySet(), e)) continue;
             // single-level enchantments (Mending, Silk Touch...) do nothing at higher levels, so they stay at 1
             ench.put(e, e.getMaxLevel() <= 1 ? 1 : e.getMaxLevel() + Rarity.roll(rarity.enchantmentBonus(), random));
-            count--;
         }
         EnchantmentHelper.setEnchantments(ench, real);
     }
