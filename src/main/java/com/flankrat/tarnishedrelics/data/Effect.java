@@ -95,16 +95,26 @@ public final class Effect {
         duration = o.has("duration") ? o.get("duration").getAsInt() : 100;
         amplifier = o.has("amplifier") ? o.get("amplifier").getAsInt() : 0;
         String applyTo = o.has("apply_to") ? o.get("apply_to").getAsString() : "target";
+        // anything else used to count as "target": "wielder" gave the enemy the buff
+        if (!Set.of("target", "attacker", "self").contains(applyTo))
+            throw new JsonParseException("unknown apply_to \"" + applyTo + "\" (target, attacker or self)");
         onSelf = applyTo.equals("self");
         function = o.has("function") ? new ResourceLocation(o.get("function").getAsString()) : null;
         trigger = o.has("trigger") ? o.get("trigger").getAsString() : "hit";
-        asTarget = o.has("as") && o.get("as").getAsString().equals("target");
+        String as = o.has("as") ? o.get("as").getAsString() : "wielder";
+        if (!as.equals("wielder") && !as.equals("target")) throw new JsonParseException("unknown as \"" + as + "\" (wielder or target)");
+        asTarget = as.equals("target");
         slot = o.has("slot") ? EquipmentSlot.byName(o.get("slot").getAsString()) : null;
         validate();
     }
 
+    /** Every field an effect can have; any other key is a typo (it used to be ignored, so its default was used). */
+    private static final Set<String> FIELDS = Set.of("type", "value", "attribute", "operation", "target", "damage", "effect",
+            "duration", "amplifier", "apply_to", "blocks", "function", "trigger", "as", "conditions", "tooltip", "hidden", "slot");
+
     public static Effect parse(JsonObject o) {
         if (!o.has("type")) throw new JsonParseException("effect needs a \"type\"");
+        for (String key : o.keySet()) if (!FIELDS.contains(key)) throw new JsonParseException("unknown effect field \"" + key + "\"");
         return new Effect(o);
     }
 

@@ -267,6 +267,7 @@ public final class Schema {
             case "categories" -> start.addProperty("name", "Unidentified " + title);
             case "rarities" -> start.addProperty("name", title);
             case "affixes" -> start.addProperty("name", title);
+            case "legendaries" -> start.addProperty("name", title);   // a legendary can't load without one
             default -> { }
         }
         return start;
