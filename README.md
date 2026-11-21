@@ -282,14 +282,14 @@ and a perfect roll stays perfect. Affixes removed from the datapack simply stop 
 |---|---|---|
 | `attribute` | `attribute`, `operation` (`add`, `multiply_base`, `multiply_total`), `value` | Any attribute from any mod, shown in the normal stat lines. Ignores conditions |
 | `damage_vs` | `value`, `target` (optional entity id/#tag or list) | ±% damage dealt with your weapons: melee hits, shots and thrown relics (against matching targets, or everything). Not your thorns, explosions you set off or potions |
-| `damage_taken` | `value`, `damage` (optional damage type id/#tag or list) | ±% damage taken from anything (`-0.2` = 20% less) |
+| `damage_taken` | `value`, `damage` (optional damage type id/#tag or list) | ±% damage taken (`-0.2` = 20% less): from the listed damage types, or without a list from anything but falling out of the world and `/kill` |
 | `on_hit_effect` | `effect`, `duration` (ticks), `amplifier`, `apply_to` (`target`/`self`) | Potion effect on a melee hit (or a hit by the thrown relic) |
 | `on_hit_fire` | `value` (seconds) | Sets the target on fire on a melee hit (or a hit by the thrown relic) |
 | `lifesteal` | `value` | Heals that fraction of melee damage dealt (the final damage: after armor and every other mod's change to it), or the thrown relic's |
 | `thorns` | `value` | Sends that fraction of damage taken back to the attacker (never answers thorns with thorns) |
 | `on_hurt_effect` | `effect`, `duration`, `amplifier`, `apply_to` (`attacker`/`self`) | Potion effect when you're hit |
 | `passive_effect` | `effect`, `amplifier` | Kept on a player while held/worn (checked once a second; a stronger potion isn't replaced) |
-| `crit_chance` | `value` | Extra chance to crit: melee hits, and arrows, bolts and thrown relics (1.5x damage) |
+| `crit_chance` | `value` | Extra chance to crit: melee hits, and arrows, bolts and thrown relics (1.5x damage). A crit it rolls happens even if another mod refused the crit |
 | `crit_damage` | `value` | Crits hit harder (`0.5` = +50%). On projectiles, only crits from `crit_chance` |
 | `break_speed` | `value`, `blocks` (optional block id/#tag) | ±% mining speed |
 | `durability` | `value` | Chance each point of wear is ignored (negative: sometimes wears twice) |

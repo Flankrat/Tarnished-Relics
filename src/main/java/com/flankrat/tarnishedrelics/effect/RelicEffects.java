@@ -11,6 +11,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.tags.TagKey;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.damagesource.DamageSource;
@@ -44,8 +45,10 @@ import net.minecraftforge.registries.ForgeRegistries;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import javax.annotation.Nullable;
 
@@ -99,6 +102,11 @@ public final class RelicEffects {
     }
 
     private static void collect(ItemStack stack, @Nullable EquipmentSlot slot, Effect.Type type, List<Active> out) {
+        collect(stack, slot, type, out::add);
+    }
+
+    /** The working effects of one item (of one type, or all with type null), in its order, to "out". */
+    private static void collect(ItemStack stack, @Nullable EquipmentSlot slot, @Nullable Effect.Type type, Consumer<Active> out) {
         CompoundTag relic = RelicTag.get(stack);
         if (relic == null) return;
         EquipmentSlot own = RelicTag.slot(relic);
@@ -107,9 +115,43 @@ public final class RelicEffects {
             for (Effect e : rolled.affix().effects()) {
                 // only in its own slot (or the slot the effect names, e.g. a dagger that helps from the offhand)
                 if (slot != null && (e.slot != null ? e.slot : own) != slot) continue;
-                if (e.type == type) out.add(new Active(e, e.value.get(rarity, rolled.roll()), stack));
+                if (type == null || e.type == type) out.accept(new Active(e, e.value.get(rarity, rolled.roll()), stack));
             }
         }
+    }
+
+    /**
+     * Every working effect on an entity's gear (or of a hit, see gearForHit), by type: read once and then looked up per
+     * type. A hit needs about ten types from both sides; looking each up on its own read every item's relic data again
+     * each time. Each type's effects are in the same order as active/forHit give them.
+     */
+    record Gear(EnumMap<Effect.Type, List<Active>> byType) {
+        List<Active> of(Effect.Type type) {
+            return byType.getOrDefault(type, List.of());
+        }
+
+        private void add(Active a) {
+            byType.computeIfAbsent(a.effect().type, t -> new ArrayList<>()).add(a);
+        }
+    }
+
+    /** Everything held and worn (like active, for every type). */
+    static Gear gear(LivingEntity entity) {
+        Gear g = new Gear(new EnumMap<>(Effect.Type.class));
+        for (EquipmentSlot slot : EquipmentSlot.values()) collect(entity.getItemBySlot(slot), slot, null, g::add);
+        return g;
+    }
+
+    /** The effects that count for a hit the attacker made (like forHit, for every type). */
+    static Gear gearForHit(LivingEntity attacker, DamageSource source) {
+        ItemStack thrown = thrownRelic(source, attacker);
+        if (thrown.isEmpty()) return gear(attacker);
+        Gear g = new Gear(new EnumMap<>(Effect.Type.class));
+        for (EquipmentSlot slot : EquipmentSlot.values()) {
+            if (slot.getType() == EquipmentSlot.Type.ARMOR) collect(attacker.getItemBySlot(slot), slot, null, g::add);
+        }
+        collect(thrown, RelicTag.slot(RelicTag.get(thrown)), null, g::add);
+        return g;
     }
 
     // ---- attributes (static stats, shown in the item tooltip like normal ones) ----
@@ -146,63 +188,70 @@ public final class RelicEffects {
         LivingEntity attacker = source.getEntity() instanceof LivingEntity l ? l : null;
         RandomSource random = victim.getRandom();
         float amount = event.getAmount();
-        if (attacker != null) amount = dealt(amount, attacker, victim, source, random);
-        amount *= takenMultiplier(victim, attacker, source, random);
+        // each side's gear, read once for the whole hit (the attacker's only for a hit with their weapon: nothing of
+        // theirs counts for other damage they cause)
+        boolean weaponHit = attacker != null && isWeaponHit(source, attacker);
+        boolean projectile = attacker != null && isProjectileHit(source, attacker);
+        Gear attackerGear = weaponHit || projectile ? gearForHit(attacker, source) : null;
+        Gear victimGear = gear(victim);
+        if (attackerGear != null) amount = dealt(amount, attackerGear, attacker, victim, projectile, random);
+        amount *= takenMultiplier(victimGear, victim, attacker, source, random);
         event.setAmount(amount);
         if (attacker == null) return;
-        if (isWeaponHit(source, attacker)) onWeaponHit(attacker, victim, source, random);
+        if (weaponHit) onWeaponHit(attackerGear, attacker, victim, random);
         // the victim's gear answers (not for thorns damage, so two thorns wearers don't loop)
-        if (attacker != victim && !source.is(DamageTypes.THORNS)) onHurtBy(victim, attacker, amount, random);
+        if (attacker != victim && !source.is(DamageTypes.THORNS)) onHurtBy(victimGear, victim, attacker, amount, random);
     }
 
     /**
      * The attacker's damage_vs (and a projectile hit's crit), for a hit with their weapon: a melee hit, a thrown relic,
      * or a projectile they shot. Other damage they cause (their thorns, an explosion they set off, a potion) isn't a
-     * hit with what they're holding, so the amount stays as it is for those.
+     * hit with what they're holding, so onHurt only calls this for a weapon hit or a shot (gear: the hit's, gearForHit).
      */
-    private static float dealt(float amount, LivingEntity attacker, LivingEntity victim, DamageSource source, RandomSource random) {
-        boolean projectile = isProjectileHit(source, attacker);
-        if (!projectile && !isWeaponHit(source, attacker)) return amount;
+    private static float dealt(float amount, Gear gear, LivingEntity attacker, LivingEntity victim, boolean projectile, RandomSource random) {
         // damage_vs: +/- % damage against matching targets (or everything)
         var holder = victim.getType().builtInRegistryHolder();
-        amount *= (float) multiplier(sum(forHit(attacker, source, Effect.Type.DAMAGE_VS),
+        amount *= (float) multiplier(sum(gear.of(Effect.Type.DAMAGE_VS),
                 e -> e.targets.isEmpty() || e.targets.stream().anyMatch(t -> t.matches(holder)), attacker, victim, random));
         // crits for a projectile hit (an arrow or bolt, or a thrown relic): Forge's crit event (onCrit) only fires
         // for melee attacks, so crit_chance and crit_damage did nothing on bows, crossbows and thrown relics
-        if (projectile) amount *= projectileCrit(attacker, victim, source, random);
+        if (projectile) amount *= projectileCrit(gear, attacker, victim, random);
         return amount;
     }
 
-    // damage_taken: +/- % damage from matching damage types (armor and held items of the victim), from any source
-    private static float takenMultiplier(LivingEntity victim, @Nullable LivingEntity attacker, DamageSource source, RandomSource random) {
-        return (float) multiplier(sum(active(victim, Effect.Type.DAMAGE_TAKEN),
-                e -> e.damageTypes.isEmpty() || e.damageTypes.stream().anyMatch(t -> matchesDamage(t, source)), victim, attacker, random));
+    // damage_taken: +/- % damage from matching damage types (armor and held items of the victim). One without a damage
+    // type list counts for everything except damage meant to get through everything (falling out of the world, /kill:
+    // #minecraft:bypasses_invulnerability), like vanilla's protection; it made you last longer in the void
+    private static float takenMultiplier(Gear gear, LivingEntity victim, @Nullable LivingEntity attacker, DamageSource source, RandomSource random) {
+        boolean unstoppable = source.is(DamageTypeTags.BYPASSES_INVULNERABILITY);
+        return (float) multiplier(sum(gear.of(Effect.Type.DAMAGE_TAKEN),
+                e -> e.damageTypes.isEmpty() ? !unstoppable : e.damageTypes.stream().anyMatch(t -> matchesDamage(t, source)), victim, attacker, random));
     }
 
     // on-hit effects, on-hit fire and "hit" functions: only for melee hits and thrown relic weapons (not arrows,
     // explosions or thorns)
-    private static void onWeaponHit(LivingEntity attacker, LivingEntity victim, DamageSource source, RandomSource random) {
-        for (Active a : forHit(attacker, source, Effect.Type.ON_HIT_EFFECT)) {
+    private static void onWeaponHit(Gear gear, LivingEntity attacker, LivingEntity victim, RandomSource random) {
+        for (Active a : gear.of(Effect.Type.ON_HIT_EFFECT)) {
             if (a.effect.conditions.test(attacker, victim, random)) applyEffect(a.effect, a.effect.onSelf ? attacker : victim);
         }
-        for (Active a : forHit(attacker, source, Effect.Type.ON_HIT_FIRE)) {
+        for (Active a : gear.of(Effect.Type.ON_HIT_FIRE)) {
             if (a.effect.conditions.test(attacker, victim, random)) victim.setSecondsOnFire((int) Math.round(a.value));
         }
-        runFunctions(attacker, victim, "hit", forHit(attacker, source, Effect.Type.FUNCTION));
+        runFunctions(attacker, victim, "hit", gear.of(Effect.Type.FUNCTION));
     }
 
     // the victim's gear when they're hit: thorns (a share of the damage, after damage_vs/damage_taken), on-hurt
     // effects and "hurt" functions
-    private static void onHurtBy(LivingEntity victim, LivingEntity attacker, float amount, RandomSource random) {
-        for (Active a : active(victim, Effect.Type.THORNS)) {
+    private static void onHurtBy(Gear gear, LivingEntity victim, LivingEntity attacker, float amount, RandomSource random) {
+        for (Active a : gear.of(Effect.Type.THORNS)) {
             if (a.effect.conditions.test(victim, attacker, random) && a.value > 0) {
                 attacker.hurt(victim.damageSources().thorns(victim), (float) (amount * a.value));
             }
         }
-        for (Active a : active(victim, Effect.Type.ON_HURT_EFFECT)) {
+        for (Active a : gear.of(Effect.Type.ON_HURT_EFFECT)) {
             if (a.effect.conditions.test(victim, attacker, random)) applyEffect(a.effect, a.effect.onSelf ? victim : attacker);
         }
-        runFunctions(victim, attacker, "hurt");
+        runFunctions(victim, attacker, "hurt", gear.of(Effect.Type.FUNCTION));
     }
 
     /** The values of the effects whose conditions pass, added up (wielder: who has them; target may be null). */
@@ -245,10 +294,10 @@ public final class RelicEffects {
      * bow is a vanilla "crit arrow" on almost every shot, and crit_damage boosting all of those would be much stronger
      * than on melee crits.
      */
-    static float projectileCrit(LivingEntity attacker, LivingEntity victim, DamageSource source, RandomSource random) {
-        double chance = sum(forHit(attacker, source, Effect.Type.CRIT_CHANCE), attacker, victim, random);
+    static float projectileCrit(Gear gear, LivingEntity attacker, LivingEntity victim, RandomSource random) {
+        double chance = sum(gear.of(Effect.Type.CRIT_CHANCE), attacker, victim, random);
         if (chance <= 0 || random.nextDouble() >= chance) return 1;
-        double damage = sum(forHit(attacker, source, Effect.Type.CRIT_DAMAGE), attacker, victim, random);
+        double damage = sum(gear.of(Effect.Type.CRIT_DAMAGE), attacker, victim, random);
         // the crit sparks a melee crit shows, so players can see the arrow crit
         if (victim.level() instanceof ServerLevel level) {
             level.sendParticles(ParticleTypes.CRIT, victim.getX(), victim.getY(0.5), victim.getZ(), 12, victim.getBbWidth() / 2, victim.getBbHeight() / 4, victim.getBbWidth() / 2, 0.2);
@@ -298,7 +347,9 @@ public final class RelicEffects {
         LivingEntity target = event.getTarget() instanceof LivingEntity l ? l : null;
         double chance = sum(active(player, Effect.Type.CRIT_CHANCE), player, target, player.getRandom());
         double damage = sum(active(player, Effect.Type.CRIT_DAMAGE), player, target, player.getRandom());
-        boolean crit = event.isVanillaCritical() || event.getResult() == Event.Result.ALLOW;
+        // a crit so far: allowed, or vanilla's and nobody refused it (DENY). A refused hit isn't a crit, but crit_chance
+        // still rolls, and a crit it rolls overrides the refusal (counting a refused vanilla crit as one skipped the roll)
+        boolean crit = event.getResult() == Event.Result.ALLOW || (event.isVanillaCritical() && event.getResult() != Event.Result.DENY);
         if (!crit && chance > 0 && player.getRandom().nextDouble() < chance) {
             event.setResult(Event.Result.ALLOW);
             // a hit that isn't a vanilla crit starts at 1.0: without this the crit did no extra damage
