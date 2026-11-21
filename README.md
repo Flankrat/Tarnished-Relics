@@ -221,7 +221,9 @@ A rarity with `"legendary": true` makes legendaries, in two kinds:
 - **Generated** (most of them): a base item and affixes like any rarity (`items`, `levels`, `rolls`; the built-in one
   rolls from the strong `legendary` affix pool plus `unique` and `normal`), and on top: a generated name
   ("Grimfang, the Last Light") and lore lines from `names/`, signature enchantments that fit the item put on above
-  their normal max (`signature_enchantments`, `enchantment_bonus`), and a chance of one drawback from the `drawback`
+  their normal max (`signature_enchantments`, `enchantment_bonus`; any enchantment that goes on the item can be
+  picked, even two that normally exclude each other like Sharpness and Smite, but never a curse or one kept out of
+  loot like Soul Speed), and a chance of one drawback from the `drawback`
   pool (`drawback_chance`, `drawback_pool`). The name is shown as it is, with nothing added.
 - **Hand-made** (`handmade_chance` of them, when any can drop): one from `legendaries/`, below.
 
@@ -326,9 +328,10 @@ hand as usual, and on-hit effects stay melee (and thrown relic) only.
 ### Melee hits
 
 On-hit effects, on-hit fire, lifesteal and `hit` functions work on melee hits: a hit dealt by the attacker itself with
-a damage type in `#tarnishedrelics:melee` (vanilla's player and mob attacks and a bee's sting, plus Spartan Weaponry's
-armor-piercing hits when it's installed). A combat mod that gives melee hits its own damage types (by weapon:
-slashing, blunt...) needs those added to the tag, or those effects don't work with it.
+a damage type in `#tarnishedrelics:melee` (vanilla's player and mob attacks and a bee's sting, plus, when they're
+installed, Spartan Weaponry's armor-piercing hits, some combat mods' own melee types and everything in Progressive
+Mechanics Library's `#pml:is_melee_attack` tag). Any other combat mod that gives melee hits its own damage types (by
+weapon: slashing, blunt...) needs those added to the tag, or those effects don't work with it.
 
 ## Config (`config/tarnishedrelics-common.toml`)
 
@@ -414,6 +417,12 @@ Bugs are reproduced with a test before they're fixed, and the tests use the mod'
 - With no options both runs have none of the optional mods, which checks nothing needs them. To test the
   integrations, put the mods' jars in `libs/` as `<name>-1.jar` (`quality-1.jar`, `tooltipoverhaul-1.jar`, ...) and add
   `-PoptionalMods` (Tooltip Overhaul needs `-Pforge_version=47.3.0`).
+- In a real modpack: `./gradlew gametestJar` builds `build/libs/*-gametest.jar`, the mod plus its GameTests,
+  reobfuscated like the release jar. Put it in the pack's `mods/` instead of the mod's jar, start the server with
+  `-Dforge.enabledGameTestNamespaces=tarnishedrelics`, and run `/test runall` (from the console or RCON: the tests
+  are built at the command's position). Forge only turns GameTests on in dev runs, so `ProductionGameTests` registers
+  the compatibility tests (`CompatGameTests`) and the `/test` command there and ticks the test runner. Failures are
+  logged as they happen and "[Tarnished Relics test] GameTests finished" marks the end. Never ship this jar.
 
 ## License
 

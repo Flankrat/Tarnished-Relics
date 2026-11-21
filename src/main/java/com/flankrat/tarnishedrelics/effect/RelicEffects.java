@@ -230,7 +230,8 @@ public final class RelicEffects {
      * Damage types that are a melee hit ({@code #tarnishedrelics:melee}): vanilla's player and mob attacks and a bee's
      * sting. Combat mods give melee hits their own damage types (by weapon: slashing, blunt...); with only vanilla's
      * types counted, a sword's on-hit effects, on-hit fire, lifesteal and hit functions did nothing with those mods.
-     * Packs add such types to the tag.
+     * The tag lists the ones we know of as optional entries (only there when their mod is), plus the shared melee tag
+     * of Progressive Mechanics Library (#pml:is_melee_attack), which combat mods built on it fill. Packs add others.
      */
     public static final TagKey<DamageType> MELEE = TagKey.create(Registries.DAMAGE_TYPE, new ResourceLocation(TarnishedRelics.MODID, "melee"));
 

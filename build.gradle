@@ -157,6 +157,21 @@ jar {
 
 jar.finalizedBy('reobfJar')
 
+// ./gradlew gametestJar: the mod with its GameTests, reobfuscated like the release jar, to run the tests in a real
+// modpack (build/libs/*-gametest.jar instead of the mod's jar; start the server with
+// -Dforge.enabledGameTestNamespaces=tarnishedrelics and run "/test runall": ProductionGameTests turns the tests on
+// there, since Forge only does that in dev runs). Never released.
+tasks.register('gametestJar', Jar) {
+    archiveClassifier = 'gametest'
+    from sourceSets.main.output
+    from sourceSets.gametest.output
+    manifest.from jar.manifest
+}
+reobf {
+    gametestJar {}
+}
+tasks.named('gametestJar').configure { finalizedBy('reobfGametestJar') }
+
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }

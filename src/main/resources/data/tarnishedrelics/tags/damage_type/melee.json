@@ -8,6 +8,22 @@
     {
       "id": "spartanweaponry:armor_piercing_melee",
       "required": false
+    },
+    {
+      "id": "rlcombat:slashing",
+      "required": false
+    },
+    {
+      "id": "rlcombat:blunt",
+      "required": false
+    },
+    {
+      "id": "rlcombat:piercing",
+      "required": false
+    },
+    {
+      "id": "#pml:is_melee_attack",
+      "required": false
     }
   ]
 }

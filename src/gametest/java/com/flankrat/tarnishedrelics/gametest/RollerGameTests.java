@@ -19,7 +19,12 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.gametest.GameTestHolder;
 import net.minecraftforge.gametest.PrefixGameTestTemplate;
 
+import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.world.item.enchantment.Enchantments;
+
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 import static com.flankrat.tarnishedrelics.gametest.TestUtil.tr;
@@ -117,6 +122,54 @@ public class RollerGameTests {
             helper.assertTrue(relic.getList("Affixes", Tag.TAG_COMPOUND).getCompound(0).getString("Id").equals(l.affix().id().toString()), l.id() + " affix");
             helper.assertTrue(all.size() == 1 + l.companions().size(), l.id() + " set size " + all.size());
         }
+        helper.succeed();
+    }
+
+    // the real item of a generated (not hand-made) legendary of a category, or null for a hand-made one
+    private static ItemStack generatedLegendary(RandomSource random, String category) {
+        ItemStack real = UnidentifiedItem.hidden(Roller.generate(random, rarity("legendary"), TRData.get().categories().get(tr(category))));
+        CompoundTag relic = RelicTag.get(real);
+        return relic.contains("Legendary") ? null : real;
+    }
+
+    // Signature enchantments are loot: never one the game keeps out of loot and enchanting tables (isDiscoverable
+    // false, e.g. Soul Speed and Swift Sneak, only found in their structures; other mods hide enchantments that come
+    // from their own crafting the same way)
+    @GameTest(template = "gametest/empty")
+    public static void legendarySignatureEnchantmentsAreDiscoverable(GameTestHelper helper) {
+        RandomSource random = RandomSource.create(21);
+        for (String category : new String[]{"boots", "leggings"}) {
+            for (int i = 0; i < 300; i++) {
+                ItemStack real = generatedLegendary(random, category);
+                if (real == null) continue;
+                for (Enchantment e : EnchantmentHelper.getEnchantments(real).keySet()) {
+                    helper.assertTrue(e.isDiscoverable(), "legendary " + category + " with " + e.getDescriptionId() + ", which isn't loot: " + real.getTag());
+                }
+            }
+        }
+        helper.succeed();
+    }
+
+    // Legendaries may break the usual enchantment exclusions (Sharpness with Smite...): any enchantment that goes on
+    // the item can be picked, so some legendary swords get two that an enchanting table never puts together
+    @GameTest(template = "gametest/empty")
+    public static void legendarySignatureEnchantmentsIgnoreExclusions(GameTestHelper helper) {
+        RandomSource random = RandomSource.create(22);
+        int together = 0;
+        for (int i = 0; i < 300; i++) {
+            ItemStack real = generatedLegendary(random, "sword");
+            if (real == null) continue;
+            Map<Enchantment, Integer> ench = EnchantmentHelper.getEnchantments(real);
+            for (Enchantment e : ench.keySet()) {
+                helper.assertTrue(e.canEnchant(real), e.getDescriptionId() + " on a " + real.getItem() + ", which can't take it");
+            }
+            int damage = 0;
+            for (Enchantment e : new Enchantment[]{Enchantments.SHARPNESS, Enchantments.SMITE, Enchantments.BANE_OF_ARTHROPODS}) {
+                if (ench.containsKey(e)) damage++;
+            }
+            if (damage >= 2) together++;
+        }
+        helper.assertTrue(together > 0, "no legendary sword out of 300 got two of Sharpness, Smite and Bane of Arthropods");
         helper.succeed();
     }
 }
