@@ -12,7 +12,6 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.entity.monster.Phantom;
 import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.entity.projectile.Arrow;
 import net.minecraft.world.item.ItemStack;
@@ -223,18 +222,21 @@ public class LegendaryAffixGameTests {
         }
     }
 
+    // Skyfall: more arrow damage against a mob in the air, whatever it is (a zombie knocked up counts, a phantom
+    // sitting on the ground doesn't)
     @GameTest(template = "gametest/empty")
-    public static void skyfallOnlyFlyingMobs(GameTestHelper helper) {
+    public static void skyfallOnlyMobsInTheAir(GameTestHelper helper) {
         ServerPlayer p = TestUtil.player(helper);
         try {
             p.setItemInHand(InteractionHand.MAIN_HAND, legendary(Items.BOW, "bow", "mainhand", "skyfall"));
-            Phantom phantom = helper.spawn(EntityType.PHANTOM, new BlockPos(3, 2, 3));
             Zombie z = helper.spawn(EntityType.ZOMBIE, new BlockPos(1, 1, 1));
             Arrow arrow = new Arrow(helper.getLevel(), p);
-            float flying = hurt(phantom, p.damageSources().arrow(arrow, p));
+            z.setOnGround(true);
             float ground = hurt(z, p.damageSources().arrow(arrow, p));
-            helper.assertTrue(Math.abs(flying - 16.5F) < 0.01F, "+65% against a phantom (middle roll): " + flying);
-            helper.assertTrue(ground == 10.0F, "nothing against a zombie: " + ground);
+            z.setOnGround(false);
+            float air = hurt(z, p.damageSources().arrow(arrow, p));
+            helper.assertTrue(ground == 10.0F, "nothing against a zombie on the ground: " + ground);
+            helper.assertTrue(Math.abs(air - 16.5F) < 0.01F, "+65% against a zombie in the air (middle roll): " + air);
             helper.succeed();
         } finally {
             TestUtil.remove(p);

@@ -192,7 +192,8 @@ public final class Schema {
                 f("y_above", Kind.NUMBER, Pick.NONE, "Above this height", () -> num(100)),
                 f("dimensions", Kind.LIST, Pick.DIMENSION, "Only in these dimensions", JsonArray::new),
                 f("biomes", Kind.LIST, Pick.BIOME, "Only in these biomes (ids or #tags)", JsonArray::new),
-                f("target", Kind.LIST, Pick.ENTITY, "Only against these mobs (ids or #tags)", JsonArray::new));
+                f("target", Kind.LIST, Pick.ENTITY, "Only against these mobs (ids or #tags)", JsonArray::new),
+                f("target_in_air", Kind.BOOL, Pick.NONE, "Only against mobs in the air (flying, jumping, falling, knocked up)", () -> new JsonPrimitive(true)));
 
         for (Field fl : List.of(
                 f("value", Kind.VALUE, Pick.NONE, "Strength: a number, a [min, max] roll, or per rarity", () -> num(0.1)),

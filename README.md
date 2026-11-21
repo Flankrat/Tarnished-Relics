@@ -200,10 +200,11 @@ Affixes removed from the datapack simply stop working on old items.
 
 Every effect can also have:
 
-- `"conditions"`: all must pass. `chance` (0-1), `health_below` / `health_above` (fraction of the wielder's max
-  health), `in_water`, `is_night`, `is_day`, `sneaking`, `on_fire`, `y_below`, `y_above`, `dimensions` (list),
-  `biomes` (ids/#tags), `target` (entity ids/#tags). `break_speed` ignores `chance` (the client works out the
-  mining speed too, and a roll on each side would disagree).
+- `"conditions"`: all must pass. `chance` (0-1), `health_below` / `health_above` (fraction of the wielder's max health),
+  `in_water`, `is_night`, `is_day`, `sneaking`, `on_fire`, `y_below`, `y_above`, `dimensions` (list), `biomes`
+  (ids/#tags), `target` (entity ids/#tags), `target_in_air` (the target isn't standing on anything, swimming or riding:
+  flying, jumping, falling or knocked up). `break_speed` ignores `chance` (the client works out the mining speed too,
+  and a roll on each side would disagree).
 - `"slot"`: works while the item is in that slot instead of its category's (`offhand` for a dagger that helps from
   the offhand).
 - `"tooltip"`: its own tooltip line, a lang key or plain text (`%1$s` = value as a percent, `%2$s` = plain number).
@@ -354,10 +355,10 @@ included), the mod's tags and the config.
   files (from the mod, KubeJS, datapacks...); pick one to edit it as a form. Hover a field's name for what it does.
   `+ field` adds optional fields; `Raw JSON` edits the text directly. New files get a readable name from their file
   name.
-- **Tags**: the blacksmith professions (`villager_profession/blacksmiths`), the `undead`, `arthropods` and `airborne`
-  (flying mobs) lists the affixes use, and any new tag in the `tarnishedrelics` namespace (name it like
-  `entity_types/dragons`). Tags from every pack add up, so the editor shows them all together; taking out something
-  another pack adds saves the tag with `"replace": true`.
+- **Tags**: the blacksmith professions (`villager_profession/blacksmiths`), the `undead` and `arthropods` mob lists the
+  affixes use, and any new tag in the `tarnishedrelics` namespace (name it like `entity_types/dragons`). Tags from every
+  pack add up, so the editor shows them all together; taking out something another pack adds saves the tag with
+  `"replace": true`.
 - **Settings**: the config file's options. Saving writes `config/tarnishedrelics-common.toml` at once.
 - **Pickers** (`...` buttons) list what's actually loaded: items with icons, tags, whole mods, mobs, villager
   professions, blocks, attributes, potion effects, damage types, biomes, dimensions, categories and rarities,

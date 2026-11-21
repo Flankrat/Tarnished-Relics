@@ -21,8 +21,9 @@ import java.util.Set;
  * <pre>
  *   "conditions": { "chance": 0.25, "health_below": 0.5, "is_night": true, "target": ["#minecraft:undead"] }
  * </pre>
- * health_below/health_above are fractions of the wielder's max health. target only means something for effects that
- * have a target (on hit, damage against...).
+ * health_below/health_above are fractions of the wielder's max health. target and target_in_air only mean something for
+ * effects that have a target (on hit, damage against...). target_in_air: the target isn't standing on anything, swimming
+ * or riding (flying, jumping, falling, knocked up).
  */
 public final class Conditions {
 
@@ -30,14 +31,19 @@ public final class Conditions {
 
     private double chance = 1;
     private double healthBelow = -1, healthAbove = -1;
-    private Boolean inWater, isNight, isDay, sneaking, onFire;
+    private Boolean inWater, isNight, isDay, sneaking, onFire, targetInAir;
     private Double yBelow, yAbove;
     private final List<ResourceLocation> dimensions = new ArrayList<>();
     private final List<IdOrTag<Biome>> biomes = new ArrayList<>();
     private final List<IdOrTag<EntityType<?>>> targets = new ArrayList<>();
 
     private static final Set<String> KEYS = Set.of("chance", "health_below", "health_above", "in_water", "is_night", "is_day",
-            "sneaking", "on_fire", "y_below", "y_above", "dimensions", "biomes", "target");
+            "sneaking", "on_fire", "y_below", "y_above", "dimensions", "biomes", "target", "target_in_air");
+
+    /** Every condition name the loader knows (the editor offers each one). */
+    public static Set<String> keys() {
+        return KEYS;
+    }
 
     public static Conditions parse(@Nullable JsonElement json) {
         if (json == null) return NONE;
@@ -58,6 +64,7 @@ public final class Conditions {
         for (String s : strings(o.get("dimensions"))) c.dimensions.add(new ResourceLocation(s));
         for (String s : strings(o.get("biomes"))) c.biomes.add(IdOrTag.parse(s, Registries.BIOME));
         for (String s : strings(o.get("target"))) c.targets.add(IdOrTag.parse(s, Registries.ENTITY_TYPE));
+        if (o.has("target_in_air")) c.targetInAir = o.get("target_in_air").getAsBoolean();
         return c;
     }
 
@@ -81,7 +88,8 @@ public final class Conditions {
     /** True when anything besides chance is set, for the tooltip's "(conditional)" note. */
     public boolean hasOtherConditions() {
         return healthBelow >= 0 || healthAbove >= 0 || inWater != null || isNight != null || isDay != null || sneaking != null
-                || onFire != null || yBelow != null || yAbove != null || !dimensions.isEmpty() || !biomes.isEmpty() || !targets.isEmpty();
+                || onFire != null || yBelow != null || yAbove != null || !dimensions.isEmpty() || !biomes.isEmpty() || !targets.isEmpty()
+                || targetInAir != null;
     }
 
     public boolean hasTargetFilter() {
@@ -120,6 +128,12 @@ public final class Conditions {
             var holder = target.getType().builtInRegistryHolder();
             if (targets.stream().noneMatch(t -> t.matches(holder))) return false;
         }
+        if (targetInAir != null && (target == null || inAir(target) != targetInAir)) return false;
         return true;
+    }
+
+    /** In the air: not standing on anything, not in water or lava, not riding (flying, jumping, falling, knocked up). */
+    public static boolean inAir(LivingEntity e) {
+        return !e.onGround() && !e.isInWater() && !e.isInLava() && !e.isPassenger();
     }
 }

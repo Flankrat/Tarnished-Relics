@@ -76,7 +76,7 @@ class TyposTest {
                 + "{\"type\": \"on_hit_effect\", \"effect\": \"minecraft:poison\", \"duration\": 40, \"amplifier\": 1, \"apply_to\": \"self\","
                 + " \"tooltip\": \"x\", \"hidden\": false, \"slot\": \"offhand\", \"conditions\": {\"chance\": 0.5, \"health_below\": 0.5,"
                 + " \"health_above\": 0.1, \"in_water\": true, \"is_night\": true, \"is_day\": false, \"sneaking\": true, \"on_fire\": false,"
-                + " \"y_below\": 60, \"y_above\": 0, \"dimensions\": [\"minecraft:overworld\"], \"biomes\": [\"#minecraft:is_forest\"], \"target\": [\"minecraft:zombie\"]}},"
+                + " \"y_below\": 60, \"y_above\": 0, \"dimensions\": [\"minecraft:overworld\"], \"biomes\": [\"#minecraft:is_forest\"], \"target\": [\"minecraft:zombie\"], \"target_in_air\": true}},"
                 + "{\"type\": \"on_hurt_effect\", \"effect\": \"minecraft:slowness\", \"apply_to\": \"attacker\"},"
                 + "{\"type\": \"function\", \"function\": \"mypack:f\", \"trigger\": \"kill\", \"as\": \"target\"},"
                 + "{\"type\": \"attribute\", \"attribute\": \"minecraft:generic.armor\", \"operation\": \"add\", \"value\": 1},"
