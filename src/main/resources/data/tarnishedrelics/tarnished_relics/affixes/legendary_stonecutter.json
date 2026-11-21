@@ -1,0 +1,19 @@
+{
+  "kind": "hidden",
+  "pool": "legendary",
+  "applies_to": [
+    "tarnishedrelics:pickaxe"
+  ],
+  "weight": 10,
+  "effects": [
+    {
+      "type": "break_speed",
+      "blocks": "#minecraft:base_stone_overworld",
+      "value": [
+        1.0,
+        1.5
+      ],
+      "tooltip": "tarnishedrelics.effect.legendary.stonecutter.0"
+    }
+  ]
+}

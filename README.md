@@ -354,10 +354,10 @@ included), the mod's tags and the config.
   files (from the mod, KubeJS, datapacks...); pick one to edit it as a form. Hover a field's name for what it does.
   `+ field` adds optional fields; `Raw JSON` edits the text directly. New files get a readable name from their file
   name.
-- **Tags**: the blacksmith professions (`villager_profession/blacksmiths`), the `undead` and `arthropods` mob lists the
-  affixes use, and any new tag in the `tarnishedrelics` namespace (name it like `entity_types/dragons`). Tags from every
-  pack add up, so the editor shows them all together; taking out something another pack adds saves the tag with
-  `"replace": true`.
+- **Tags**: the blacksmith professions (`villager_profession/blacksmiths`), the `undead`, `arthropods` and `airborne`
+  (flying mobs) lists the affixes use, and any new tag in the `tarnishedrelics` namespace (name it like
+  `entity_types/dragons`). Tags from every pack add up, so the editor shows them all together; taking out something
+  another pack adds saves the tag with `"replace": true`.
 - **Settings**: the config file's options. Saving writes `config/tarnishedrelics-common.toml` at once.
 - **Pickers** (`...` buttons) list what's actually loaded: items with icons, tags, whole mods, mobs, villager
   professions, blocks, attributes, potion effects, damage types, biomes, dimensions, categories and rarities,

@@ -1,0 +1,36 @@
+{
+  "kind": "hidden",
+  "pool": "legendary",
+  "applies_to": [
+    "tarnishedrelics:pickaxe",
+    "tarnishedrelics:shovel",
+    "tarnishedrelics:hoe"
+  ],
+  "weight": 10,
+  "effects": [
+    {
+      "type": "break_speed",
+      "value": [
+        0.5,
+        0.8
+      ],
+      "conditions": {
+        "dimensions": [
+          "minecraft:the_nether"
+        ]
+      },
+      "tooltip": "tarnishedrelics.effect.legendary.hellforged.0"
+    },
+    {
+      "type": "passive_effect",
+      "effect": "minecraft:fire_resistance",
+      "amplifier": 0,
+      "conditions": {
+        "dimensions": [
+          "minecraft:the_nether"
+        ]
+      },
+      "tooltip": "tarnishedrelics.effect.legendary.hellforged.1"
+    }
+  ]
+}

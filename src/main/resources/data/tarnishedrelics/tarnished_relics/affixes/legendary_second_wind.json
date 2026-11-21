@@ -1,0 +1,22 @@
+{
+  "kind": "hidden",
+  "pool": "legendary",
+  "applies_to": [
+    "tarnishedrelics:chestplate"
+  ],
+  "weight": 10,
+  "effects": [
+    {
+      "type": "on_hurt_effect",
+      "effect": "minecraft:absorption",
+      "duration": 200,
+      "amplifier": 1,
+      "apply_to": "self",
+      "conditions": {
+        "chance": 0.5,
+        "health_below": 0.3
+      },
+      "tooltip": "tarnishedrelics.effect.legendary.second_wind.0"
+    }
+  ]
+}

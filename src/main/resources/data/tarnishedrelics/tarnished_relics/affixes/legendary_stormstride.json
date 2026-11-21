@@ -1,0 +1,28 @@
+{
+  "kind": "hidden",
+  "pool": "legendary",
+  "applies_to": [
+    "tarnishedrelics:boots"
+  ],
+  "weight": 10,
+  "effects": [
+    {
+      "type": "passive_effect",
+      "effect": "minecraft:speed",
+      "amplifier": 0,
+      "conditions": {
+        "is_day": true
+      },
+      "tooltip": "tarnishedrelics.effect.legendary.stormstride.0"
+    },
+    {
+      "type": "passive_effect",
+      "effect": "minecraft:jump_boost",
+      "amplifier": 0,
+      "conditions": {
+        "is_day": true
+      },
+      "tooltip": "tarnishedrelics.effect.legendary.stormstride.1"
+    }
+  ]
+}

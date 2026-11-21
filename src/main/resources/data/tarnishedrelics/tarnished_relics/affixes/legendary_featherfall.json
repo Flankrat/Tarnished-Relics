@@ -1,0 +1,20 @@
+{
+  "kind": "hidden",
+  "pool": "legendary",
+  "applies_to": [
+    "tarnishedrelics:boots"
+  ],
+  "weight": 10,
+  "effects": [
+    {
+      "type": "damage_taken",
+      "damage": [
+        "#minecraft:is_fall"
+      ],
+      "value": [
+        -0.8,
+        -0.5
+      ]
+    }
+  ]
+}
