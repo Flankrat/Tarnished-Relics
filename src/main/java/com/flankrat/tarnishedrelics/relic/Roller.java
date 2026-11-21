@@ -54,7 +54,12 @@ public final class Roller {
     public static List<ItemStack> generateAll(RandomSource random, @Nullable Rarity rarity, @Nullable Category category,
                                               @Nullable Legendary legendary, RelicGeneratedEvent.Source source, @Nullable LootContext context) {
         TRData data = TRData.get();
-        if (legendary != null && rarity == null) rarity = legendaryRarity(data);
+        if (legendary != null && (rarity == null || !rarity.legendary())) {
+            // a specific legendary needs a legendary rarity (its color, price, smith level); without one there's
+            // nothing to make, rather than a random ordinary relic
+            rarity = legendaryRarity(data);
+            if (rarity == null) return List.of();
+        }
         if (rarity == null) {
             float luck = context != null ? context.getLuck() : 0;
             rarity = pickRarity(data, random, category, luck, context != null ? context.getQueriedLootTableId() : null);

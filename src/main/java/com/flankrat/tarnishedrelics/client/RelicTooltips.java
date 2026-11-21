@@ -48,7 +48,13 @@ public final class RelicTooltips {
         for (RelicTag.Rolled rolled : RelicTag.affixes(relic)) {
             for (Effect e : rolled.affix().effects()) {
                 Component line = describe(e, e.value.get(rarityId, rolled.roll()));
-                if (line != null) lines.add(Component.literal(" ").append(line).withStyle(ChatFormatting.BLUE));
+                if (line == null) continue;
+                // an effect that works from another slot says so (attributes already show "When in ...")
+                if (e.slot != null && e.slot != RelicTag.slot(relic)) {
+                    line = Component.empty().append(line).append(" ").append(Component.translatable("tarnishedrelics.effect.in_slot",
+                            Component.translatable("tarnishedrelics.slot." + e.slot.getName())));
+                }
+                lines.add(Component.literal(" ").append(line).withStyle(ChatFormatting.BLUE));
             }
         }
         event.getToolTip().addAll(Math.min(1, event.getToolTip().size()), lines);

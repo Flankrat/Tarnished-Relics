@@ -141,8 +141,9 @@ public class EditorScreen extends Screen {
                     selected = null;
                     raw = false;
                     scroll = 0;
-                    fileListScroll = 0;
                     newName = null;
+                    fileList = null;   // so the old tab's list scroll isn't carried over
+                    fileListScroll = 0;
                     rebuildWidgets();
                 }
             }).bounds(8 + i * tabW, 18, tabW - 2, 18).build();
@@ -327,9 +328,13 @@ public class EditorScreen extends Screen {
             setStatus(t("fix_first", "Fix the errors first."), RED, errs);
             return;
         }
+        List<String> tooBig = EditorClient.save(model, saveToModpack);
+        if (!tooBig.isEmpty()) {
+            setStatus(t("too_big", "A file is too big to send."), RED, tooBig);
+            return;
+        }
         saving = true;
         setStatus(t("saving", "Saving..."), TEXT, List.of());
-        EditorClient.save(model, saveToModpack);
         rebuildWidgets();
     }
 

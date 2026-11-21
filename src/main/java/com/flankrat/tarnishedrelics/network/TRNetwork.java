@@ -123,11 +123,11 @@ public final class TRNetwork {
 
         static void encode(EditorFile p, FriendlyByteBuf buf) {
             buf.writeResourceLocation(p.id);
-            buf.writeUtf(p.json, 32000);
+            buf.writeUtf(p.json, 32767);
         }
 
         static EditorFile decode(FriendlyByteBuf buf) {
-            return new EditorFile(buf.readResourceLocation(), buf.readUtf(32000));
+            return new EditorFile(buf.readResourceLocation(), buf.readUtf(32767));
         }
 
         static void handle(EditorFile p, Supplier<NetworkEvent.Context> ctx) {

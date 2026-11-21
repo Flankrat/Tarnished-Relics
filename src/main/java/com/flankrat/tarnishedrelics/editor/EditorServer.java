@@ -85,6 +85,7 @@ public final class EditorServer {
 
     /** Opens (or refreshes) the editor on the player's screen with every file and where it comes from. */
     public static void open(ServerPlayer player, boolean refresh) {
+        if (!refresh) PENDING.remove(player.getUUID());   // files from an earlier session that never got a commit
         Map<ResourceLocation, String> files = new LinkedHashMap<>(TRData.get().rawJson());
         Map<ResourceLocation, String> origin = new LinkedHashMap<>();
         // every pack that has the file, lowest first, comma-separated (the last one is the copy in use)
@@ -125,7 +126,16 @@ public final class EditorServer {
 
     public static void commit(ServerPlayer player, boolean modpack) {
         Map<ResourceLocation, String> changes = PENDING.remove(player.getUUID());
-        if (!allowed(player) || changes == null || changes.isEmpty()) return;
+        // always answer, or the client's editor waits on "Saving..." forever
+        if (!allowed(player)) {
+            TRNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
+                    new TRNetwork.EditorResult(false, List.of(Component.translatable("tarnishedrelics.editor.no_permission").getString())));
+            return;
+        }
+        if (changes == null || changes.isEmpty()) {
+            TRNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new TRNetwork.EditorResult(true, TRData.get().errors()));
+            return;
+        }
         MinecraftServer server = player.server;
 
         // 1. check: current files with the changes applied must parse without errors in the changed files
@@ -209,7 +219,13 @@ public final class EditorServer {
             selected.remove(PACK_ID);
             selected.add(PACK_ID);
         }
-        server.reloadResources(selected).thenRunAsync(done, server);
+        server.reloadResources(selected).thenRunAsync(done, server).exceptionally(ex -> {
+            // a failed reload (another pack broke it): the files are written, but say so instead of waiting forever
+            TarnishedRelics.LOGGER.error("[Tarnished Relics] reload after the editor's save failed", ex);
+            server.execute(() -> TRNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
+                    new TRNetwork.EditorResult(false, List.of("Saved, but the reload failed: " + ex.getMessage()))));
+            return null;
+        });
     }
 
     public static void cancel(ServerPlayer player) {

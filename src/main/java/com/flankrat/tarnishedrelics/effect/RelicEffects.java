@@ -128,8 +128,8 @@ public final class RelicEffects {
         amount *= (float) Math.max(0, 1 + taken);
         event.setAmount(amount);
 
-        // On-hit effects only for direct melee hits (not arrows or explosions)
-        if (attacker != null && source.getDirectEntity() == attacker) {
+        // On-hit effects only for melee hits (not arrows, explosions or thorns)
+        if (attacker != null && isMelee(source, attacker)) {
             for (Active a : active(attacker, Effect.Type.ON_HIT_EFFECT)) {
                 if (!a.effect.conditions.test(attacker, victim, random)) continue;
                 applyEffect(a.effect, a.effect.onSelf ? attacker : victim);
@@ -154,6 +154,15 @@ public final class RelicEffects {
         }
     }
 
+    /**
+     * A melee hit: a player or mob attack dealt by the attacker itself. Checking only "direct entity == attacker"
+     * also counted thorns (the thorns owner is both), so thorns damage set off on-hit effects and lifesteal.
+     */
+    static boolean isMelee(DamageSource source, LivingEntity attacker) {
+        if (source.getDirectEntity() != attacker) return false;
+        return source.is(DamageTypes.PLAYER_ATTACK) || source.is(DamageTypes.MOB_ATTACK) || source.is(DamageTypes.MOB_ATTACK_NO_AGGRO);
+    }
+
     private static boolean matchesDamage(IdOrTag<net.minecraft.world.damagesource.DamageType> t, DamageSource source) {
         return t.isTag() ? source.is(t.tag()) : source.typeHolder().unwrapKey().map(k -> k.location().equals(t.id())).orElse(false);
     }
@@ -163,7 +172,7 @@ public final class RelicEffects {
     public static void onDamage(LivingDamageEvent event) {
         if (event.getEntity().level().isClientSide) return;
         DamageSource source = event.getSource();
-        if (!(source.getEntity() instanceof LivingEntity attacker) || source.getDirectEntity() != attacker) return;
+        if (!(source.getEntity() instanceof LivingEntity attacker) || !isMelee(source, attacker)) return;
         double steal = 0;
         for (Active a : active(attacker, Effect.Type.LIFESTEAL)) {
             if (a.effect.conditions.test(attacker, event.getEntity(), attacker.getRandom())) steal += a.value;
@@ -224,16 +233,39 @@ public final class RelicEffects {
     }
 
     // passive effects and "tick" functions, once a second
+    private static final String PASSIVE_KEY = "TarnishedRelicsPassive";
+    private static final int PASSIVE_DURATION = 400;
+    private static final int PASSIVE_REFRESH_BELOW = 220;
+
     @SubscribeEvent
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
         Player player = event.player;
         if (event.phase != TickEvent.Phase.END || player.level().isClientSide || player.tickCount % 20 != 0) return;
+        net.minecraft.nbt.ListTag given = new net.minecraft.nbt.ListTag();
         for (Active a : active(player, Effect.Type.PASSIVE_EFFECT)) {
             if (!a.effect.conditions.test(player, null, player.getRandom())) continue;
             MobEffect effect = ForgeRegistries.MOB_EFFECTS.getValue(a.effect.mobEffect);
-            // 3 seconds, refreshed every second; ambient and without particles so it doesn't clutter the screen
-            if (effect != null) player.addEffect(new MobEffectInstance(effect, 60, a.effect.amplifier, true, false, true));
+            if (effect == null) continue;
+            given.add(net.minecraft.nbt.StringTag.valueOf(a.effect.mobEffect.toString()));
+            // Topped up only when it runs low, not every second: night vision flickers under 10 seconds, and effects
+            // that act on a timer (regeneration heals when the duration is a multiple of 50) would act too often if
+            // the duration was reset all the time. Ambient and without particles so it doesn't clutter the screen.
+            MobEffectInstance now = player.getEffect(effect);
+            if (now == null || (now.getAmplifier() <= a.effect.amplifier && now.getDuration() < PASSIVE_REFRESH_BELOW)) {
+                player.addEffect(new MobEffectInstance(effect, PASSIVE_DURATION, a.effect.amplifier, true, false, true));
+            }
         }
+        // the long duration would outlast the item: take back effects we gave that nothing gives any more
+        net.minecraft.nbt.ListTag before = player.getPersistentData().getList(PASSIVE_KEY, net.minecraft.nbt.Tag.TAG_STRING);
+        for (int i = 0; i < before.size(); i++) {
+            if (given.contains(before.get(i))) continue;
+            MobEffect effect = ForgeRegistries.MOB_EFFECTS.getValue(ResourceLocation.tryParse(before.getString(i)));
+            MobEffectInstance now = effect == null ? null : player.getEffect(effect);
+            // only our kind of instance (ambient, no particles, not longer than we give), so a potion isn't removed
+            if (now != null && now.isAmbient() && !now.isVisible() && now.getDuration() <= PASSIVE_DURATION) player.removeEffect(effect);
+        }
+        if (given.isEmpty()) player.getPersistentData().remove(PASSIVE_KEY);
+        else player.getPersistentData().put(PASSIVE_KEY, given);
         runFunctions(player, null, "tick");
     }
 

@@ -110,5 +110,13 @@
   "legendary.tarnishedrelics.windstride.lore.0": "Each step a little lighter than the last.",
   "legendary.tarnishedrelics.hollow_crown": "The Hollow Crown",
   "legendary.tarnishedrelics.hollow_crown.lore.0": "Riches for the wearer, and no way out.",
-  "legendary.tarnishedrelics.hollow_crown.lore.1": "Heavy is the head."
+  "legendary.tarnishedrelics.hollow_crown.lore.1": "Heavy is the head.",
+  "tarnishedrelics.effect.in_slot": "(%s)",
+  "tarnishedrelics.editor.no_permission": "[Tarnished Relics] You need to be an operator to save editor changes.",
+  "tarnishedrelics.slot.mainhand": "in the main hand",
+  "tarnishedrelics.slot.offhand": "in the off hand",
+  "tarnishedrelics.slot.head": "on the head",
+  "tarnishedrelics.slot.chest": "on the body",
+  "tarnishedrelics.slot.legs": "on the legs",
+  "tarnishedrelics.slot.feet": "on the feet"
 }

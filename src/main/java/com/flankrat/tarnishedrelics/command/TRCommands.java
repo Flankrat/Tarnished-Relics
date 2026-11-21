@@ -107,6 +107,8 @@ public final class TRCommands {
         ServerPlayer player = c.getSource().getPlayerOrException();
         ItemStack held = player.getMainHandItem();
         if (!held.is(TRItems.UNIDENTIFIED.get())) return fail(c, "Hold an unidentified relic in your main hand");
+        // an empty relic (e.g. from /give) has nothing inside: identifying it would just delete it
+        if (held.getTag() == null || !held.getTag().contains("Hidden")) return fail(c, "This relic is empty (made with /give?); use /tarnishedrelics give");
         ItemStack real = Blacksmith.identify(held, player);
         player.setItemInHand(InteractionHand.MAIN_HAND, real);
         c.getSource().sendSuccess(() -> Component.literal("Identified: ").append(real.getHoverName()), false);
