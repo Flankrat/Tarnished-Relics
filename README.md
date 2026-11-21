@@ -3,7 +3,7 @@
 Diablo-style loot for Minecraft Forge 1.20.1.
 
 Loot chests sometimes hold an **unidentified relic**: a darkened silhouette of a weapon, piece of armor or tool, named
-only by its kind ("Unidentified Sword"). You can't use it until a **blacksmith villager** identifies it. Then it turns
+only by its kind ("Unidentified Sword"). You can't use it until a **villager of the right profession** identifies it. Then it turns
 into the real item, with a tier, random affixes and a name like **"Champion's Iron Sword of Smiting"**, or for a
 Unique, **"Sturdy Netherite Pickaxe of Ithireal"**. The rarest are **Legendaries**: named, with lore, enchantments above
 their normal maximum and effects no ordinary relic gets.
