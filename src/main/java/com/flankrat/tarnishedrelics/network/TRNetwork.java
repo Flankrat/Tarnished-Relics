@@ -273,13 +273,17 @@ public final class TRNetwork {
     /** Server -> op: whether the save went through, and the errors (in the changes, or left in the data after). */
     public record EditorResult(boolean saved, List<String> errors) {
 
+        /** Longest error line sent: a longer one (a huge pasted value in it) is cut, instead of failing the packet. */
+        static final int MAX_ERROR_CHARS = 4096;
+
         static void encode(EditorResult p, FriendlyByteBuf buf) {
             buf.writeBoolean(p.saved);
-            buf.writeCollection(p.errors, (b, s) -> b.writeUtf(s, 4096));
+            // a line over the limit used to throw here, and the op's editor waited on "Saving..." forever
+            buf.writeCollection(p.errors, (b, s) -> b.writeUtf(s.length() > MAX_ERROR_CHARS ? s.substring(0, MAX_ERROR_CHARS - 3) + "..." : s, MAX_ERROR_CHARS));
         }
 
         static EditorResult decode(FriendlyByteBuf buf) {
-            return new EditorResult(buf.readBoolean(), buf.readList(b -> b.readUtf(4096)));
+            return new EditorResult(buf.readBoolean(), buf.readList(b -> b.readUtf(MAX_ERROR_CHARS)));
         }
 
         static void handle(EditorResult p, Supplier<NetworkEvent.Context> ctx) {

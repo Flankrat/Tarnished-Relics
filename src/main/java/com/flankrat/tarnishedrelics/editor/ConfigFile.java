@@ -1,10 +1,19 @@
 package com.flankrat.tarnishedrelics.editor;
 
+import com.electronwill.nightconfig.core.file.CommentedFileConfig;
+import com.electronwill.nightconfig.core.io.WritingMode;
+import com.electronwill.nightconfig.toml.TomlFormat;
 import com.flankrat.tarnishedrelics.TRConfig;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import net.minecraftforge.fml.config.ModConfig;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -60,7 +69,52 @@ public final class ConfigFile {
         return errors;
     }
 
+    /**
+     * Saves the values to the toml, and they take effect at once. All of them go into the file in one write, which
+     * the loaded config then reads back. Setting them one by one lost values: Forge saves the file after every
+     * set and reads it back on its file-watcher thread, and a read-back between two sets put older values back in
+     * memory, which the next set then saved. The file is written to a temp file and moved into place, because the
+     * watcher also read a half-written file, found keys missing and "corrected" them to their defaults.
+     */
     public static void write(JsonObject o) {
+        ModConfig config = TRConfig.loaded();
+        if (config == null || !(config.getConfigData() instanceof CommentedFileConfig live)) {
+            setEach(o);   // not loaded from a file (shouldn't happen): set them the plain way
+            return;
+        }
+        Path path = live.getNioPath();
+        try (CommentedFileConfig file = CommentedFileConfig.builder(path).sync().preserveInsertionOrder().build()) {
+            file.load();   // a second handle on the same file (keeps its comments), without auto-save
+            file.set(TRConfig.ENABLED.getPath(), o.get("enabled").getAsBoolean());
+            file.set(TRConfig.CHANCE.getPath(), o.get("chance").getAsDouble());
+            file.set(TRConfig.LOOT_TYPES.getPath(), strings(o.getAsJsonArray("lootTypes")));
+            file.set(TRConfig.ENTITY_NEEDS_PLAYER.getPath(), o.get("entityNeedsPlayerKill").getAsBoolean());
+            file.set(TRConfig.EXCLUDE_TABLES.getPath(), strings(o.getAsJsonArray("excludeTables")));
+            file.set(TRConfig.CONFIRM_SECONDS.getPath(), o.get("confirmSeconds").getAsInt());
+            file.set(TRConfig.SHOW_RARITY_COLOR.getPath(), o.get("showRarityColorUnidentified").getAsBoolean());
+            Path temp = path.resolveSibling(path.getFileName() + ".tmp");
+            TomlFormat.instance().createWriter().write(file, temp.toFile(), WritingMode.REPLACE);
+            move(temp, path);
+        }
+        // the loaded config reads the finished file now (the file watcher reading it again later changes nothing)
+        live.load();
+        TRConfig.SPEC.afterReload();   // forget the cached values
+    }
+
+    // in one step where the system can, so nothing ever reads half a file
+    private static void move(Path from, Path to) {
+        try {
+            Files.move(from, to, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException atomicFailed) {
+            try {
+                Files.move(from, to, StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException e) {
+                throw new UncheckedIOException("couldn't save " + to, e);
+            }
+        }
+    }
+
+    private static void setEach(JsonObject o) {
         TRConfig.ENABLED.set(o.get("enabled").getAsBoolean());
         TRConfig.CHANCE.set(o.get("chance").getAsDouble());
         TRConfig.LOOT_TYPES.set(strings(o.getAsJsonArray("lootTypes")));

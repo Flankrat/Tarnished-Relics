@@ -1,6 +1,10 @@
 package com.flankrat.tarnishedrelics;
 
 import net.minecraftforge.common.ForgeConfigSpec;
+import net.minecraftforge.fml.config.ModConfig;
+import net.minecraftforge.fml.event.config.ModConfigEvent;
+
+import javax.annotation.Nullable;
 
 import java.util.List;
 
@@ -44,6 +48,20 @@ public final class TRConfig {
         SPEC = b.build();
     }
 
+    // the loaded config file (set when Forge loads it), for ConfigFile.write
+    @Nullable
+    private static volatile ModConfig loaded;
+
     private TRConfig() {
+    }
+
+    /** Mod event bus: remembers the loaded config file. */
+    public static void onConfig(ModConfigEvent event) {
+        if (event.getConfig().getSpec() == SPEC) loaded = event.getConfig();
+    }
+
+    @Nullable
+    public static ModConfig loaded() {
+        return loaded;
     }
 }
