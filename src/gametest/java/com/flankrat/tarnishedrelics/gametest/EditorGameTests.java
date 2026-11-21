@@ -134,6 +134,32 @@ public class EditorGameTests {
         }
     }
 
+    // a save with a file id outside the mod's folders (a tag id with "..") is refused as a whole, before anything is
+    // written: it was only found while writing, after the save's other files were already on disk
+    @GameTest(template = "gametest/empty")
+    public static void badFileIdIsRefusedBeforeWriting(GameTestHelper helper) {
+        ServerPlayer p = editor(helper);
+        ResourceLocation bad = new ResourceLocation("minecraft", "tags/../loot_tables/chests/zz_trtest");
+        Path badFile = helper.getLevel().getServer().getWorldPath(LevelResource.DATAPACK_DIR).resolve(EditorServer.PACK)
+                .resolve("data/minecraft/loot_tables/chests/zz_trtest.json");
+        try {
+            EditorServer.receiveFile(p, ID, affix(3), false);
+            EditorServer.receiveFile(p, bad, "{\"values\": []}", false);
+            EditorServer.commit(p, false);
+            helper.assertFalse(Files.exists(badFile), "wrote a loot table through a tag id");
+            helper.assertFalse(Files.exists(worldFile(helper)), "the save's good file was written though the save was refused");
+            helper.succeed();
+        } finally {
+            try {
+                Files.deleteIfExists(worldFile(helper));
+                Files.deleteIfExists(badFile);
+            } catch (java.io.IOException ignored) {
+                // nothing there
+            }
+            TestUtil.remove(p);
+        }
+    }
+
     // not an op: nothing is saved
     @GameTest(template = "gametest/empty")
     public static void needsOp(GameTestHelper helper) {

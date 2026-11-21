@@ -44,9 +44,17 @@ import static com.flankrat.tarnishedrelics.data.JsonFields.stringOr;
  */
 public final class Effect {
 
+    /** The effect types; number: its "value" is what it does (without one it would be 0 and do nothing). */
     public enum Type {
-        ATTRIBUTE, DAMAGE_VS, DAMAGE_TAKEN, ON_HIT_EFFECT, ON_HIT_FIRE, LIFESTEAL, THORNS, ON_HURT_EFFECT,
-        PASSIVE_EFFECT, CRIT_CHANCE, CRIT_DAMAGE, BREAK_SPEED, DURABILITY, XP_BONUS, LOOTING, FUNCTION;
+        ATTRIBUTE(true), DAMAGE_VS(true), DAMAGE_TAKEN(true), ON_HIT_EFFECT(false), ON_HIT_FIRE(true), LIFESTEAL(true),
+        THORNS(true), ON_HURT_EFFECT(false), PASSIVE_EFFECT(false), CRIT_CHANCE(true), CRIT_DAMAGE(true), BREAK_SPEED(true),
+        DURABILITY(true), XP_BONUS(true), LOOTING(true), FUNCTION(false);
+
+        public final boolean number;
+
+        Type(boolean number) {
+            this.number = number;
+        }
 
         static Type parse(String s) {
             try {
@@ -119,6 +127,7 @@ public final class Effect {
 
     // Catch missing fields at load time instead of when the effect fires
     private void validate() {
+        if (type.number) require(json.has("value"), "value");
         switch (type) {
             case ATTRIBUTE -> require(attribute != null, "attribute");
             case ON_HIT_EFFECT, ON_HURT_EFFECT, PASSIVE_EFFECT -> require(mobEffect != null, "effect");
