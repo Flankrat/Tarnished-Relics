@@ -185,7 +185,7 @@ public class BlacksmithGameTests {
 
     private static void only(GameTestHelper helper, String category, VillagerProfession... yes) {
         List<VillagerProfession> all = List.of(VillagerProfession.TOOLSMITH, VillagerProfession.ARMORER, VillagerProfession.WEAPONSMITH,
-                VillagerProfession.FARMER);
+                VillagerProfession.FLETCHER, VillagerProfession.FARMER);
         int x = 0;
         for (VillagerProfession prof : all) {
             boolean expected = List.of(yes).contains(prof);
@@ -198,7 +198,7 @@ public class BlacksmithGameTests {
         }
     }
 
-    // tools need a toolsmith, armor an armorer, weapons a weaponsmith; an axe is both a tool and a weapon
+    // tools need a toolsmith, armor an armorer, weapons a weaponsmith, bows a fletcher; an axe is a tool and a weapon
     @GameTest(template = "gametest/empty")
     public static void toolsNeedAToolsmith(GameTestHelper helper) {
         for (String c : new String[]{"pickaxe", "shovel", "hoe"}) only(helper, c, VillagerProfession.TOOLSMITH);
@@ -213,7 +213,14 @@ public class BlacksmithGameTests {
 
     @GameTest(template = "gametest/empty")
     public static void weaponsNeedAWeaponsmith(GameTestHelper helper) {
-        for (String c : new String[]{"sword", "trident", "bow", "crossbow"}) only(helper, c, VillagerProfession.WEAPONSMITH);
+        for (String c : new String[]{"sword", "trident"}) only(helper, c, VillagerProfession.WEAPONSMITH);
+        helper.succeed();
+    }
+
+    // bows and crossbows (longbows and heavy crossbows from mods are in these categories) need a fletcher
+    @GameTest(template = "gametest/empty")
+    public static void bowsNeedAFletcher(GameTestHelper helper) {
+        for (String c : new String[]{"bow", "crossbow"}) only(helper, c, VillagerProfession.FLETCHER);
         helper.succeed();
     }
 

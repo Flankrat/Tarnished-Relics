@@ -17,9 +17,10 @@ public final class TRItems {
     private static final DeferredRegister<Codec<? extends IGlobalLootModifier>> LOOT_MODIFIERS =
             DeferredRegister.create(ForgeRegistries.Keys.GLOBAL_LOOT_MODIFIER_SERIALIZERS, TarnishedRelics.MODID);
 
-    // stacks to 1: every relic is different
+    // stacks to 1: every relic is different. Fire resistant (like netherite): a relic dropped in fire or lava isn't
+    // destroyed, and floats on lava
     public static final RegistryObject<Item> UNIDENTIFIED =
-            ITEMS.register("unidentified", () -> new UnidentifiedItem(new Item.Properties().stacksTo(1)));
+            ITEMS.register("unidentified", () -> new UnidentifiedItem(new Item.Properties().stacksTo(1).fireResistant()));
 
     public static final RegistryObject<Codec<RelicLootModifier>> RELIC_LOOT =
             LOOT_MODIFIERS.register("relic_loot", RelicLootModifier.CODEC);
