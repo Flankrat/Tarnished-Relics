@@ -43,4 +43,13 @@ class WeightedTest {
             assertEquals(Weighted.pick(list, E::weight, RandomSource.create(seed)), Weighted.pick(list, E::weight, RandomSource.create(seed)));
         }
     }
+
+    // Bug (round 5): the weights were added up as an int, so two weights over a billion overflowed to a negative
+    // total and nothing was picked (no relic dropped)
+    @Test
+    void hugeWeightsDontOverflow() {
+        List<E> list = List.of(new E("a", 1_500_000_000), new E("b", 1_500_000_000));
+        RandomSource r = RandomSource.create(3);
+        for (int i = 0; i < 100; i++) assertNotNull(Weighted.pick(list, E::weight, r));
+    }
 }
