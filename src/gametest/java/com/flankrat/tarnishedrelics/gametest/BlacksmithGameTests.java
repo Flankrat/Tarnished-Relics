@@ -171,7 +171,7 @@ public class BlacksmithGameTests {
 
     /** True if this kind of villager identifies a magic relic of this category (price, then pay). */
     private static boolean identifies(GameTestHelper helper, VillagerProfession profession, ItemStack relic, int x) {
-        Villager v = smith(helper, profession, 2, x);
+        Villager v = smith(helper, profession, 5, x);
         ServerPlayer p = holding(helper, relic, 64);
         try {
             use(p, v);
@@ -189,7 +189,11 @@ public class BlacksmithGameTests {
         int x = 0;
         for (VillagerProfession prof : all) {
             boolean expected = List.of(yes).contains(prof);
-            boolean did = identifies(helper, prof, relic("magic", category), x++ % 5);
+            // rare: magic only makes level 1-2 items, and a trident is level 3
+            ItemStack relic = relic("rare", category);
+            helper.assertTrue(relic.is(TRItems.UNIDENTIFIED.get()) && relic.getTag().getString("Category").equals("tarnishedrelics:" + category),
+                    "couldn't make a " + category + " relic: " + relic.getTag());
+            boolean did = identifies(helper, prof, relic, x++ % 5);
             helper.assertTrue(did == expected, category + " relic at a " + prof + ": " + (did ? "identified" : "refused") + ", expected " + (expected ? "identified" : "refused"));
         }
     }
