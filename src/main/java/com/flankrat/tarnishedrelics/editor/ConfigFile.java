@@ -25,7 +25,7 @@ import java.util.Set;
  */
 public final class ConfigFile {
 
-    public static final Set<String> LOOT_TYPES = Set.of("chest", "entity", "fishing", "archaeology", "gift", "barter");
+    public static final Set<String> LOOT_TYPES = TRConfig.LOOT_TYPE_NAMES;
 
     private ConfigFile() {
     }

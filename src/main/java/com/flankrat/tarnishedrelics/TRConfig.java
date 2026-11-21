@@ -11,6 +11,9 @@ import java.util.List;
 /** config/tarnishedrelics-common.toml */
 public final class TRConfig {
 
+    /** The lootTypes words (the kinds of loot table RelicLootModifier knows). */
+    public static final java.util.Set<String> LOOT_TYPE_NAMES = java.util.Set.of("chest", "entity", "fishing", "archaeology", "gift", "barter");
+
     public static final ForgeConfigSpec SPEC;
 
     public static final ForgeConfigSpec.BooleanValue ENABLED;
@@ -29,7 +32,8 @@ public final class TRConfig {
                 .defineInRange("chance", 0.03, 0.0, 1.0);
         LOOT_TYPES = b.comment("Which kinds of loot can get one: chest, entity (mob drops), fishing, archaeology, gift, barter.",
                         "Chests only by default: mob drops are rolled on every kill, so even a few percent there adds up fast.")
-                .defineListAllowEmpty(List.of("lootTypes"), () -> List.of("chest"), o -> o instanceof String);
+                // only the kinds there are: any other word matched no loot, so a typo ("chests") meant no relics at all
+                .defineListAllowEmpty(List.of("lootTypes"), () -> List.of("chest"), o -> o instanceof String s && LOOT_TYPE_NAMES.contains(s));
         ENTITY_NEEDS_PLAYER = b.comment("Mob drops only get relics when a player made the kill (stops mob farms).")
                 .define("entityNeedsPlayerKill", true);
         EXCLUDE_TABLES = b.comment("Loot tables that never get relics, e.g. \"minecraft:chests/spawn_bonus_chest\". \"*\" works as a wildcard.")
