@@ -100,7 +100,7 @@ public final class EditorServer {
         });
         files.put(CONFIG_FILE, ConfigFile.read().toString());
         origin.put(CONFIG_FILE, "config");
-        TRNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new TRNetwork.OpenEditor(files, origin, refresh));
+        TRNetwork.sendEditor(player, files, origin, refresh);
     }
 
     /** A tag's values across packs, lowest first, honouring "replace". Packs in skip are left out. */
