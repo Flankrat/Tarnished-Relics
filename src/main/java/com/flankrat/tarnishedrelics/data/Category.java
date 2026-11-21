@@ -10,6 +10,9 @@ import java.util.List;
 import java.util.Locale;
 import javax.annotation.Nullable;
 
+import static com.flankrat.tarnishedrelics.data.JsonFields.intOr;
+import static com.flankrat.tarnishedrelics.data.JsonFields.stringOr;
+
 /**
  * An item category ({@code tarnished_relics/categories/<name>.json}): which items count as e.g. a sword, which slot
  * their affixes work in, and the silhouette their unidentified version shows.
@@ -34,10 +37,10 @@ public record Category(ResourceLocation id, @Nullable String name, List<AutoMatc
         EquipmentSlot slot = EquipmentSlot.byName(o.has("slot") ? o.get("slot").getAsString().toLowerCase(Locale.ROOT) : "mainhand");
         if (Conditions.strings(o.get("items")).contains("*")) throw new JsonParseException("\"*\" only works in rarities");
         List<AutoMatch> auto = Conditions.strings(o.get("auto")).stream().map(AutoMatch::parse).toList();
-        return new Category(id, o.has("name") ? o.get("name").getAsString() : null, auto, ItemList.parse(o.get("items"), o.get("exclude")), slot,
-                o.has("silhouette") ? o.get("silhouette").getAsString() : "generic",
-                o.has("priority") ? o.get("priority").getAsInt() : 0,
-                o.has("weight") ? o.get("weight").getAsInt() : 10);
+        return new Category(id, stringOr(o, "name", null), auto, ItemList.parse(o.get("items"), o.get("exclude")), slot,
+                stringOr(o, "silhouette", "generic"),
+                intOr(o, "priority", 0),
+                intOr(o, "weight", 10));
     }
 
     /** True if the item is listed or matches an auto kind, and isn't excluded here. */

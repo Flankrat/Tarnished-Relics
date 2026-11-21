@@ -26,6 +26,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 import javax.annotation.Nullable;
 
 /**
@@ -59,24 +61,19 @@ public final class Lookup {
                     ResourceLocation id = EditorModel.shortId(c);
                     out.add(new Choice("@" + id, "Category: " + id.getPath(), id.getNamespace(), new ItemStack(Items.CHEST), "category"));
                 }
+                addEntries(out, ForgeRegistries.ITEMS, "item", i -> new ItemStack(i).getHoverName().getString(), (id, i) -> new ItemStack(i));
                 Set<String> mods = new LinkedHashSet<>();
-                for (var e : ForgeRegistries.ITEMS.getEntries()) {
-                    ResourceLocation id = e.getKey().location();
-                    mods.add(id.getNamespace());
-                    out.add(new Choice(id.toString(), new ItemStack(e.getValue()).getHoverName().getString(), id.getNamespace(), new ItemStack(e.getValue()), "item"));
-                }
+                for (ResourceLocation id : ForgeRegistries.ITEMS.getKeys()) mods.add(id.getNamespace());
                 for (String mod : mods) out.add(new Choice(mod + ":*", "Every item from " + modName(mod), mod, ItemStack.EMPTY, "mod"));
                 addTags(out, ForgeRegistries.ITEMS);
             }
             case TAG_ITEM -> {
-                for (var e : ForgeRegistries.ITEMS.getEntries()) {
-                    ResourceLocation id = e.getKey().location();
-                    out.add(new Choice(id.toString(), new ItemStack(e.getValue()).getHoverName().getString(), id.getNamespace(), new ItemStack(e.getValue()), "item"));
-                }
+                addEntries(out, ForgeRegistries.ITEMS, "item", i -> new ItemStack(i).getHoverName().getString(), (id, i) -> new ItemStack(i));
                 addTags(out, ForgeRegistries.ITEMS);
             }
             case PROFESSION -> {
                 for (var e : ForgeRegistries.VILLAGER_PROFESSIONS.getEntries()) {
+                    // the profession's name comes from its id, not the profession itself
                     ResourceLocation id = e.getKey().location();
                     out.add(new Choice(id.toString(), Component.translatable("entity.minecraft.villager." + id.getPath()).getString(),
                             id.getNamespace(), new ItemStack(Items.EMERALD), "profession"));
@@ -84,11 +81,8 @@ public final class Lookup {
                 addTags(out, ForgeRegistries.VILLAGER_PROFESSIONS);
             }
             case ENCHANTMENT -> {
-                for (var e : ForgeRegistries.ENCHANTMENTS.getEntries()) {
-                    ResourceLocation id = e.getKey().location();
-                    out.add(new Choice(id.toString(), Component.translatable(e.getValue().getDescriptionId()).getString()
-                            + " (max " + e.getValue().getMaxLevel() + ")", id.getNamespace(), new ItemStack(Items.ENCHANTED_BOOK), "enchantment"));
-                }
+                addEntries(out, ForgeRegistries.ENCHANTMENTS, "enchantment",
+                        e -> Component.translatable(e.getDescriptionId()).getString() + " (max " + e.getMaxLevel() + ")", (id, e) -> new ItemStack(Items.ENCHANTED_BOOK));
             }
             case LEGENDARY -> {
                 for (ResourceLocation f : model.filesIn("legendaries")) {
@@ -102,31 +96,18 @@ public final class Lookup {
                 for (String t : ConfigFile.LOOT_TYPES) out.add(new Choice(t, t, "", ItemStack.EMPTY, "loot"));
             }
             case ENTITY -> {
-                for (var e : ForgeRegistries.ENTITY_TYPES.getEntries()) {
-                    ResourceLocation id = e.getKey().location();
-                    out.add(new Choice(id.toString(), e.getValue().getDescription().getString(), id.getNamespace(), spawnEgg(id), "entity"));
-                }
+                addEntries(out, ForgeRegistries.ENTITY_TYPES, "entity", t -> t.getDescription().getString(), (id, t) -> spawnEgg(id));
                 addTags(out, ForgeRegistries.ENTITY_TYPES);
             }
             case BLOCK -> {
-                for (var e : ForgeRegistries.BLOCKS.getEntries()) {
-                    ResourceLocation id = e.getKey().location();
-                    out.add(new Choice(id.toString(), e.getValue().getName().getString(), id.getNamespace(), new ItemStack(e.getValue()), "block"));
-                }
+                addEntries(out, ForgeRegistries.BLOCKS, "block", b -> b.getName().getString(), (id, b) -> new ItemStack(b));
                 addTags(out, ForgeRegistries.BLOCKS);
             }
             case ATTRIBUTE -> {
-                for (var e : ForgeRegistries.ATTRIBUTES.getEntries()) {
-                    ResourceLocation id = e.getKey().location();
-                    out.add(new Choice(id.toString(), Component.translatable(e.getValue().getDescriptionId()).getString(),
-                            id.getNamespace(), ItemStack.EMPTY, "attribute"));
-                }
+                addEntries(out, ForgeRegistries.ATTRIBUTES, "attribute", a -> Component.translatable(a.getDescriptionId()).getString(), (id, a) -> ItemStack.EMPTY);
             }
             case MOB_EFFECT -> {
-                for (var e : ForgeRegistries.MOB_EFFECTS.getEntries()) {
-                    ResourceLocation id = e.getKey().location();
-                    out.add(new Choice(id.toString(), e.getValue().getDisplayName().getString(), id.getNamespace(), new ItemStack(Items.POTION), "effect"));
-                }
+                addEntries(out, ForgeRegistries.MOB_EFFECTS, "effect", m -> m.getDisplayName().getString(), (id, m) -> new ItemStack(Items.POTION));
             }
             case DAMAGE -> addDynamic(out, Registries.DAMAGE_TYPE, "damage");
             case BIOME -> addDynamic(out, Registries.BIOME, "biome");
@@ -172,6 +153,15 @@ public final class Lookup {
             case "tag" -> 4;
             default -> 2;
         };
+    }
+
+    /** One choice per registry entry: its id, a label and an icon from the entry. */
+    private static <T> void addEntries(List<Choice> out, IForgeRegistry<T> registry, String kind, Function<T, String> label,
+                                       BiFunction<ResourceLocation, T, ItemStack> icon) {
+        for (var e : registry.getEntries()) {
+            ResourceLocation id = e.getKey().location();
+            out.add(new Choice(id.toString(), label.apply(e.getValue()), id.getNamespace(), icon.apply(id, e.getValue()), kind));
+        }
     }
 
     private static <T> void addTags(List<Choice> out, IForgeRegistry<T> registry) {

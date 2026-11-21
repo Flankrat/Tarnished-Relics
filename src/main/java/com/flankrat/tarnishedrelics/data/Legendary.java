@@ -5,11 +5,14 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import net.minecraft.resources.ResourceLocation;
 
-import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nullable;
+
+import static com.flankrat.tarnishedrelics.data.JsonFields.idOrNull;
+import static com.flankrat.tarnishedrelics.data.JsonFields.intOr;
 
 /**
  * A hand-made legendary relic ({@code tarnished_relics/legendaries/<name>.json}). Rarities with
@@ -56,7 +59,7 @@ public record Legendary(ResourceLocation id, ItemList items, @Nullable ResourceL
         Affix affix = new Affix(affixId, "hidden", null, POOL, List.of("*"), 0, Map.of(), null, effects);
         List<ResourceLocation> companions = Conditions.strings(o.get("companions")).stream().map(ResourceLocation::new).toList();
         return new Legendary(id, ItemList.parse(o.get("items"), o.get("exclude")),
-                o.has("category") ? new ResourceLocation(o.get("category").getAsString()) : null,
-                o.get("name").getAsString(), lore, enchants, o.has("weight") ? o.get("weight").getAsInt() : 10, companions, affix);
+                idOrNull(o, "category"),
+                o.get("name").getAsString(), lore, enchants, intOr(o, "weight", 10), companions, affix);
     }
 }
