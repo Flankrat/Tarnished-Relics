@@ -199,7 +199,8 @@ Every effect can also have:
 
 - `"conditions"`: all must pass. `chance` (0-1), `health_below` / `health_above` (fraction of the wielder's max
   health), `in_water`, `is_night`, `is_day`, `sneaking`, `on_fire`, `y_below`, `y_above`, `dimensions` (list),
-  `biomes` (ids/#tags), `target` (entity ids/#tags).
+  `biomes` (ids/#tags), `target` (entity ids/#tags). `break_speed` ignores `chance` (the client works out the
+  mining speed too, and a roll on each side would disagree).
 - `"slot"`: works while the item is in that slot instead of its category's (`offhand` for a dagger that helps from
   the offhand).
 - `"tooltip"`: its own tooltip line, a lang key or plain text (`%1$s` = value as a percent, `%2$s` = plain number).
@@ -292,7 +293,8 @@ Built-in keywords cover vanilla materials and the common modded metals (copper, 
 { "items": ["somemod:*", "othermod:silly_hat", "#somemod:joke_weapons"] }
 ```
 
-All files are merged. The editor writes its own exclusions to `tarnishedrelics:exclusions/editor`.
+All files are merged. The editor writes its own exclusions to `tarnishedrelics:exclusions/editor`. `"*"` can't be used
+here (it means "every item that has a category", which the exclusions are part of working out).
 
 ### Blacksmiths
 
@@ -364,6 +366,21 @@ included), the mod's tags and the config.
 - The unidentified item is hidden from JEI (an empty one has nothing inside).
 - An identified relic's data is in the `TarnishedRelics` NBT compound (rarity, category, slot, color, name parts,
   affixes with their rolls).
+
+## Testing
+
+Bugs are reproduced with a test before they're fixed, and the tests use the mod's real built-in datapack files.
+
+- `./gradlew test`: JUnit tests (`src/test`) with Minecraft bootstrapped but no world: datapack parsing and its
+  error reports (including the real loader reading a datapack folder), value rolls, item levels, wildcards, weighted
+  picks, packet splitting, name order, and odd modded items.
+- `./gradlew runGameTestServer`: in-world GameTests (`src/gametest`) on a test server with the mod loaded: blacksmith
+  identifying, effect slots and conditions, passive effects, relic rolls, RelicGeneratedEvent from every kind of loot
+  table, and editor saves to "This world" and "Whole modpack". It ends with "All N required tests passed" (check the
+  log, not only the exit code).
+- With no options both runs have none of the optional mods, which checks nothing needs them. To test the
+  integrations, put the mods' jars in `libs/` as `<name>-1.jar` (`quality-1.jar`, `tooltipoverhaul-1.jar`, ...) and add
+  `-PoptionalMods` (Tooltip Overhaul needs `-Pforge_version=47.3.0`).
 
 ## License
 
