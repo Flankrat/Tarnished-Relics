@@ -38,7 +38,9 @@ import net.minecraftforge.registries.ForgeRegistries;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import javax.annotation.Nullable;
 
@@ -210,7 +212,9 @@ public final class RelicEffects {
         for (Active a : active(player, Effect.Type.BREAK_SPEED)) {
             IdOrTag<Block> blocks = a.effect.blocks;
             if (blocks != null && !blocks.matches(event.getState().getBlockHolder())) continue;
-            if (a.effect.conditions.test(player, null, player.getRandom())) bonus += a.value;
+            // the client works out the same speed to show the cracks, so no random "chance" here: a roll on each
+            // side gave the two different speeds, and the block cracked at one speed and broke at the other
+            if (a.effect.conditions.testIgnoringChance(player, null)) bonus += a.value;
         }
         if (bonus != 0) event.setNewSpeed((float) (event.getNewSpeed() * Math.max(0, 1 + bonus)));
     }
@@ -249,32 +253,58 @@ public final class RelicEffects {
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
         Player player = event.player;
         if (event.phase != TickEvent.Phase.END || player.level().isClientSide || player.tickCount % 20 != 0) return;
-        ListTag given = new ListTag();
+        // the strongest amplifier each effect is given at (two items with the same effect: the stronger one counts)
+        Map<MobEffect, Integer> wanted = new LinkedHashMap<>();
         for (Active a : active(player, Effect.Type.PASSIVE_EFFECT)) {
             if (!a.effect.conditions.test(player, null, player.getRandom())) continue;
             MobEffect effect = ForgeRegistries.MOB_EFFECTS.getValue(a.effect.mobEffect);
-            if (effect == null) continue;
-            given.add(StringTag.valueOf(a.effect.mobEffect.toString()));
-            // Topped up only when it runs low, not every second: night vision flickers under 10 seconds, and effects
-            // that act on a timer (regeneration heals when the duration is a multiple of 50) would act too often if
-            // the duration was reset all the time. Ambient and without particles so it doesn't clutter the screen.
-            MobEffectInstance now = player.getEffect(effect);
-            if (now == null || (now.getAmplifier() <= a.effect.amplifier && now.getDuration() < PASSIVE_REFRESH_BELOW)) {
-                player.addEffect(new MobEffectInstance(effect, PASSIVE_DURATION, a.effect.amplifier, true, false, true));
-            }
+            if (effect != null) wanted.merge(effect, a.effect.amplifier, Math::max);
         }
+        ListTag given = new ListTag();
+        wanted.forEach((effect, amp) -> {
+            given.add(StringTag.valueOf(String.valueOf(ForgeRegistries.MOB_EFFECTS.getKey(effect))));
+            keepUp(player, effect, amp);
+        });
         // the long duration would outlast the item: take back effects we gave that nothing gives any more
         ListTag before = player.getPersistentData().getList(PASSIVE_KEY, Tag.TAG_STRING);
         for (int i = 0; i < before.size(); i++) {
             if (given.contains(before.get(i))) continue;
             MobEffect effect = ForgeRegistries.MOB_EFFECTS.getValue(ResourceLocation.tryParse(before.getString(i)));
-            MobEffectInstance now = effect == null ? null : player.getEffect(effect);
-            // only our kind of instance (ambient, no particles, not longer than we give), so a potion isn't removed
-            if (now != null && now.isAmbient() && !now.isVisible() && now.getDuration() <= PASSIVE_DURATION) player.removeEffect(effect);
+            if (effect != null && isOurs(player.getEffect(effect))) player.removeEffect(effect);
         }
         if (given.isEmpty()) player.getPersistentData().remove(PASSIVE_KEY);
         else player.getPersistentData().put(PASSIVE_KEY, given);
         runFunctions(player, null, "tick");
+    }
+
+    /**
+     * Gives a passive effect, or keeps it going. Topped up only when it runs low, not every second: night vision
+     * flickers under 10 seconds, and effects that act on a timer (regeneration heals when the duration is a multiple
+     * of 50) would act too often if the duration was reset all the time. Ambient and without particles so it
+     * doesn't clutter the screen.
+     * <ul>
+     *   <li>weaker (a potion or an item taken off): replaced right away. Before, anything at the same or a lower
+     *       amplifier blocked the change until it ran low, so a jump boost I potion kept jump boost II boots at I,
+     *       and swapping to stronger boots took up to 9 seconds;</li>
+     *   <li>stronger, but ours (a stronger item was taken off): replaced with this one right away, instead of
+     *       lasting its full 20 seconds;</li>
+     *   <li>stronger and not ours (a potion): left alone.</li>
+     * </ul>
+     */
+    private static void keepUp(Player player, MobEffect effect, int amp) {
+        MobEffectInstance now = player.getEffect(effect);
+        boolean give = now == null || now.getAmplifier() < amp || (now.getAmplifier() == amp && now.getDuration() < PASSIVE_REFRESH_BELOW);
+        if (now != null && now.getAmplifier() > amp && isOurs(now)) {
+            player.removeEffect(effect);
+            give = true;
+        }
+        // a weaker potion under it is kept by the game and comes back when this one ends
+        if (give) player.addEffect(new MobEffectInstance(effect, PASSIVE_DURATION, amp, true, false, true));
+    }
+
+    // our kind of instance (ambient, no particles, not longer than we give), so a potion is never taken away
+    private static boolean isOurs(@Nullable MobEffectInstance i) {
+        return i != null && i.isAmbient() && !i.isVisible() && i.getDuration() <= PASSIVE_DURATION;
     }
 
     /** Durability: called from ItemStackMixin with the wear about to be applied. */

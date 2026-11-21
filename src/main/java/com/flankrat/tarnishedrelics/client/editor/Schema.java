@@ -177,7 +177,7 @@ public final class Schema {
                 f("items", Kind.LIST, Pick.ITEM, "Items that are never relics: ids, #tags, mod:* (whole mod)", JsonArray::new)));
 
         CONDITIONS = List.of(
-                f("chance", Kind.NUMBER, Pick.NONE, "Chance it happens (0-1)", () -> num(0.25)),
+                f("chance", Kind.NUMBER, Pick.NONE, "Chance it happens (0-1); break speed ignores it (the client works the speed out too)", () -> num(0.25)),
                 f("health_below", Kind.NUMBER, Pick.NONE, "Only below this share of max health (0-1)", () -> num(0.5)),
                 f("health_above", Kind.NUMBER, Pick.NONE, "Only above this share of max health (0-1)", () -> num(0.5)),
                 f("in_water", Kind.BOOL, Pick.NONE, "In water", () -> new JsonPrimitive(true)),

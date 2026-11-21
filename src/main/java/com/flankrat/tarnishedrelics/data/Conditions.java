@@ -84,6 +84,14 @@ public final class Conditions {
     /** Checks everything. wielder is whoever holds or wears the item; target may be null. */
     public boolean test(LivingEntity wielder, @Nullable LivingEntity target, RandomSource random) {
         if (chance < 1 && random.nextDouble() >= chance) return false;
+        return testIgnoringChance(wielder, target);
+    }
+
+    /**
+     * Checks everything but "chance". For effects the client works out too (break speed): a random roll on each
+     * side would disagree, so for those chance doesn't apply.
+     */
+    public boolean testIgnoringChance(LivingEntity wielder, @Nullable LivingEntity target) {
         float frac = wielder.getHealth() / Math.max(1, wielder.getMaxHealth());
         if (healthBelow >= 0 && frac >= healthBelow) return false;
         if (healthAbove >= 0 && frac <= healthAbove) return false;

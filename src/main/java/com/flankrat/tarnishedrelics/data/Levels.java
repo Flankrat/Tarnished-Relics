@@ -6,6 +6,7 @@ import com.google.gson.JsonParseException;
 import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.ArmorMaterial;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.Tier;
 import net.minecraft.world.item.TieredItem;
 import net.minecraftforge.registries.ForgeRegistries;
 
@@ -70,9 +71,7 @@ public final class Levels {
         }
         // the best of what the item says about itself: its tool tier, its armor, a material word in its id
         // (some mods leave their tiers at level 0, e.g. Spartan Weaponry's weapons, so the id's "iron" counts too)
-        int best = -1;
-        if (item instanceof TieredItem t) best = t.getTier().getLevel();
-        if (item instanceof ArmorItem a) best = Math.max(best, armorLevel(a.getMaterial()));
+        int best = Math.max(tierLevel(item), armorLevel(item));
         if (key != null) {
             String word = null;
             // whole words between underscores only, so "tin" doesn't match "tinted"
@@ -86,13 +85,33 @@ public final class Levels {
         return fallback;
     }
 
-    // Vanilla chestplates: leather 3, gold 5, chain 5, iron 6, diamond 8, netherite 8 with toughness 3
-    private static int armorLevel(ArmorMaterial m) {
-        int chest = m.getDefenseForType(ArmorItem.Type.CHESTPLATE);
-        float tough = m.getToughness();
-        if (chest >= 8) return tough >= 3 ? 4 : 3;
-        if (chest >= 6) return 2;
-        if (chest >= 5) return 1;
-        return 0;
+    // A modded tool can have no tier (null) or one that throws when asked; then the tier says nothing (-1).
+    // Before, that crashed working out the level, and with it every rarity list using "*" or "@category".
+    private static int tierLevel(Item item) {
+        if (!(item instanceof TieredItem t)) return -1;
+        try {
+            Tier tier = t.getTier();
+            return tier == null ? -1 : tier.getLevel();
+        } catch (RuntimeException e) {
+            return -1;
+        }
+    }
+
+    // Vanilla chestplates: leather 3, gold 5, chain 5, iron 6, diamond 8, netherite 8 with toughness 3.
+    // No material (null) or one that throws: -1, like a missing tier.
+    private static int armorLevel(Item item) {
+        if (!(item instanceof ArmorItem a)) return -1;
+        try {
+            ArmorMaterial m = a.getMaterial();
+            if (m == null) return -1;
+            int chest = m.getDefenseForType(ArmorItem.Type.CHESTPLATE);
+            float tough = m.getToughness();
+            if (chest >= 8) return tough >= 3 ? 4 : 3;
+            if (chest >= 6) return 2;
+            if (chest >= 5) return 1;
+            return 0;
+        } catch (RuntimeException e) {
+            return -1;
+        }
     }
 }
