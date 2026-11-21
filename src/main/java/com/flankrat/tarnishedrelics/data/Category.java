@@ -1,12 +1,14 @@
 package com.flankrat.tarnishedrelics.data;
 
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.Item;
 
 import java.util.List;
 import java.util.Locale;
+import javax.annotation.Nullable;
 
 /**
  * An item category ({@code tarnished_relics/categories/<name>.json}): which items count as e.g. a sword, which slot
@@ -26,11 +28,11 @@ import java.util.Locale;
  * Items on the global exclusions list (tarnished_relics/exclusions/) are never in a category.
  * The unidentified name is the lang key {@code item.<namespace>.unidentified.<name>} ("Unidentified Sword").
  */
-public record Category(ResourceLocation id, @javax.annotation.Nullable String name, List<AutoMatch> auto, ItemList items, EquipmentSlot slot, String silhouette, int priority, int weight) {
+public record Category(ResourceLocation id, @Nullable String name, List<AutoMatch> auto, ItemList items, EquipmentSlot slot, String silhouette, int priority, int weight) {
 
     static Category parse(ResourceLocation id, JsonObject o) {
         EquipmentSlot slot = EquipmentSlot.byName(o.has("slot") ? o.get("slot").getAsString().toLowerCase(Locale.ROOT) : "mainhand");
-        if (Conditions.strings(o.get("items")).contains("*")) throw new com.google.gson.JsonParseException("\"*\" only works in rarities");
+        if (Conditions.strings(o.get("items")).contains("*")) throw new JsonParseException("\"*\" only works in rarities");
         List<AutoMatch> auto = Conditions.strings(o.get("auto")).stream().map(AutoMatch::parse).toList();
         return new Category(id, o.has("name") ? o.get("name").getAsString() : null, auto, ItemList.parse(o.get("items"), o.get("exclude")), slot,
                 o.has("silhouette") ? o.get("silhouette").getAsString() : "generic",

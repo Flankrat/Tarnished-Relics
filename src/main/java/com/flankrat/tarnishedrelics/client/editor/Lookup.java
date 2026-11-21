@@ -2,12 +2,15 @@ package com.flankrat.tarnishedrelics.client.editor;
 
 import com.flankrat.tarnishedrelics.data.Category;
 import com.flankrat.tarnishedrelics.data.TRData;
+import com.flankrat.tarnishedrelics.editor.ConfigFile;
 import com.google.gson.JsonElement;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -15,7 +18,6 @@ import net.minecraftforge.fml.ModList;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.IForgeRegistry;
 
-import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
@@ -24,6 +26,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import javax.annotation.Nullable;
 
 /**
  * What the game has loaded, for the editor's pickers and checks: items, mobs, blocks, attributes, potion effects,
@@ -75,7 +78,7 @@ public final class Lookup {
             case PROFESSION -> {
                 for (var e : ForgeRegistries.VILLAGER_PROFESSIONS.getEntries()) {
                     ResourceLocation id = e.getKey().location();
-                    out.add(new Choice(id.toString(), net.minecraft.network.chat.Component.translatable("entity.minecraft.villager." + id.getPath()).getString(),
+                    out.add(new Choice(id.toString(), Component.translatable("entity.minecraft.villager." + id.getPath()).getString(),
                             id.getNamespace(), new ItemStack(Items.EMERALD), "profession"));
                 }
                 addTags(out, ForgeRegistries.VILLAGER_PROFESSIONS);
@@ -83,7 +86,7 @@ public final class Lookup {
             case ENCHANTMENT -> {
                 for (var e : ForgeRegistries.ENCHANTMENTS.getEntries()) {
                     ResourceLocation id = e.getKey().location();
-                    out.add(new Choice(id.toString(), net.minecraft.network.chat.Component.translatable(e.getValue().getDescriptionId()).getString()
+                    out.add(new Choice(id.toString(), Component.translatable(e.getValue().getDescriptionId()).getString()
                             + " (max " + e.getValue().getMaxLevel() + ")", id.getNamespace(), new ItemStack(Items.ENCHANTED_BOOK), "enchantment"));
                 }
             }
@@ -96,7 +99,7 @@ public final class Lookup {
                 }
             }
             case LOOT_TYPE -> {
-                for (String t : com.flankrat.tarnishedrelics.editor.ConfigFile.LOOT_TYPES) out.add(new Choice(t, t, "", ItemStack.EMPTY, "loot"));
+                for (String t : ConfigFile.LOOT_TYPES) out.add(new Choice(t, t, "", ItemStack.EMPTY, "loot"));
             }
             case ENTITY -> {
                 for (var e : ForgeRegistries.ENTITY_TYPES.getEntries()) {
@@ -115,7 +118,7 @@ public final class Lookup {
             case ATTRIBUTE -> {
                 for (var e : ForgeRegistries.ATTRIBUTES.getEntries()) {
                     ResourceLocation id = e.getKey().location();
-                    out.add(new Choice(id.toString(), net.minecraft.network.chat.Component.translatable(e.getValue().getDescriptionId()).getString(),
+                    out.add(new Choice(id.toString(), Component.translatable(e.getValue().getDescriptionId()).getString(),
                             id.getNamespace(), ItemStack.EMPTY, "attribute"));
                 }
             }
@@ -241,7 +244,7 @@ public final class Lookup {
                 return model.exists(EditorModel.fileId("legendaries", rl(value))) ? null : "No legendary " + value;
             }
             case LOOT_TYPE -> {
-                return com.flankrat.tarnishedrelics.editor.ConfigFile.LOOT_TYPES.contains(value) ? null : "Not a loot type";
+                return ConfigFile.LOOT_TYPES.contains(value) ? null : "Not a loot type";
             }
             case BLOCK -> {
                 return checkRegistry(value, ForgeRegistries.BLOCKS);
@@ -297,7 +300,7 @@ public final class Lookup {
         if (!modLoaded(id.getNamespace())) return "Mod \"" + id.getNamespace() + "\" isn't loaded, so this does nothing here";
         if (tag) {
             var tags = registry.tags();
-            boolean known = tags != null && tags.isKnownTagName(net.minecraft.tags.TagKey.create(registry.getRegistryKey(), id));
+            boolean known = tags != null && tags.isKnownTagName(TagKey.create(registry.getRegistryKey(), id));
             return known ? null : "No such tag (yet)";
         }
         return registry.containsKey(id) ? null : "Nothing with this id";

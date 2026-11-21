@@ -6,7 +6,9 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.RandomSource;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import javax.annotation.Nullable;
 
 /**
  * A tier ({@code tarnished_relics/rarities/<name>.json}): how often it drops, which base items it can be, how many
@@ -39,9 +41,9 @@ import java.util.Map;
  * </pre>
  * The rarity's own name is the lang key {@code tarnishedrelics.rarity.<namespace>.<name>}.
  */
-public record Rarity(ResourceLocation id, @javax.annotation.Nullable String name, int weight, ItemList items, Map<String, int[]> rolls, int identifyLevel,
+public record Rarity(ResourceLocation id, @Nullable String name, int weight, ItemList items, Map<String, int[]> rolls, int identifyLevel,
                      int costMin, int costMax, int villagerXp, int color, boolean uniqueName, boolean legendary, int quality,
-                     java.util.List<String> lootTables, double handmadeChance, int[] signatureEnchantments,
+                     List<String> lootTables, double handmadeChance, int[] signatureEnchantments,
                      int[] enchantmentBonus, double drawbackChance, String drawbackPool, int[] loreLines) {
 
     static Rarity parse(ResourceLocation id, JsonObject o) {
@@ -92,12 +94,10 @@ public record Rarity(ResourceLocation id, @javax.annotation.Nullable String name
     }
 
     /** True if this rarity can drop from this loot table (null = not from a loot table, e.g. a command). */
-    public boolean allowsTable(@javax.annotation.Nullable ResourceLocation table) {
+    public boolean allowsTable(@Nullable ResourceLocation table) {
         if (lootTables.isEmpty() || table == null) return true;
         String id = table.toString();
-        for (String p : lootTables) {
-            if (id.matches(java.util.regex.Pattern.quote(p).replace("*", "\\E.*\\Q"))) return true;
-        }
+        for (String p : lootTables) if (Wildcard.matches(p, id)) return true;
         return false;
     }
 

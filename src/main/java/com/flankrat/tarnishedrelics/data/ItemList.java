@@ -7,11 +7,12 @@ import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraftforge.registries.ForgeRegistries;
 
-import javax.annotation.Nullable;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import javax.annotation.Nullable;
 
 /**
  * A list of items from a datapack, minus an exclude list. Entries can be:
@@ -36,7 +37,7 @@ public final class ItemList {
     private volatile Set<Item> resolved, excludedSet;
     // lists being worked out on this thread (per thread: the client and integrated server may resolve at once),
     // to catch a list that includes itself through @category
-    private static final ThreadLocal<Set<ItemList>> RESOLVING = ThreadLocal.withInitial(java.util.HashSet::new);
+    private static final ThreadLocal<Set<ItemList>> RESOLVING = ThreadLocal.withInitial(HashSet::new);
 
     private ItemList(List<String> include, List<String> exclude) {
         this.include = include;

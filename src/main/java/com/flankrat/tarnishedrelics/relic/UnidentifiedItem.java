@@ -1,6 +1,7 @@
 package com.flankrat.tarnishedrelics.relic;
 
 import com.flankrat.tarnishedrelics.TRConfig;
+import com.flankrat.tarnishedrelics.name.NameFallback;
 import net.minecraft.ChatFormatting;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -10,8 +11,8 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
 
-import javax.annotation.Nullable;
 import java.util.List;
+import javax.annotation.Nullable;
 
 /**
  * An unidentified relic. The real, already rolled item is hidden inside its NBT ("Hidden"), so this is just a plain
@@ -35,7 +36,7 @@ public class UnidentifiedItem extends Item {
         String key = tag != null && tag.contains("NameKey") ? tag.getString("NameKey") : getDescriptionId();
         // a category made in a datapack/the editor may have no lang entry: "Unidentified Spear" from its id
         String category = tag != null ? tag.getString("Category") : "";
-        MutableComponent name = Component.translatableWithFallback(key, com.flankrat.tarnishedrelics.name.NameFallback.unidentified(category));
+        MutableComponent name = Component.translatableWithFallback(key, NameFallback.unidentified(category));
         if (tag != null && tag.contains("Color") && TRConfig.SHOW_RARITY_COLOR.get()) {
             name = name.withStyle(s -> s.withColor(tag.getInt("Color")));
         }

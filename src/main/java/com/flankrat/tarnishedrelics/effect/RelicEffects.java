@@ -4,10 +4,14 @@ import com.flankrat.tarnishedrelics.data.Effect;
 import com.flankrat.tarnishedrelics.data.IdOrTag;
 import com.flankrat.tarnishedrelics.relic.RelicTag;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.StringTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -18,6 +22,7 @@ import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Block;
 import net.minecraftforge.event.ItemAttributeModifierEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.living.LivingDamageEvent;
@@ -31,11 +36,11 @@ import net.minecraftforge.eventbus.api.Event;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.registries.ForgeRegistries;
 
-import javax.annotation.Nullable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import javax.annotation.Nullable;
 
 /**
  * Makes relic affixes do things. An affix only works while its item is in the slot its category names (a sword in the
@@ -163,7 +168,7 @@ public final class RelicEffects {
         return source.is(DamageTypes.PLAYER_ATTACK) || source.is(DamageTypes.MOB_ATTACK) || source.is(DamageTypes.MOB_ATTACK_NO_AGGRO);
     }
 
-    private static boolean matchesDamage(IdOrTag<net.minecraft.world.damagesource.DamageType> t, DamageSource source) {
+    private static boolean matchesDamage(IdOrTag<DamageType> t, DamageSource source) {
         return t.isTag() ? source.is(t.tag()) : source.typeHolder().unwrapKey().map(k -> k.location().equals(t.id())).orElse(false);
     }
 
@@ -200,7 +205,7 @@ public final class RelicEffects {
         Player player = event.getEntity();
         double bonus = 0;
         for (Active a : active(player, Effect.Type.BREAK_SPEED)) {
-            IdOrTag<net.minecraft.world.level.block.Block> blocks = a.effect.blocks;
+            IdOrTag<Block> blocks = a.effect.blocks;
             if (blocks != null && !blocks.matches(event.getState().getBlockHolder())) continue;
             if (a.effect.conditions.test(player, null, player.getRandom())) bonus += a.value;
         }
@@ -241,12 +246,12 @@ public final class RelicEffects {
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
         Player player = event.player;
         if (event.phase != TickEvent.Phase.END || player.level().isClientSide || player.tickCount % 20 != 0) return;
-        net.minecraft.nbt.ListTag given = new net.minecraft.nbt.ListTag();
+        ListTag given = new ListTag();
         for (Active a : active(player, Effect.Type.PASSIVE_EFFECT)) {
             if (!a.effect.conditions.test(player, null, player.getRandom())) continue;
             MobEffect effect = ForgeRegistries.MOB_EFFECTS.getValue(a.effect.mobEffect);
             if (effect == null) continue;
-            given.add(net.minecraft.nbt.StringTag.valueOf(a.effect.mobEffect.toString()));
+            given.add(StringTag.valueOf(a.effect.mobEffect.toString()));
             // Topped up only when it runs low, not every second: night vision flickers under 10 seconds, and effects
             // that act on a timer (regeneration heals when the duration is a multiple of 50) would act too often if
             // the duration was reset all the time. Ambient and without particles so it doesn't clutter the screen.
@@ -256,7 +261,7 @@ public final class RelicEffects {
             }
         }
         // the long duration would outlast the item: take back effects we gave that nothing gives any more
-        net.minecraft.nbt.ListTag before = player.getPersistentData().getList(PASSIVE_KEY, net.minecraft.nbt.Tag.TAG_STRING);
+        ListTag before = player.getPersistentData().getList(PASSIVE_KEY, Tag.TAG_STRING);
         for (int i = 0; i < before.size(); i++) {
             if (given.contains(before.get(i))) continue;
             MobEffect effect = ForgeRegistries.MOB_EFFECTS.getValue(ResourceLocation.tryParse(before.getString(i)));

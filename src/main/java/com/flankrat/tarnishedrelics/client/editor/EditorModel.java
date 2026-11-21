@@ -1,13 +1,14 @@
 package com.flankrat.tarnishedrelics.client.editor;
 
 import com.flankrat.tarnishedrelics.data.TRData;
+import com.flankrat.tarnishedrelics.editor.EditorServer;
+import com.flankrat.tarnishedrelics.editor.ModpackPack;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.minecraft.resources.ResourceLocation;
 
-import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -15,6 +16,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import javax.annotation.Nullable;
 
 /**
  * The editor's working copy of every Tarnished Relics file. File ids are "namespace:folder/name", the same ids the
@@ -92,7 +94,7 @@ public final class EditorModel {
 
     /** The packs the editor saves to: the world's editor pack and the modpack folder. */
     public static boolean isEditorPack(String packId) {
-        return packId.equals(com.flankrat.tarnishedrelics.editor.EditorServer.PACK_ID) || packId.equals(com.flankrat.tarnishedrelics.editor.ModpackPack.ID);
+        return packId.equals(EditorServer.PACK_ID) || packId.equals(ModpackPack.ID);
     }
 
     /** True if the copy in use is one the editor saved and some other pack has the file too. */

@@ -6,11 +6,14 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.level.block.Block;
 
-import javax.annotation.Nullable;
+import java.util.List;
 import java.util.Locale;
+import java.util.Set;
+import javax.annotation.Nullable;
 
 /**
  * One effect of an affix. Every effect has a "type", optional "conditions", and the fields its type uses:
@@ -62,8 +65,8 @@ public final class Effect {
     // Fields used by some types (null/empty when unused)
     @Nullable public final ResourceLocation attribute;
     public final AttributeModifier.Operation operation;
-    public final java.util.List<IdOrTag<EntityType<?>>> targets;
-    public final java.util.List<IdOrTag<DamageType>> damageTypes;
+    public final List<IdOrTag<EntityType<?>>> targets;
+    public final List<IdOrTag<DamageType>> damageTypes;
     @Nullable public final IdOrTag<Block> blocks;
     @Nullable public final ResourceLocation mobEffect;
     public final int duration, amplifier;
@@ -71,7 +74,7 @@ public final class Effect {
     @Nullable public final ResourceLocation function;
     public final String trigger;          // function trigger
     public final boolean asTarget;        // function runs as the target
-    @Nullable public final net.minecraft.world.entity.EquipmentSlot slot;   // works in this slot instead of the item's own
+    @Nullable public final EquipmentSlot slot;   // works in this slot instead of the item's own
 
     private Effect(JsonObject o) {
         json = o;
@@ -96,7 +99,7 @@ public final class Effect {
         function = o.has("function") ? new ResourceLocation(o.get("function").getAsString()) : null;
         trigger = o.has("trigger") ? o.get("trigger").getAsString() : "hit";
         asTarget = o.has("as") && o.get("as").getAsString().equals("target");
-        slot = o.has("slot") ? net.minecraft.world.entity.EquipmentSlot.byName(o.get("slot").getAsString()) : null;
+        slot = o.has("slot") ? EquipmentSlot.byName(o.get("slot").getAsString()) : null;
         validate();
     }
 
@@ -112,7 +115,7 @@ public final class Effect {
             case ON_HIT_EFFECT, ON_HURT_EFFECT, PASSIVE_EFFECT -> require(mobEffect != null, "effect");
             case FUNCTION -> {
                 require(function != null, "function");
-                if (!java.util.Set.of("hit", "kill", "hurt", "tick").contains(trigger))
+                if (!Set.of("hit", "kill", "hurt", "tick").contains(trigger))
                     throw new JsonParseException("function trigger must be hit, kill, hurt or tick");
             }
             default -> { }

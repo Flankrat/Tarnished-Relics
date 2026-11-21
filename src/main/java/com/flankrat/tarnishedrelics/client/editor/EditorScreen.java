@@ -1,19 +1,18 @@
 package com.flankrat.tarnishedrelics.client.editor;
 
 import com.flankrat.tarnishedrelics.client.editor.Schema.Field;
-import com.flankrat.tarnishedrelics.client.editor.Schema.Kind;
 import com.flankrat.tarnishedrelics.client.editor.Schema.Pick;
 import com.flankrat.tarnishedrelics.data.Category;
 import com.flankrat.tarnishedrelics.data.Rarity;
 import com.flankrat.tarnishedrelics.data.TRData;
 import com.flankrat.tarnishedrelics.editor.EditorServer;
+import com.flankrat.tarnishedrelics.editor.ModpackPack;
+import com.flankrat.tarnishedrelics.name.NameFallback;
 import com.flankrat.tarnishedrelics.network.TRNetwork;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.google.gson.JsonPrimitive;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -21,7 +20,6 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.CycleButton;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.MultiLineEditBox;
-import net.minecraft.client.gui.components.ObjectSelectionList;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.ConfirmScreen;
 import net.minecraft.client.gui.screens.Screen;
@@ -30,13 +28,13 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraftforge.registries.ForgeRegistries;
 
-import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.function.Consumer;
+import java.util.function.Predicate;
+import javax.annotation.Nullable;
 
 /**
  * The in-game editor ({@code /tarnishedrelics editor}). Tabs along the top pick a folder (categories, rarities,
@@ -48,7 +46,7 @@ import java.util.function.Consumer;
  * The form is a list of rows (a name on the left, controls on the right) that scrolls; any change that adds or
  * removes rows rebuilds the screen, plain value edits don't (so typing keeps focus).
  */
-public class EditorScreen extends Screen {
+public class EditorScreen extends Screen implements EditorForm.Host {
 
     /** The open editor, for packets that arrive while a picker is on top of it. */
     @Nullable static EditorScreen last;
@@ -56,10 +54,8 @@ public class EditorScreen extends Screen {
     private static final List<String> TABS = List.of("categories", "rarities", "affixes", "legendaries", "names", "levels", "exclusions", "tags", "settings", "mods");
     /** Where Save writes: the world's editor pack, or the modpack folder every world loads. Kept between openings. */
     private static boolean saveToModpack;
-    private static final int ROW = 22;
-    private static final int LABEL_W = 100;
-    private static final int RED = 0xFF6060;
-    private static final int TEXT = 0xE0E0E0;
+    private static final int RED = EditorForm.RED;
+    private static final int TEXT = EditorForm.TEXT;
 
     private EditorModel model;
     private String folder = "categories";
@@ -77,9 +73,8 @@ public class EditorScreen extends Screen {
 
     // layout, worked out in init()
     private int leftW, formX, formTop, formW, formBottom;
-    private final List<Row> rows = new ArrayList<>();
-    private int contentHeight;
-    private FileList fileList;
+    private EditorForm form;
+    private EditorFileList fileList;
 
     public EditorScreen(EditorModel model) {
         super(Component.translatableWithFallback("tarnishedrelics.editor.title", "Tarnished Relics Editor"));
@@ -88,7 +83,25 @@ public class EditorScreen extends Screen {
     }
 
     private static Component t(String key, String english, Object... args) {
-        return Component.translatableWithFallback("tarnishedrelics.editor." + key, english, args);
+        return EditorForm.t(key, english, args);
+    }
+
+    EditorModel model() {
+        return model;
+    }
+
+    @Nullable
+    ResourceLocation selected() {
+        return selected;
+    }
+
+    /** Opens a file from the list (not while the raw JSON has an error: stay until it's fixed). */
+    void openFile(ResourceLocation id) {
+        if (id.equals(selected)) return;
+        if (raw && rawError != null) return;
+        selected = id;
+        scroll = 0;
+        rebuildWidgets();
     }
 
     // ---- packets ---------------------------------------------------------------------------------------------
@@ -121,13 +134,13 @@ public class EditorScreen extends Screen {
     @Override
     protected void init() {
         last = this;
-        rows.clear();
         leftW = Math.max(110, Math.min(170, width / 4));
         boolean mods = fullWidth();
         formX = mods ? 8 : leftW + 14;
         formW = width - formX - 8;
         formTop = mods ? 46 : 92;
         formBottom = height - 30;
+        form = new EditorForm(this, model, font, formX, formTop, formW, formBottom, folder.equals("settings"));
 
         // folder tabs
         int tabW = (width - 16) / TABS.size();
@@ -154,7 +167,7 @@ public class EditorScreen extends Screen {
         if (!mods) initFileSide();
         initFooter();
         buildForm();
-        layoutForm();
+        form.layout(scroll);
     }
 
     /** Tabs without a file list. */
@@ -177,7 +190,7 @@ public class EditorScreen extends Screen {
         });
         addRenderableWidget(search);
 
-        fileList = new FileList(minecraft, leftW, 62, height - 56);
+        fileList = new EditorFileList(this, minecraft, leftW, height, 62, height - 56);
         addRenderableWidget(fileList);
         fillFileList();
         fileList.setScrollAmount(fileListScroll);
@@ -303,7 +316,7 @@ public class EditorScreen extends Screen {
                 ? model.get(selected).deepCopy() : Schema.template(folder);
         start.remove("disabled");
         // a readable name from the file name, so it never shows a raw lang key
-        String title = com.flankrat.tarnishedrelics.name.NameFallback.title(name);
+        String title = NameFallback.title(name);
         switch (folder) {
             case "categories" -> start.addProperty("name", "Unidentified " + title);
             case "rarities" -> start.addProperty("name", title);
@@ -372,62 +385,8 @@ public class EditorScreen extends Screen {
 
     // ---- the form --------------------------------------------------------------------------------------------
 
-    /** One line of the form: a name (with help on hover) and its controls at x offsets from the form's left. */
-    private static final class Row {
-        int y;
-        int indent;
-        Component label = Component.empty();
-        @Nullable Component help;
-        int labelColor = TEXT;
-        boolean wideLabel;
-        final List<AbstractWidget> widgets = new ArrayList<>();
-        final List<Integer> offsets = new ArrayList<>();
-        int swatch = -1, swatchX;   // a color box (color fields)
-        int height = ROW;
-    }
-
-    private Row row(int indent, String label, @Nullable String help) {
-        Row r = new Row();
-        r.y = contentHeight;
-        r.indent = indent;
-        r.label = Component.literal(label);
-        r.help = help == null || help.isEmpty() ? null : Component.literal(help);
-        rows.add(r);
-        contentHeight += ROW;
-        return r;
-    }
-
-    private <T extends AbstractWidget> T place(Row r, T widget, int offset) {
-        r.widgets.add(widget);
-        r.offsets.add(offset);
-        addRenderableWidget(widget);
-        return widget;
-    }
-
-    /** Where a row's controls start, and how wide they can be. */
-    private int valueX(int indent) {
-        return indent + LABEL_W;
-    }
-
-    private int valueW(int indent) {
-        return formW - valueX(indent) - 2;
-    }
-
-    private void layoutForm() {
-        for (Row r : rows) {
-            int y = formTop + r.y - (int) scroll;
-            boolean inside = y >= formTop - 1 && y + r.height - 2 <= formBottom;
-            for (int i = 0; i < r.widgets.size(); i++) {
-                AbstractWidget w = r.widgets.get(i);
-                w.setX(formX + r.offsets.get(i));
-                w.setY(y + (r.height == ROW ? 1 : 0));
-                w.visible = inside;
-            }
-        }
-    }
-
     private void buildForm() {
-        contentHeight = 4;
+        form.start();
         if (folder.equals("mods")) {
             buildMods();
         } else if (folder.equals("settings")) {
@@ -435,7 +394,7 @@ public class EditorScreen extends Screen {
         } else if (selected != null) {
             JsonObject json = model.get(selected);
             if (json == null) {
-                Row r = row(0, "", null);
+                FormRow r = form.row(0, "", null);
                 r.wideLabel = true;
                 r.label = model.overridesAnother(selected)
                         ? t("removed.original", "On save, the editor's copy goes and the version from %s is used again.", packName(model.origins(selected).get(model.origins(selected).size() - 2)))
@@ -445,7 +404,7 @@ public class EditorScreen extends Screen {
             } else {
                 buildInfo(json);
                 if (model.isDisabled(selected)) {
-                    Row r = row(0, "", null);
+                    FormRow r = form.row(0, "", null);
                     r.wideLabel = true;
                     r.labelColor = 0xFFD060;
                     r.label = t("off", "This file is turned off: the game ignores it.");
@@ -453,11 +412,11 @@ public class EditorScreen extends Screen {
                 List<Field> fields = folder.equals("tags")
                         ? Schema.tagFields(EditorModel.shortId(selected).getPath().split("/")[0])
                         : Schema.FILES.getOrDefault(folder, List.of());
-                addFields(json, fields, 0, folder.equals("tags") ? List.of("replace") : List.of("disabled"));
+                form.addFields(json, fields, 0, folder.equals("tags") ? List.of("replace") : List.of("disabled"));
             }
         }
-        contentHeight += 6;
-        scroll = Math.max(0, Math.min(scroll, Math.max(0, contentHeight - (formBottom - formTop))));
+        form.finish();
+        scroll = Math.max(0, Math.min(scroll, Math.max(0, form.contentHeight() - (formBottom - formTop))));
     }
 
     private void buildRaw(JsonObject json) {
@@ -529,14 +488,14 @@ public class EditorScreen extends Screen {
             default -> null;
         };
         if (explain != null) {
-            Row r = row(0, "", null);
+            FormRow r = form.row(0, "", null);
             r.wideLabel = true;
             r.labelColor = 0x909090;
             r.label = Component.literal(explain);
             r.help = Component.literal(explain);
         }
         if (text == null) return;
-        Row r = row(0, "", null);
+        FormRow r = form.row(0, "", null);
         r.wideLabel = true;
         r.labelColor = 0x90C0FF;
         r.label = Component.literal(text);
@@ -544,7 +503,7 @@ public class EditorScreen extends Screen {
         if (items != null) {
             List<Item> shown = items;
             right -= 52;
-            place(r, Button.builder(t("show", "Show"), b -> minecraft.setScreen(new ItemsScreen(this, Component.literal(selected.toString()), model,
+            form.place(r, Button.builder(t("show", "Show"), b -> minecraft.setScreen(new ItemsScreen(this, Component.literal(selected.toString()), model,
                     () -> shown))).bounds(0, 0, 50, 18).build(), right);
         }
         // test rolls (from the saved data, which is what the server has)
@@ -554,10 +513,10 @@ public class EditorScreen extends Screen {
             String legendary = folder.equals("legendaries") ? shortId.toString() : "";
             Tooltip tip = Tooltip.create(t("give.tip", "Rolls one from the saved data (save first to try your changes)"));
             right -= 72;
-            place(r, Button.builder(t("give_id", "Identified"), b -> TRNetwork.CHANNEL.sendToServer(new TRNetwork.EditorGive(rarity, category, legendary, true)))
+            form.place(r, Button.builder(t("give_id", "Identified"), b -> TRNetwork.CHANNEL.sendToServer(new TRNetwork.EditorGive(rarity, category, legendary, true)))
                     .bounds(0, 0, 70, 18).tooltip(tip).build(), right);
             right -= 52;
-            place(r, Button.builder(t("give", "Give"), b -> TRNetwork.CHANNEL.sendToServer(new TRNetwork.EditorGive(rarity, category, legendary, false)))
+            form.place(r, Button.builder(t("give", "Give"), b -> TRNetwork.CHANNEL.sendToServer(new TRNetwork.EditorGive(rarity, category, legendary, false)))
                     .bounds(0, 0, 50, 18).tooltip(tip).build(), right);
         }
     }
@@ -570,408 +529,28 @@ public class EditorScreen extends Screen {
 
     private void buildSettings() {
         JsonObject json = model.get(EditorServer.CONFIG_FILE);
-        Row intro = row(0, "", null);
+        FormRow intro = form.row(0, "", null);
         intro.wideLabel = true;
         intro.labelColor = 0x90C0FF;
         intro.label = t("settings.intro", "The config file (config/tarnishedrelics-common.toml): the same for every world. Saving writes it right away.");
         intro.help = intro.label;
         if (json == null) return;
-        addFields(json, Schema.CONFIG, 0, List.of());
+        form.addFields(json, Schema.CONFIG, 0, List.of());
     }
 
-    private static List<Item> itemsWhere(java.util.function.Predicate<Item> test) {
+    private static List<Item> itemsWhere(Predicate<Item> test) {
         List<Item> out = new ArrayList<>();
         for (Item i : ForgeRegistries.ITEMS) if (test.test(i)) out.add(i);
         return out;
     }
 
-    /** Rows for an object's fields: the ones it has, unknown ones as raw JSON, then an "add field" row. */
-    private void addFields(JsonObject obj, List<Field> fields, int indent, List<String> skip) {
-        List<String> known = new ArrayList<>(skip);
-        for (Field f : fields) {
-            known.add(f.key());
-            if (obj.has(f.key())) addField(obj, f, indent);
-        }
-        for (String key : new ArrayList<>(obj.keySet())) if (!known.contains(key)) rawField(obj, key, indent);
-        addFieldRow(obj, fields.stream().filter(f -> !obj.has(f.key())).toList(), indent);
-    }
-
-    private void addFieldRow(JsonObject obj, List<Field> absent, int indent) {
-        if (absent.isEmpty()) return;
-        Row r = row(indent, "", null);
-        r.labelColor = 0x909090;
-        r.label = t("add_field", "+ field");
-        Field[] pick = {absent.get(0)};
-        int w = Math.min(160, valueW(indent) - 50);
-        place(r, CycleButton.<Field>builder(f -> Component.literal(f.key())).withValues(absent).withInitialValue(absent.get(0))
-                .withTooltip(f -> Tooltip.create(Component.literal(f.help())))
-                .displayOnlyValue().create(0, 0, w, 18, Component.literal("field"), (b, v) -> pick[0] = v), valueX(indent));
-        place(r, Button.builder(t("add", "Add"), b -> {
-            obj.add(pick[0].key(), pick[0].def().get());
-            restructure();
-        }).bounds(0, 0, 46, 18).build(), valueX(indent) + w + 2);
-    }
-
-    private void addField(JsonObject obj, Field f, int indent) {
-        String key = f.key();
-        JsonElement v = obj.get(key);
-        switch (f.kind()) {
-            case TEXT -> {
-                Row r = row(indent, key, f.help());
-                int w = valueW(indent) - 22 - (f.pick() != Pick.NONE ? 22 : 0);
-                EditBox box = text(v.isJsonPrimitive() ? v.getAsString() : v.toString(), w, s -> obj.addProperty(key, s));
-                if (f.pick() != Pick.NONE) {
-                    checkBox(box, f.pick(), box.getValue());
-                    box.setResponder(s -> {
-                        obj.addProperty(key, s);
-                        checkBox(box, f.pick(), s);
-                        changed();
-                    });
-                }
-                place(r, box, valueX(indent));
-                if (f.pick() != Pick.NONE) place(r, pickButton(f.pick(), val -> {
-                    obj.addProperty(key, val);
-                    restructure();
-                }), valueX(indent) + w + 2);
-                removeField(r, obj, key);
-            }
-            case NUMBER, INT -> {
-                Row r = row(indent, key, f.help());
-                place(r, number(v, f.kind() == Kind.INT, n -> obj.add(key, n)), valueX(indent));
-                removeField(r, obj, key);
-            }
-            case BOOL -> {
-                Row r = row(indent, key, f.help());
-                place(r, CycleButton.onOffBuilder(v.isJsonPrimitive() && v.getAsBoolean()).displayOnlyValue()
-                        .create(0, 0, 60, 18, Component.literal(key), (b, val) -> {
-                            obj.addProperty(key, val);
-                            changed();
-                        }), valueX(indent));
-                removeField(r, obj, key);
-            }
-            case ENUM -> {
-                Row r = row(indent, key, f.help());
-                List<String> opts = new ArrayList<>(f.options());
-                String cur = v.isJsonPrimitive() ? v.getAsString() : "";
-                if (!opts.contains(cur)) opts.add(0, cur);
-                place(r, CycleButton.<String>builder(Component::literal).withValues(opts).withInitialValue(cur).displayOnlyValue()
-                        .create(0, 0, Math.min(140, valueW(indent) - 24), 18, Component.literal(key), (b, val) -> {
-                            obj.addProperty(key, val);
-                            changed();
-                        }), valueX(indent));
-                removeField(r, obj, key);
-            }
-            case COLOR -> {
-                Row r = row(indent, key, f.help());
-                EditBox box = text(v.isJsonPrimitive() ? v.getAsString() : "#FFFFFF", 70, s -> obj.addProperty(key, s));
-                place(r, box, valueX(indent));
-                r.swatchX = valueX(indent) + 74;
-                box.setResponder(s -> {
-                    obj.addProperty(key, s);
-                    r.swatch = parseColor(s);
-                    box.setTextColor(r.swatch < 0 ? RED : TEXT);
-                    changed();
-                });
-                r.swatch = parseColor(box.getValue());
-                removeField(r, obj, key);
-            }
-            case RANGE -> {
-                Row r = row(indent, key, f.help());
-                rangeBoxes(r, valueX(indent), v, val -> obj.add(key, val));
-                removeField(r, obj, key);
-            }
-            case LIST -> listField(obj, f, indent);
-            case MAP_INT, MAP_RANGE -> mapField(obj, f, indent);
-            case WEIGHT -> weightField(obj, f, indent);
-            case VALUE -> valueField(obj, f, indent);
-            case CONDITIONS -> {
-                Row r = row(indent, key, f.help());
-                removeField(r, obj, key);
-                if (!v.isJsonObject()) {
-                    obj.add(key, new JsonObject());
-                    v = obj.get(key);
-                }
-                addFields(v.getAsJsonObject(), Schema.CONDITIONS, indent + 12, List.of());
-            }
-            case EFFECTS -> effectsField(obj, f, indent);
-        }
-    }
-
-    /** A field the schema doesn't know (or an odd shape): edited as one line of JSON. */
-    private void rawField(JsonObject obj, String key, int indent) {
-        Row r = row(indent, key, "Edited as raw JSON");
-        r.labelColor = 0xC0A0FF;
-        EditBox box = text(obj.get(key).toString(), valueW(indent) - 22, s -> { });
-        box.setResponder(s -> {
-            try {
-                obj.add(key, JsonParser.parseString(s));
-                box.setTextColor(TEXT);
-                changed();
-            } catch (RuntimeException e) {
-                box.setTextColor(RED);
-            }
-        });
-        place(r, box, valueX(indent));
-        removeField(r, obj, key);
-    }
-
     // ---- lists and maps --------------------------------------------------------------------------------------
-
-    /** A string list. A single string in the file counts as a one-entry list; edits always write an array. */
-    private void listField(JsonObject obj, Field f, int indent) {
-        String key = f.key();
-        JsonArray arr = asArray(obj.get(key));
-        Row head = row(indent, key, f.help());
-        place(head, Button.builder(t("add_entry", "+ Add"), b -> {
-            if (f.pick() != Pick.NONE) {
-                minecraft.setScreen(new PickerScreen(this, f.pick(), model, val -> {
-                    arr.add(val);
-                    obj.add(key, arr);
-                    restructure();
-                }));
-            } else {
-                arr.add("");
-                obj.add(key, arr);
-                restructure();
-            }
-        }).bounds(0, 0, 50, 18).build(), valueX(indent));
-        if (arr.isEmpty()) {
-            head.labelColor = TEXT;
-        }
-        removeField(head, obj, key);
-        for (int i = 0; i < arr.size(); i++) {
-            int index = i;
-            Row r = row(indent + 12, "", null);
-            int w = valueW(indent) - 22 - (f.pick() != Pick.NONE ? 22 : 0);
-            EditBox box = text(arr.get(i).isJsonPrimitive() ? arr.get(i).getAsString() : arr.get(i).toString(), w, s -> { });
-            if (f.pick() != Pick.NONE) checkBox(box, f.pick(), box.getValue());
-            box.setResponder(s -> {
-                arr.set(index, new JsonPrimitive(s));
-                obj.add(key, arr);
-                if (f.pick() != Pick.NONE) checkBox(box, f.pick(), s);
-                changed();
-            });
-            place(r, box, valueX(indent));
-            if (f.pick() != Pick.NONE) place(r, pickButton(f.pick(), val -> {
-                arr.set(index, new JsonPrimitive(val));
-                obj.add(key, arr);
-                restructure();
-            }), valueX(indent) + w + 2);
-            place(r, removeButton(() -> {
-                arr.remove(index);
-                obj.add(key, arr);
-            }), formW - 22);
-        }
-    }
-
-    private static JsonArray asArray(@Nullable JsonElement e) {
-        if (e == null || e.isJsonNull()) return new JsonArray();
-        if (e.isJsonArray()) return e.getAsJsonArray();
-        JsonArray a = new JsonArray();
-        a.add(e);
-        return a;
-    }
-
-    /** { key: int } or { key: [min, max] }. Keys can be renamed in place (order is kept). */
-    private void mapField(JsonObject obj, Field f, int indent) {
-        String key = f.key();
-        if (!obj.get(key).isJsonObject()) obj.add(key, new JsonObject());
-        JsonObject map = obj.getAsJsonObject(key);
-        Row head = row(indent, key, f.help());
-        place(head, Button.builder(t("add_entry", "+ Add"), b -> {
-            Consumer<String> add = k -> {
-                map.add(uniqueKey(map, k), f.kind() == Kind.MAP_INT ? new JsonPrimitive(1) : rangeJson(1, 2));
-                restructure();
-            };
-            if (f.pick() != Pick.NONE) minecraft.setScreen(new PickerScreen(this, f.pick(), model, add));
-            else add.accept("new");
-        }).bounds(0, 0, 50, 18).build(), valueX(indent));
-        removeField(head, obj, key);
-        mapEntries(map, f.pick(), f.kind() == Kind.MAP_RANGE, indent + 12);
-    }
-
-    private void mapEntries(JsonObject map, Pick keyPick, boolean ranges, int indent) {
-        for (String k : new ArrayList<>(map.keySet())) {
-            String[] keyRef = {k};
-            Row r = row(indent, "", null);
-            int keyW = Math.max(60, valueW(indent) - 22 - (ranges ? 108 : 64) - (keyPick != Pick.NONE ? 22 : 0) + LABEL_W - 12);
-            int x = valueX(indent) - LABEL_W + 12;
-            EditBox keyBox = text(k, keyW, s -> { });
-            if (keyPick != Pick.NONE) checkBox(keyBox, keyPick, k);
-            keyBox.setResponder(s -> {
-                if (s.isEmpty() || (map.has(s) && !s.equals(keyRef[0]))) {
-                    keyBox.setTextColor(RED);
-                    return;
-                }
-                renameKey(map, keyRef[0], s);
-                keyRef[0] = s;
-                keyBox.setTextColor(TEXT);
-                if (keyPick != Pick.NONE) checkBox(keyBox, keyPick, s);
-                changed();
-            });
-            place(r, keyBox, x);
-            x += keyW + 2;
-            if (keyPick != Pick.NONE) {
-                place(r, pickButton(keyPick, val -> {
-                    if (!map.has(val)) renameKey(map, keyRef[0], val);
-                    restructure();
-                }), x);
-                x += 22;
-            }
-            if (ranges) rangeBoxes(r, x, map.get(k), val -> map.add(keyRef[0], val));
-            else place(r, number(map.get(k), true, n -> map.add(keyRef[0], n)), x);
-            place(r, removeButton(() -> map.remove(keyRef[0])), formW - 22);
-        }
-    }
-
-    private static String uniqueKey(JsonObject map, String k) {
-        String out = k;
-        for (int i = 2; map.has(out); i++) out = k + i;
-        return out;
-    }
-
-    private static void renameKey(JsonObject map, String from, String to) {
-        if (from.equals(to)) return;
-        Map<String, JsonElement> copy = new LinkedHashMap<>();
-        for (Map.Entry<String, JsonElement> e : map.entrySet()) copy.put(e.getKey().equals(from) ? to : e.getKey(), e.getValue());
-        for (String k : new ArrayList<>(map.keySet())) map.remove(k);
-        copy.forEach(map::add);
-    }
-
-    /** A weight: the same number for every rarity, or per rarity. */
-    private void weightField(JsonObject obj, Field f, int indent) {
-        String key = f.key();
-        JsonElement v = obj.get(key);
-        boolean per = v.isJsonObject();
-        Row head = row(indent, key, f.help());
-        place(head, CycleButton.<Boolean>builder(b -> b ? t("per_rarity", "Per rarity") : t("same", "Same for all"))
-                .withValues(false, true).withInitialValue(per).displayOnlyValue()
-                .create(0, 0, 90, 18, Component.literal(key), (b, val) -> {
-                    if (val) {
-                        JsonObject m = new JsonObject();
-                        for (ResourceLocation r : model.filesIn("rarities")) m.add(EditorModel.shortId(r).getPath(), v.isJsonPrimitive() ? v : new JsonPrimitive(10));
-                        obj.add(key, m);
-                    } else {
-                        obj.addProperty(key, 10);
-                    }
-                    restructure();
-                }), valueX(indent));
-        if (!per) {
-            place(head, number(v, true, n -> obj.add(key, n)), valueX(indent) + 92);
-            removeField(head, obj, key);
-            return;
-        }
-        place(head, Button.builder(t("add_entry", "+ Add"), b -> minecraft.setScreen(new PickerScreen(this, Pick.RARITY, model, k -> {
-            obj.getAsJsonObject(key).add(uniqueKey(obj.getAsJsonObject(key), k), new JsonPrimitive(10));
-            restructure();
-        }))).bounds(0, 0, 50, 18).build(), valueX(indent) + 92);
-        removeField(head, obj, key);
-        mapEntries(v.getAsJsonObject(), Pick.RARITY, false, indent + 12);
-    }
-
-    /** A ValueSpec: fixed, a [min, max] roll, or per rarity (each fixed or a range). */
-    private void valueField(JsonObject obj, Field f, int indent) {
-        String key = f.key();
-        JsonElement v = obj.get(key);
-        int mode = v.isJsonObject() ? 2 : v.isJsonArray() ? 1 : 0;
-        Row head = row(indent, key, f.help());
-        List<Integer> modes = List.of(0, 1, 2);
-        place(head, CycleButton.<Integer>builder(m -> switch (m) {
-                    case 0 -> t("fixed", "Fixed");
-                    case 1 -> t("range", "Random range");
-                    default -> t("per_rarity", "Per rarity");
-                }).withValues(modes).withInitialValue(mode).displayOnlyValue()
-                .create(0, 0, 90, 18, Component.literal(key), (b, m) -> {
-                    double base = firstNumber(v);
-                    if (m == 0) obj.add(key, num(base));
-                    else if (m == 1) obj.add(key, rangeJson(base, base * 2));
-                    else {
-                        JsonObject per = new JsonObject();
-                        for (ResourceLocation r : model.filesIn("rarities")) per.add(EditorModel.shortId(r).getPath(), rangeJson(base, base * 2));
-                        obj.add(key, per);
-                    }
-                    restructure();
-                }), valueX(indent));
-        int x = valueX(indent) + 92;
-        if (mode == 0) place(head, number(v, false, n -> obj.add(key, n)), x);
-        else if (mode == 1) rangeBoxes(head, x, v, val -> obj.add(key, val));
-        else place(head, Button.builder(t("add_entry", "+ Add"), b -> minecraft.setScreen(new PickerScreen(this, Pick.RARITY, model, k -> {
-            obj.getAsJsonObject(key).add(uniqueKey(obj.getAsJsonObject(key), k), rangeJson(0.1, 0.2));
-            restructure();
-        }))).bounds(0, 0, 50, 18).build(), x);
-        removeField(head, obj, key);
-        if (mode == 2) mapEntries(v.getAsJsonObject(), Pick.RARITY, true, indent + 12);
-    }
-
-    private static double firstNumber(JsonElement v) {
-        try {
-            if (v.isJsonPrimitive()) return v.getAsDouble();
-            if (v.isJsonArray() && !v.getAsJsonArray().isEmpty()) return v.getAsJsonArray().get(0).getAsDouble();
-            if (v.isJsonObject()) for (JsonElement e : v.getAsJsonObject().asMap().values()) return firstNumber(e);
-        } catch (RuntimeException ignored) {
-            // not a number: start from 0
-        }
-        return 0;
-    }
-
-    /** An affix's effects: each one a block with its type and the fields that type uses. */
-    private void effectsField(JsonObject obj, Field f, int indent) {
-        String key = f.key();
-        JsonArray effects = asArray(obj.get(key));
-        Row head = row(indent, key, f.help());
-        List<String> types = new ArrayList<>(Schema.EFFECT_TYPES.keySet());
-        String[] newType = {types.get(0)};
-        place(head, CycleButton.<String>builder(Component::literal).withValues(types).withInitialValue(newType[0])
-                .withTooltip(s -> Tooltip.create(Component.literal(Schema.effectHelp(s))))
-                .displayOnlyValue().create(0, 0, 110, 18, Component.literal("type"), (b, val) -> newType[0] = val), valueX(indent));
-        place(head, Button.builder(t("add_effect", "+ Add effect"), b -> {
-            effects.add(newEffect(newType[0]));
-            obj.add(key, effects);
-            restructure();
-        }).bounds(0, 0, 80, 18).build(), valueX(indent) + 112);
-        for (int i = 0; i < effects.size(); i++) {
-            if (!effects.get(i).isJsonObject()) continue;
-            JsonObject effect = effects.get(i).getAsJsonObject();
-            int index = i;
-            String type = effect.has("type") ? effect.get("type").getAsString() : "";
-            Row r = row(indent + 8, "Effect " + (i + 1), Schema.effectHelp(type));
-            r.labelColor = 0xFFD080;
-            List<String> opts = new ArrayList<>(types);
-            if (!opts.contains(type)) opts.add(0, type);
-            place(r, CycleButton.<String>builder(Component::literal).withValues(opts).withInitialValue(type)
-                    .withTooltip(s -> Tooltip.create(Component.literal(Schema.effectHelp(s))))
-                    .displayOnlyValue().create(0, 0, 130, 18, Component.literal("type"), (b, val) -> {
-                        effect.addProperty("type", val);
-                        // add the fields the new type needs, keep the rest
-                        for (String need : Schema.EFFECT_TYPES.getOrDefault(val, List.of())) {
-                            if (!effect.has(need)) effect.add(need, Schema.EFFECT_FIELDS.get(need).def().get());
-                        }
-                        restructure();
-                    }), valueX(indent + 8));
-            place(r, removeButton(() -> {
-                effects.remove(index);
-                obj.add(key, effects);
-            }), formW - 22);
-            // the type's own fields first, then every other effect field
-            List<Field> fields = new ArrayList<>();
-            for (String k : Schema.EFFECT_TYPES.getOrDefault(type, List.of())) fields.add(Schema.EFFECT_FIELDS.get(k));
-            for (Field ef : Schema.EFFECT_FIELDS.values()) if (!fields.contains(ef)) fields.add(ef);
-            addFields(effect, fields, indent + 20, List.of("type"));
-        }
-    }
-
-    private static JsonObject newEffect(String type) {
-        JsonObject e = new JsonObject();
-        e.addProperty("type", type);
-        for (String k : Schema.EFFECT_TYPES.getOrDefault(type, List.of())) e.add(k, Schema.EFFECT_FIELDS.get(k).def().get());
-        return e;
-    }
 
     // ---- the Mods tab ----------------------------------------------------------------------------------------
 
     private void buildMods() {
         TRData data = model.preview();
-        Row intro = row(0, "", null);
+        FormRow intro = form.row(0, "", null);
         intro.wideLabel = true;
         intro.labelColor = 0x90C0FF;
         intro.label = t("mods.intro", "Loaded mods with items that can be relics");
@@ -982,7 +561,7 @@ public class EditorScreen extends Screen {
             List<Item> items = e.getValue();
             long relics = items.stream().filter(i -> data.categoryOf(i) != null).count();
             boolean excluded = model.excludedEntry(mod + ":*");
-            Row r = row(0, "", null);
+            FormRow r = form.row(0, "", null);
             r.wideLabel = true;
             r.label = Component.literal(Lookup.modName(mod)).append(Component.literal("  " + mod).withStyle(s -> s.withColor(0x808080)));
             r.labelColor = excluded ? 0x909090 : TEXT;
@@ -998,10 +577,10 @@ public class EditorScreen extends Screen {
             Button count = Button.builder(Component.literal(relics + " / " + items.size()), b -> { })
                     .bounds(0, 0, 60, 18).tooltip(Tooltip.create(t("mods.count", "Relics now / items that fit a category"))).build();
             count.active = false;
-            place(r, count, formW - 60 - 4 - 60 - 4 - 80);
-            place(r, Button.builder(t("mods.items", "Items"), b -> minecraft.setScreen(new ItemsScreen(this, Component.literal(Lookup.modName(mod)), model,
+            form.place(r, count, formW - 60 - 4 - 60 - 4 - 80);
+            form.place(r, Button.builder(t("mods.items", "Items"), b -> minecraft.setScreen(new ItemsScreen(this, Component.literal(Lookup.modName(mod)), model,
                     () -> items))).bounds(0, 0, 60, 18).build(), formW - 60 - 4 - 80);
-            place(r, Button.builder(excluded ? t("mods.excluded", "Excluded") : t("mods.included", "Included"), b -> {
+            form.place(r, Button.builder(excluded ? t("mods.excluded", "Excluded") : t("mods.included", "Included"), b -> {
                 model.setExcluded(mod + ":*", !excluded);
                 restructure();
             }).bounds(0, 0, 80, 18).tooltip(Tooltip.create(t("mods.toggle", "Excluded: nothing from this mod is ever a relic"))).build(), formW - 80);
@@ -1010,148 +589,34 @@ public class EditorScreen extends Screen {
 
     // ---- small widgets ---------------------------------------------------------------------------------------
 
-    private EditBox text(String value, int w, Consumer<String> onChange) {
-        EditBox box = new EditBox(font, 0, 0, Math.max(30, w), 18, Component.literal("value"));
-        box.setMaxLength(32000);
-        box.setValue(value);
-        box.moveCursorToStart();
-        box.setResponder(s -> {
-            onChange.accept(s);
-            changed();
-        });
-        return box;
+    @Override
+    public <T extends AbstractWidget> T addWidget(T widget) {
+        return addRenderableWidget(widget);
     }
 
-    private EditBox number(JsonElement v, boolean integer, Consumer<JsonPrimitive> onChange) {
-        EditBox box = text(fmt(v), 60, s -> { });
-        box.setResponder(s -> {
-            JsonPrimitive n = parseNumber(s, integer);
-            box.setTextColor(n == null ? RED : TEXT);
-            if (n != null) {
-                onChange.accept(n);
-                changed();
-            }
-        });
-        return box;
+    @Override
+    public Screen screen() {
+        return this;
     }
 
-    /** min and max boxes; equal values are saved as one number. */
-    private void rangeBoxes(Row r, int x, JsonElement v, Consumer<JsonElement> onChange) {
-        String[] mm = {"0", "0"};
-        if (v != null && v.isJsonArray() && v.getAsJsonArray().size() == 2) {
-            mm[0] = fmt(v.getAsJsonArray().get(0));
-            mm[1] = fmt(v.getAsJsonArray().get(1));
-        } else if (v != null && v.isJsonPrimitive()) {
-            mm[0] = fmt(v);
-            mm[1] = fmt(v);
-        }
-        EditBox min = text(mm[0], 50, s -> { });
-        EditBox max = text(mm[1], 50, s -> { });
-        Runnable push = () -> {
-            JsonPrimitive a = parseNumber(mm[0], false), b = parseNumber(mm[1], false);
-            min.setTextColor(a == null ? RED : TEXT);
-            max.setTextColor(b == null ? RED : TEXT);
-            if (a == null || b == null) return;
-            onChange.accept(a.getAsDouble() == b.getAsDouble() ? a : pair(a, b));
-            changed();
-        };
-        min.setResponder(s -> {
-            mm[0] = s;
-            push.run();
-        });
-        max.setResponder(s -> {
-            mm[1] = s;
-            push.run();
-        });
-        min.setTooltip(Tooltip.create(t("min", "min")));
-        max.setTooltip(Tooltip.create(t("max", "max")));
-        place(r, min, x);
-        place(r, max, x + 54);
-    }
-
-    private static JsonArray pair(JsonPrimitive a, JsonPrimitive b) {
-        JsonArray arr = new JsonArray();
-        arr.add(a);
-        arr.add(b);
-        return arr;
-    }
-
-    private static JsonArray rangeJson(double a, double b) {
-        return pair(num(a), num(b));
-    }
-
-    private static JsonPrimitive num(double d) {
-        if (d == Math.rint(d) && Math.abs(d) < 1e9) return new JsonPrimitive((long) d);
-        return new JsonPrimitive(Math.round(d * 10000) / 10000.0);
-    }
-
-    @Nullable
-    private static JsonPrimitive parseNumber(String s, boolean integer) {
-        try {
-            if (integer) return new JsonPrimitive(Integer.parseInt(s.trim()));
-            return num(Double.parseDouble(s.trim()));
-        } catch (NumberFormatException e) {
-            return null;
-        }
-    }
-
-    private static String fmt(@Nullable JsonElement v) {
-        if (v == null || !v.isJsonPrimitive()) return "0";
-        try {
-            double d = v.getAsDouble();
-            if (d == Math.rint(d) && Math.abs(d) < 1e15) return Long.toString((long) d);
-            return Double.toString(d);
-        } catch (NumberFormatException e) {
-            return v.getAsString();
-        }
-    }
-
-    private static int parseColor(String s) {
-        try {
-            String hex = s.startsWith("#") ? s.substring(1) : s;
-            if (hex.length() != 6) return -1;
-            return Integer.parseInt(hex, 16);
-        } catch (NumberFormatException e) {
-            return -1;
-        }
-    }
-
-    private Button pickButton(Pick pick, Consumer<String> onPick) {
-        return Button.builder(Component.literal("..."), b -> minecraft.setScreen(new PickerScreen(this, pick, model, onPick)))
-                .bounds(0, 0, 20, 18).tooltip(Tooltip.create(t("pick.tip", "Pick from what's loaded"))).build();
-    }
-
-    /** The remove button of a field (not for settings: every config option has to stay). */
-    private void removeField(Row r, JsonObject obj, String key) {
-        if (folder.equals("settings")) return;
-        place(r, removeButton(() -> obj.remove(key)), formW - 22);
-    }
-
-    private Button removeButton(Runnable remove) {
-        return Button.builder(Component.literal("✖"), b -> {
-            remove.run();
-            restructure();
-        }).bounds(0, 0, 20, 18).tooltip(Tooltip.create(t("remove", "Remove"))).build();
-    }
-
-    private void checkBox(EditBox box, Pick pick, String value) {
-        String problem = Lookup.check(pick, value, model);
-        box.setTextColor(problem == null ? TEXT : (problem.contains("isn't loaded") ? 0xFFD060 : RED));
-        box.setTooltip(problem == null ? null : Tooltip.create(Component.literal(problem)));
+    @Override
+    public void open(Screen screen) {
+        minecraft.setScreen(screen);
     }
 
     /** A value changed: the preview is stale and Save may become clickable. */
-    private void changed() {
+    @Override
+    public void changed() {
         model.edited();
         status = null;
         for (var child : children()) {
             if (child instanceof Button b && b.getMessage().getString().equals(t("save", "Save & Reload").getString())) b.active = !saving && model.hasChanges();
         }
-        if (fileList != null) fileList.refreshMarks();
     }
 
     /** Rows were added or removed: rebuild, keeping the scroll position. */
-    private void restructure() {
+    @Override
+    public void restructure() {
         model.edited();
         status = null;
         rebuildWidgets();
@@ -1166,7 +631,7 @@ public class EditorScreen extends Screen {
     /** A readable name for a pack id: the editor, a mod's name, KubeJS, a world datapack... */
     private static String packName(String packId) {
         if (packId.equals(EditorServer.PACK_ID)) return "the editor (this world)";
-        if (packId.equals(com.flankrat.tarnishedrelics.editor.ModpackPack.ID)) return "the modpack folder";
+        if (packId.equals(ModpackPack.ID)) return "the modpack folder";
         if (packId.equals("config")) return "the config file";
         if (packId.equals("vanilla")) return "Minecraft";
         String id = packId.startsWith("mod:") ? packId.substring(4) : packId;
@@ -1182,9 +647,9 @@ public class EditorScreen extends Screen {
     @Override
     public boolean mouseScrolled(double mx, double my, double delta) {
         if (!raw && mx >= formX && mx < formX + formW && my >= formTop && my < formBottom) {
-            int max = Math.max(0, contentHeight - (formBottom - formTop));
-            scroll = Math.max(0, Math.min(max, scroll - delta * ROW));
-            layoutForm();
+            int max = Math.max(0, form.contentHeight() - (formBottom - formTop));
+            scroll = Math.max(0, Math.min(max, scroll - delta * EditorForm.ROW));
+            form.layout(scroll);
             return true;
         }
         return super.mouseScrolled(mx, my, delta);
@@ -1211,28 +676,14 @@ public class EditorScreen extends Screen {
         // row labels
         Component hoverHelp = null;
         g.enableScissor(formX - 2, formTop - 2, formX + formW + 2, formBottom + 2);
-        if (!raw) for (Row r : rows) {
-            int y = formTop + r.y - (int) scroll;
-            if (y + ROW < formTop || y > formBottom) continue;
-            int lx = formX + r.indent;
-            int maxW = r.wideLabel ? (r.widgets.isEmpty() ? formW - r.indent : r.offsets.get(0) - r.indent - 4) : LABEL_W - 4;
-            String text = font.plainSubstrByWidth(r.label.getString(), maxW);
-            g.drawString(font, r.label.getString().length() == text.length() ? r.label : Component.literal(text),
-                    lx, y + 6, r.labelColor, false);
-            boolean whole = y >= formTop - 1 && y + r.height - 2 <= formBottom;
-            if (r.swatch >= 0 && whole) {
-                g.fill(formX + r.swatchX, y + 3, formX + r.swatchX + 14, y + 17, 0xFF000000);
-                g.fill(formX + r.swatchX + 1, y + 4, formX + r.swatchX + 13, y + 16, 0xFF000000 | r.swatch);
-            }
-            if (r.help != null && mouseX >= lx && mouseX < lx + maxW && mouseY >= y + 3 && mouseY < y + 17) hoverHelp = r.help;
-        }
+        if (!raw) hoverHelp = form.renderLabels(g, scroll, mouseX, mouseY);
         g.disableScissor();
         super.render(g, mouseX, mouseY, partial);
-        if (contentHeight > formBottom - formTop && !raw) {
+        if (form.contentHeight() > formBottom - formTop && !raw) {
             // scroll bar
             int track = formBottom - formTop;
-            int bar = Math.max(20, track * track / contentHeight);
-            int top = formTop + (int) ((track - bar) * (scroll / Math.max(1, contentHeight - track)));
+            int bar = Math.max(20, track * track / form.contentHeight());
+            int top = formTop + (int) ((track - bar) * (scroll / Math.max(1, form.contentHeight() - track)));
             g.fill(formX + formW, top, formX + formW + 2, top + bar, 0xFFA0A0A0);
         }
         renderStatus(g, mouseX, mouseY);
@@ -1270,77 +721,4 @@ public class EditorScreen extends Screen {
         }
     }
 
-    // ---- the file list ---------------------------------------------------------------------------------------
-
-    class FileList extends ObjectSelectionList<FileList.Entry> {
-
-        FileList(Minecraft mc, int w, int top, int bottom) {
-            super(mc, w, EditorScreen.this.height, top, bottom, 14);
-            setLeftPos(8);
-            setRenderBackground(false);
-            setRenderTopAndBottom(false);
-        }
-
-        void clear() {
-            clearEntries();
-        }
-
-        void add(ResourceLocation id) {
-            Entry e = new Entry(id);
-            addEntry(e);
-            if (id.equals(selected)) setSelected(e);
-        }
-
-        void refreshMarks() {
-            // entries read the model when they draw, nothing to cache
-        }
-
-        @Override
-        public int getRowWidth() {
-            return width - 8;
-        }
-
-        @Override
-        protected int getScrollbarPosition() {
-            return x0 + width - 4;
-        }
-
-        class Entry extends ObjectSelectionList.Entry<Entry> {
-            final ResourceLocation id;
-
-            Entry(ResourceLocation id) {
-                this.id = id;
-            }
-
-            @Override
-            public void render(GuiGraphics g, int index, int top, int left, int w, int h, int mx, int my, boolean hovered, float partial) {
-                ResourceLocation s = EditorModel.shortId(id);
-                String name = (s.getNamespace().equals(EditorModel.NAMESPACE) ? "" : s.getNamespace() + ":") + s.getPath();
-                int color = TEXT;
-                if (model.get(id) == null) color = 0x707070;
-                else if (!model.errorsFor(id).isEmpty()) color = RED;
-                else if (model.isDisabled(id)) color = 0x808080;
-                else if (model.isChanged(id)) color = 0xFFD060;
-                else if (EditorModel.isEditorPack(model.origin(id))) color = 0x80E080;
-                String mark = model.isChanged(id) || model.isRemoved(id) ? "* " : "";
-                g.drawString(font, font.plainSubstrByWidth(mark + name, w - 4), left + 2, top + 2, color, false);
-            }
-
-            @Override
-            public boolean mouseClicked(double mx, double my, int button) {
-                if (!id.equals(selected)) {
-                    if (raw && rawError != null) return true;   // stay until the JSON is fixed
-                    selected = id;
-                    scroll = 0;
-                    rebuildWidgets();
-                }
-                return true;
-            }
-
-            @Override
-            public Component getNarration() {
-                return Component.literal(id.toString());
-            }
-        }
-    }
 }

@@ -1,6 +1,7 @@
 package com.flankrat.tarnishedrelics.api;
 
 import com.flankrat.tarnishedrelics.data.Rarity;
+import com.flankrat.tarnishedrelics.relic.RelicTag;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.storage.loot.LootContext;
 import net.minecraftforge.eventbus.api.Event;
@@ -11,7 +12,7 @@ import javax.annotation.Nullable;
  * Fired on the Forge event bus right after a relic is rolled, before it is wrapped as an unidentified item.
  * Other mods can change the real item here, e.g. give it sockets or other loot rolls they would normally add to
  * loot (they can't see it once it's wrapped). To add a word in front of the relic's name, set
- * {@link com.flankrat.tarnishedrelics.relic.RelicTag#NAME_PREFIX} on the stack to a JSON text component.
+ * {@link RelicTag#NAME_PREFIX} on the stack to a JSON text component.
  */
 public class RelicGeneratedEvent extends Event {
 

@@ -9,23 +9,28 @@ import com.flankrat.tarnishedrelics.data.Rarity;
 import com.flankrat.tarnishedrelics.data.TRData;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.StringTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.level.storage.loot.LootContext;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.registries.ForgeRegistries;
 
-import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import javax.annotation.Nullable;
 
 /**
  * Makes relics: picks a rarity, a base item from that rarity's list, rolls its affixes, and wraps it as an
- * unidentified item.
+ * unidentified item. Legendary rarities make a generated legendary, or sometimes one of the hand-made ones.
  */
 public final class Roller {
 
@@ -54,6 +59,7 @@ public final class Roller {
     public static List<ItemStack> generateAll(RandomSource random, @Nullable Rarity rarity, @Nullable Category category,
                                               @Nullable Legendary legendary, RelicGeneratedEvent.Source source, @Nullable LootContext context) {
         TRData data = TRData.get();
+        Roll roll = new Roll(data, random, source, context);
         if (legendary != null && (rarity == null || !rarity.legendary())) {
             // a specific legendary needs a legendary rarity (its color, price, smith level); without one there's
             // nothing to make, rather than a random ordinary relic
@@ -65,33 +71,33 @@ public final class Roller {
             rarity = pickRarity(data, random, category, luck, context != null ? context.getQueriedLootTableId() : null);
         }
         if (rarity == null) return List.of();
-        if (rarity.legendary()) {
-            if (legendary == null) {
-                // mostly generated; sometimes (handmade_chance) one of the hand-made ones
-                Legendary handmade = pickLegendary(data, random, category);
-                boolean useHandmade = handmade != null && random.nextDouble() < rarity.handmadeChance();
-                if (!useHandmade) {
-                    ItemStack generated = rollNormal(data, random, rarity, category, source, context);
-                    if (!generated.isEmpty()) return List.of(generated);
-                }
-                legendary = handmade;
-            }
-            if (legendary == null) return List.of();
-            List<ItemStack> out = new ArrayList<>();
-            ItemStack main = makeLegendary(data, random, rarity, legendary, source, context);
-            if (main.isEmpty()) return List.of();
-            out.add(main);
-            // the rest of the set drops with it
-            for (ResourceLocation c : legendary.companions()) {
-                Legendary companion = data.legendaries().get(c);
-                if (companion == null || companion == legendary) continue;
-                ItemStack extra = makeLegendary(data, random, rarity, companion, source, context);
-                if (!extra.isEmpty()) out.add(extra);
-            }
-            return out;
+        if (!rarity.legendary()) {
+            ItemStack one = roll.normal(rarity, category);
+            return one.isEmpty() ? List.of() : List.of(one);
         }
-        ItemStack one = rollNormal(data, random, rarity, category, source, context);
-        return one.isEmpty() ? List.of() : List.of(one);
+        if (legendary == null) {
+            // mostly generated; sometimes (handmade_chance) one of the hand-made ones
+            Legendary handmade = pickLegendary(data, random, category);
+            boolean useHandmade = handmade != null && random.nextDouble() < rarity.handmadeChance();
+            if (!useHandmade) {
+                ItemStack generated = roll.normal(rarity, category);
+                if (!generated.isEmpty()) return List.of(generated);
+            }
+            legendary = handmade;
+        }
+        if (legendary == null) return List.of();
+        ItemStack main = roll.handmade(rarity, legendary);
+        if (main.isEmpty()) return List.of();
+        List<ItemStack> out = new ArrayList<>();
+        out.add(main);
+        // the rest of the set drops with it
+        for (ResourceLocation c : legendary.companions()) {
+            Legendary companion = data.legendaries().get(c);
+            if (companion == null || companion == legendary) continue;
+            ItemStack extra = roll.handmade(rarity, companion);
+            if (!extra.isEmpty()) out.add(extra);
+        }
+        return out;
     }
 
     @Nullable
@@ -104,21 +110,13 @@ public final class Roller {
     @Nullable
     private static Legendary pickLegendary(TRData data, RandomSource random, @Nullable Category category) {
         List<Legendary> usable = new ArrayList<>();
-        int total = 0;
         for (Legendary l : data.legendaries().values()) {
             if (l.weight() <= 0) continue;
             if (category != null && legendaryCategory(data, l, firstItem(l)) != category) continue;
             if (firstItem(l) == null) continue;
             usable.add(l);
-            total += l.weight();
         }
-        if (total <= 0) return null;
-        int pick = random.nextInt(total);
-        for (Legendary l : usable) {
-            pick -= l.weight();
-            if (pick < 0) return l;
-        }
-        return null;
+        return Weighted.pick(usable, Legendary::weight, random);
     }
 
     @Nullable
@@ -134,155 +132,30 @@ public final class Roller {
     }
 
     /**
-     * One legendary: its base item, its fixed name/lore/enchantments, and one 0-1 roll for all its value ranges.
-     * Its effects are stored like an affix (the legendary's hidden affix), so they work like any other relic's.
+     * A random rarity that can make something (of the asked category), weighted by weight + quality x luck, and
+     * allowed in this loot table (table null: not from a loot table).
      */
-    private static ItemStack makeLegendary(TRData data, RandomSource random, Rarity rarity, Legendary l,
-                                           RelicGeneratedEvent.Source source, @Nullable LootContext context) {
-        List<Item> items = new ArrayList<>(l.items().resolve());
-        if (items.isEmpty()) return ItemStack.EMPTY;
-        ItemStack real = new ItemStack(items.get(random.nextInt(items.size())));
-        Category cat = legendaryCategory(data, l, real.getItem());
-        if (cat == null) return ItemStack.EMPTY;   // no slot/silhouette for it: the datapack must set "category"
+    @Nullable
+    private static Rarity pickRarity(TRData data, RandomSource random, @Nullable Category category, float luck,
+                                     @Nullable ResourceLocation table) {
+        List<Rarity> usable = new ArrayList<>();
+        for (Rarity r : data.rarities().values()) {
+            if (r.weightWithLuck(luck) <= 0 || !r.allowsTable(table)) continue;
+            if (canMake(data, r, category)) usable.add(r);
+        }
+        return Weighted.pick(usable, r -> r.weightWithLuck(luck), random);
+    }
 
-        // signature enchantments, as they are (above the normal max, any combination)
-        Map<net.minecraft.world.item.enchantment.Enchantment, Integer> ench = new java.util.LinkedHashMap<>(
-                net.minecraft.world.item.enchantment.EnchantmentHelper.getEnchantments(real));
-        l.enchantments().forEach((id, level) -> {
-            var e = net.minecraftforge.registries.ForgeRegistries.ENCHANTMENTS.getValue(ResourceLocation.tryParse(id));
-            if (e != null) ench.put(e, level);   // enchantments from a mod that isn't installed are skipped
+    // true if the rarity can make an item (of the asked category)
+    private static boolean canMake(TRData data, Rarity r, @Nullable Category category) {
+        if (r.legendary() && data.legendaries().values().stream().anyMatch(l -> l.weight() > 0
+                && (category == null || legendaryCategory(data, l, firstItem(l)) == category))) {
+            return true;   // a hand-made one can drop (generated ones are checked below)
+        }
+        return r.items().resolve().stream().anyMatch(i -> {
+            Category c = data.categoryOf(i);
+            return c != null && (category == null || c == category);
         });
-        net.minecraft.world.item.enchantment.EnchantmentHelper.setEnchantments(ench, real);
-
-        CompoundTag relic = new CompoundTag();
-        relic.putString("Rarity", rarity.id().toString());
-        relic.putString("Category", cat.id().toString());
-        relic.putString("Slot", cat.slot().getName());
-        relic.putInt("Color", rarity.color());
-        relic.putString("Legendary", l.id().toString());
-        relic.putString("LegendaryName", l.name());
-        ListTag lore = new ListTag();
-        for (String line : l.lore()) lore.add(net.minecraft.nbt.StringTag.valueOf(line));
-        relic.put("Lore", lore);
-        ListTag affixes = new ListTag();
-        CompoundTag entry = new CompoundTag();
-        entry.putString("Id", l.affix().id().toString());
-        entry.putFloat("Roll", random.nextFloat());
-        affixes.add(entry);
-        relic.put("Affixes", affixes);
-        real.getOrCreateTag().put(RelicTag.KEY, relic);
-
-        MinecraftForge.EVENT_BUS.post(new RelicGeneratedEvent(real, rarity, source, context));
-        return wrap(real, rarity, cat, random);
-    }
-
-    private static ItemStack rollNormal(TRData data, RandomSource random, Rarity rarity, @Nullable Category category,
-                                        RelicGeneratedEvent.Source source, @Nullable LootContext context) {
-
-        // Base item: anything on the rarity's list that has a category (needed for its slot and silhouette).
-        // The category is picked first (by its weight), then an item in it, so a mod adding 300 swords doesn't
-        // make nearly every relic a sword.
-        Map<Category, List<Item>> bases = new java.util.LinkedHashMap<>();
-        for (Item item : rarity.items().resolve()) {
-            Category c = data.categoryOf(item);
-            if (c != null && (category == null || c == category)) bases.computeIfAbsent(c, k -> new ArrayList<>()).add(item);
-        }
-        int total = 0;
-        for (Category c : bases.keySet()) total += Math.max(0, c.weight());
-        if (total <= 0) return ItemStack.EMPTY;
-        int pick = random.nextInt(total);
-        List<Item> baseItems = null;
-        for (Map.Entry<Category, List<Item>> e : bases.entrySet()) {
-            pick -= Math.max(0, e.getKey().weight());
-            if (pick < 0) {
-                baseItems = e.getValue();
-                break;
-            }
-        }
-        if (baseItems == null) return ItemStack.EMPTY;
-        ItemStack real = new ItemStack(baseItems.get(random.nextInt(baseItems.size())));
-        Category cat = data.categoryOf(real.getItem());
-
-        CompoundTag relic = new CompoundTag();
-        relic.putString("Rarity", rarity.id().toString());
-        relic.putString("Category", cat.id().toString());
-        relic.putString("Slot", cat.slot().getName());
-        relic.putInt("Color", rarity.color());
-
-        // Roll affixes pool by pool; the first prefix and first suffix name the item
-        ListTag affixes = new ListTag();
-        Set<ResourceLocation> taken = new HashSet<>();
-        Set<String> groups = new HashSet<>();
-        for (Map.Entry<String, int[]> pool : rarity.rolls().entrySet()) {
-            int[] r = pool.getValue();
-            int count = r[0] + random.nextInt(Math.max(1, r[1] - r[0] + 1));
-            for (int i = 0; i < count; i++) {
-                Affix a = pickAffix(data, random, rarity, cat, pool.getKey(), taken, groups);
-                if (a == null) break;   // nothing left that fits
-                taken.add(a.id());
-                if (a.group() != null) groups.add(a.group());
-                CompoundTag entry = new CompoundTag();
-                entry.putString("Id", a.id().toString());
-                entry.putFloat("Roll", random.nextFloat());
-                affixes.add(entry);
-                if (a.nameKey() != null) {
-                    if (a.kind().equals("prefix") && !relic.contains("Prefix")) relic.putString("Prefix", a.nameKey());
-                    if (a.kind().equals("suffix") && !relic.contains("Suffix")) relic.putString("Suffix", a.nameKey());
-                }
-            }
-        }
-        if (rarity.legendary()) {
-            makeGeneratedLegendary(data, random, rarity, cat, real, relic, affixes, taken, groups);
-        } else if (rarity.uniqueName()) {
-            relic.putString("UniqueName", data.names().generate(random));
-        }
-        relic.put("Affixes", affixes);
-        real.getOrCreateTag().put(RelicTag.KEY, relic);
-
-        // Let other mods add their own loot rolls (sockets etc.) to the real item before it's hidden
-        MinecraftForge.EVENT_BUS.post(new RelicGeneratedEvent(real, rarity, source, context));
-        return wrap(real, rarity, cat, random);
-    }
-
-    /**
-     * The extra parts of a generated legendary: a drawback (maybe), a generated name and lore, and signature
-     * enchantments: ones that fit the item, put on above their normal max.
-     */
-    private static void makeGeneratedLegendary(TRData data, RandomSource random, Rarity rarity, Category cat, ItemStack real,
-                                               CompoundTag relic, ListTag affixes, Set<ResourceLocation> taken, Set<String> groups) {
-        if (random.nextDouble() < rarity.drawbackChance()) {
-            Affix drawback = pickAffix(data, random, rarity, cat, rarity.drawbackPool(), taken, groups);
-            if (drawback != null) {
-                CompoundTag entry = new CompoundTag();
-                entry.putString("Id", drawback.id().toString());
-                entry.putFloat("Roll", random.nextFloat());
-                affixes.add(entry);
-            }
-        }
-        String name = data.names().generateLegendary(random);
-        relic.putString("LegendaryName", name);
-        relic.remove("Prefix");
-        relic.remove("Suffix");
-        ListTag lore = new ListTag();
-        for (String line : data.names().lore(random, Rarity.roll(rarity.loreLines(), random), name)) lore.add(net.minecraft.nbt.StringTag.valueOf(line));
-        relic.put("Lore", lore);
-
-        // signature enchantments: fit the item, not curses, go together with each other
-        Map<net.minecraft.world.item.enchantment.Enchantment, Integer> ench = new java.util.LinkedHashMap<>(
-                net.minecraft.world.item.enchantment.EnchantmentHelper.getEnchantments(real));
-        List<net.minecraft.world.item.enchantment.Enchantment> options = new ArrayList<>();
-        for (var e : net.minecraftforge.registries.ForgeRegistries.ENCHANTMENTS) {
-            if (!e.isCurse() && e.canEnchant(real)) options.add(e);
-        }
-        int count = Rarity.roll(rarity.signatureEnchantments(), random);
-        while (count > 0 && !options.isEmpty()) {
-            var e = options.remove(random.nextInt(options.size()));
-            if (!net.minecraft.world.item.enchantment.EnchantmentHelper.isEnchantmentCompatible(ench.keySet(), e)) continue;
-            // single-level enchantments (Mending, Silk Touch...) do nothing at higher levels, so they stay at 1
-            ench.put(e, e.getMaxLevel() <= 1 ? 1 : e.getMaxLevel() + Rarity.roll(rarity.enchantmentBonus(), random));
-            count--;
-        }
-        net.minecraft.world.item.enchantment.EnchantmentHelper.setEnchantments(ench, real);
     }
 
     /** Puts a rolled item inside an unidentified item. */
@@ -301,62 +174,157 @@ public final class Roller {
         return wrapper;
     }
 
-    /**
-     * A random rarity that can make something (of the asked category), weighted by weight + quality x luck, and
-     * allowed in this loot table (table null: not from a loot table).
-     */
-    @Nullable
-    private static Rarity pickRarity(TRData data, RandomSource random, @Nullable Category category, float luck,
-                                     @Nullable ResourceLocation table) {
-        int total = 0;
-        List<Rarity> usable = new ArrayList<>();
-        for (Rarity r : data.rarities().values()) {
-            int w = r.weightWithLuck(luck);
-            if (w <= 0 || !r.allowsTable(table)) continue;
-            boolean any;
-            if (r.legendary() && data.legendaries().values().stream().anyMatch(l -> l.weight() > 0
-                    && (category == null || legendaryCategory(data, l, firstItem(l)) == category))) {
-                any = true;   // a hand-made one can drop (generated ones are checked below)
-            } else {
-                // only rarities that can actually make an item (of the asked category)
-                any = r.items().resolve().stream().anyMatch(i -> {
-                    Category c = data.categoryOf(i);
-                    return c != null && (category == null || c == category);
-                });
-            }
-            if (any) {
-                usable.add(r);
-                total += w;
-            }
-        }
-        if (total <= 0) return null;
-        int pick = random.nextInt(total);
-        for (Rarity r : usable) {
-            pick -= r.weightWithLuck(luck);
-            if (pick < 0) return r;
-        }
-        return null;
-    }
+    /** One drop being rolled: the data, the random source, and where it's from (for RelicGeneratedEvent). */
+    private record Roll(TRData data, RandomSource random, RelicGeneratedEvent.Source source, @Nullable LootContext context) {
 
-    @Nullable
-    private static Affix pickAffix(TRData data, RandomSource random, Rarity rarity, Category cat, String pool,
-                                   Set<ResourceLocation> taken, Set<String> groups) {
-        List<Affix> candidates = new ArrayList<>();
-        int total = 0;
-        for (Affix a : data.affixes().values()) {
-            if (!a.pool().equals(pool) || taken.contains(a.id()) || !a.appliesTo(cat.id())) continue;
-            if (a.group() != null && groups.contains(a.group())) continue;
-            int w = a.weightFor(rarity.id());
-            if (w <= 0) continue;
-            candidates.add(a);
-            total += w;
+        /**
+         * An ordinary relic (or a generated legendary): a base item, its affixes pool by pool, the name parts.
+         * The category is picked first (by its weight), then an item in it, so a mod adding 300 swords doesn't
+         * make nearly every relic a sword.
+         */
+        ItemStack normal(Rarity rarity, @Nullable Category category) {
+            // Base item: anything on the rarity's list that has a category (needed for its slot and silhouette)
+            Map<Category, List<Item>> bases = new LinkedHashMap<>();
+            for (Item item : rarity.items().resolve()) {
+                Category c = data.categoryOf(item);
+                if (c != null && (category == null || c == category)) bases.computeIfAbsent(c, k -> new ArrayList<>()).add(item);
+            }
+            Category cat = Weighted.pick(bases.keySet(), Category::weight, random);
+            if (cat == null) return ItemStack.EMPTY;
+            List<Item> baseItems = bases.get(cat);
+            ItemStack real = new ItemStack(baseItems.get(random.nextInt(baseItems.size())));
+
+            CompoundTag relic = relicTag(rarity, cat);
+            // Roll affixes pool by pool; the first prefix and first suffix name the item
+            ListTag affixes = new ListTag();
+            Set<ResourceLocation> taken = new HashSet<>();
+            Set<String> groups = new HashSet<>();
+            for (Map.Entry<String, int[]> pool : rarity.rolls().entrySet()) {
+                int count = Rarity.roll(pool.getValue(), random);
+                for (int i = 0; i < count; i++) {
+                    Affix a = pickAffix(rarity, cat, pool.getKey(), taken, groups);
+                    if (a == null) break;   // nothing left that fits
+                    taken.add(a.id());
+                    if (a.group() != null) groups.add(a.group());
+                    affixes.add(affixEntry(a.id()));
+                    if (a.nameKey() != null) {
+                        if (a.kind().equals("prefix") && !relic.contains("Prefix")) relic.putString("Prefix", a.nameKey());
+                        if (a.kind().equals("suffix") && !relic.contains("Suffix")) relic.putString("Suffix", a.nameKey());
+                    }
+                }
+            }
+            if (rarity.legendary()) {
+                generatedLegendary(rarity, cat, real, relic, affixes, taken, groups);
+            } else if (rarity.uniqueName()) {
+                relic.putString("UniqueName", data.names().generate(random));
+            }
+            relic.put("Affixes", affixes);
+            return finish(real, relic, rarity, cat);
         }
-        if (total <= 0) return null;
-        int pick = random.nextInt(total);
-        for (Affix a : candidates) {
-            pick -= a.weightFor(rarity.id());
-            if (pick < 0) return a;
+
+        /**
+         * The extra parts of a generated legendary: a drawback (maybe), a generated name and lore, and signature
+         * enchantments: ones that fit the item, put on above their normal max.
+         */
+        private void generatedLegendary(Rarity rarity, Category cat, ItemStack real, CompoundTag relic, ListTag affixes,
+                                        Set<ResourceLocation> taken, Set<String> groups) {
+            if (random.nextDouble() < rarity.drawbackChance()) {
+                Affix drawback = pickAffix(rarity, cat, rarity.drawbackPool(), taken, groups);
+                if (drawback != null) affixes.add(affixEntry(drawback.id()));
+            }
+            String name = data.names().generateLegendary(random);
+            relic.putString("LegendaryName", name);
+            relic.remove("Prefix");
+            relic.remove("Suffix");
+            relic.put("Lore", strings(data.names().lore(random, Rarity.roll(rarity.loreLines(), random), name)));
+
+            // signature enchantments: fit the item, not curses, go together with each other
+            Map<Enchantment, Integer> ench = new LinkedHashMap<>(EnchantmentHelper.getEnchantments(real));
+            List<Enchantment> options = new ArrayList<>();
+            for (Enchantment e : ForgeRegistries.ENCHANTMENTS) {
+                if (!e.isCurse() && e.canEnchant(real)) options.add(e);
+            }
+            int count = Rarity.roll(rarity.signatureEnchantments(), random);
+            while (count > 0 && !options.isEmpty()) {
+                Enchantment e = options.remove(random.nextInt(options.size()));
+                if (!EnchantmentHelper.isEnchantmentCompatible(ench.keySet(), e)) continue;
+                // single-level enchantments (Mending, Silk Touch...) do nothing at higher levels, so they stay at 1
+                ench.put(e, e.getMaxLevel() <= 1 ? 1 : e.getMaxLevel() + Rarity.roll(rarity.enchantmentBonus(), random));
+                count--;
+            }
+            EnchantmentHelper.setEnchantments(ench, real);
         }
-        return null;
+
+        /**
+         * One hand-made legendary: its base item, its fixed name/lore/enchantments, and one 0-1 roll for all its
+         * value ranges. Its effects are stored like an affix (the legendary's hidden affix), so they work like any
+         * other relic's.
+         */
+        ItemStack handmade(Rarity rarity, Legendary l) {
+            List<Item> items = new ArrayList<>(l.items().resolve());
+            if (items.isEmpty()) return ItemStack.EMPTY;
+            ItemStack real = new ItemStack(items.get(random.nextInt(items.size())));
+            Category cat = legendaryCategory(data, l, real.getItem());
+            if (cat == null) return ItemStack.EMPTY;   // no slot/silhouette for it: the datapack must set "category"
+
+            // signature enchantments, as they are (above the normal max, any combination)
+            Map<Enchantment, Integer> ench = new LinkedHashMap<>(EnchantmentHelper.getEnchantments(real));
+            l.enchantments().forEach((id, level) -> {
+                Enchantment e = ForgeRegistries.ENCHANTMENTS.getValue(ResourceLocation.tryParse(id));
+                if (e != null) ench.put(e, level);   // enchantments from a mod that isn't installed are skipped
+            });
+            EnchantmentHelper.setEnchantments(ench, real);
+
+            CompoundTag relic = relicTag(rarity, cat);
+            relic.putString("Legendary", l.id().toString());
+            relic.putString("LegendaryName", l.name());
+            relic.put("Lore", strings(l.lore()));
+            ListTag affixes = new ListTag();
+            affixes.add(affixEntry(l.affix().id()));
+            relic.put("Affixes", affixes);
+            return finish(real, relic, rarity, cat);
+        }
+
+        // the stored relic data every relic starts with (see RelicTag)
+        private static CompoundTag relicTag(Rarity rarity, Category cat) {
+            CompoundTag relic = new CompoundTag();
+            relic.putString("Rarity", rarity.id().toString());
+            relic.putString("Category", cat.id().toString());
+            relic.putString("Slot", cat.slot().getName());
+            relic.putInt("Color", rarity.color());
+            return relic;
+        }
+
+        // one rolled affix: its id and a 0-1 roll
+        private CompoundTag affixEntry(ResourceLocation id) {
+            CompoundTag entry = new CompoundTag();
+            entry.putString("Id", id.toString());
+            entry.putFloat("Roll", random.nextFloat());
+            return entry;
+        }
+
+        private static ListTag strings(List<String> lines) {
+            ListTag list = new ListTag();
+            for (String line : lines) list.add(StringTag.valueOf(line));
+            return list;
+        }
+
+        // stores the relic data, lets other mods add their rolls (sockets etc.) to the real item, then hides it
+        private ItemStack finish(ItemStack real, CompoundTag relic, Rarity rarity, Category cat) {
+            real.getOrCreateTag().put(RelicTag.KEY, relic);
+            MinecraftForge.EVENT_BUS.post(new RelicGeneratedEvent(real, rarity, source, context));
+            return wrap(real, rarity, cat, random);
+        }
+
+        @Nullable
+        private Affix pickAffix(Rarity rarity, Category cat, String pool, Set<ResourceLocation> taken, Set<String> groups) {
+            List<Affix> candidates = new ArrayList<>();
+            for (Affix a : data.affixes().values()) {
+                if (!a.pool().equals(pool) || taken.contains(a.id()) || !a.appliesTo(cat.id())) continue;
+                if (a.group() != null && groups.contains(a.group())) continue;
+                if (a.weightFor(rarity.id()) > 0) candidates.add(a);
+            }
+            return Weighted.pick(candidates, a -> a.weightFor(rarity.id()), random);
+        }
     }
 }

@@ -5,6 +5,7 @@ import com.flankrat.tarnishedrelics.client.TRClient;
 import com.flankrat.tarnishedrelics.command.TRCommands;
 import com.flankrat.tarnishedrelics.data.TRData;
 import com.flankrat.tarnishedrelics.data.TRDataLoader;
+import com.flankrat.tarnishedrelics.editor.ModpackPack;
 import com.flankrat.tarnishedrelics.effect.RelicEffects;
 import com.flankrat.tarnishedrelics.network.TRNetwork;
 import com.flankrat.tarnishedrelics.smith.Blacksmith;
@@ -39,7 +40,7 @@ public final class TarnishedRelics {
         IEventBus modBus = FMLJavaModLoadingContext.get().getModEventBus();
         TRItems.register(modBus);
         modBus.addListener((FMLCommonSetupEvent e) -> e.enqueueWork(TRNetwork::register));
-        modBus.addListener(com.flankrat.tarnishedrelics.editor.ModpackPack::onAddPackFinders);
+        modBus.addListener(ModpackPack::onAddPackFinders);
 
         IEventBus forge = MinecraftForge.EVENT_BUS;
         forge.addListener((AddReloadListenerEvent e) -> e.addListener(new TRDataLoader()));
