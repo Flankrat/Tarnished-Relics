@@ -318,7 +318,9 @@ profession to let it identify relics.
 - `/tarnishedrelics give [rarity] [category] [count]`: random relics.
 - `/tarnishedrelics legendary <id>`: a specific legendary (and the rest of its set).
 - `/tarnishedrelics identify`: identifies the relic in your main hand.
-- `/tarnishedrelics errors`: lists datapack files that failed to load.
+- `/tarnishedrelics errors`: lists datapack files that failed to load or have a problem: invalid JSON, a bad item
+  entry, or a category id that names no category (a legendary's `category`, an affix's `applies_to`, an
+  `@category` entry). A category switched off with `"disabled": true` isn't an error.
 - `/tarnishedrelics editor`: opens the in-game editor.
 
 ## In-game editor

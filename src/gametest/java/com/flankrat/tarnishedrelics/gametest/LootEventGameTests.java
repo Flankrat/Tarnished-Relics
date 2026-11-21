@@ -4,7 +4,10 @@ import com.flankrat.tarnishedrelics.TRConfig;
 import com.flankrat.tarnishedrelics.TRItems;
 import com.flankrat.tarnishedrelics.TarnishedRelics;
 import com.flankrat.tarnishedrelics.api.RelicGeneratedEvent;
+import com.flankrat.tarnishedrelics.editor.ConfigFile;
 import com.flankrat.tarnishedrelics.relic.RelicTag;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.AfterBatch;
 import net.minecraft.gametest.framework.BeforeBatch;
@@ -47,8 +50,7 @@ public class LootEventGameTests {
 
     private static final List<Seen> SEEN = new ArrayList<>();
     private static boolean listening;
-    private static double chance;
-    private static List<? extends String> types;
+    private static JsonObject original;
 
     static {
         // a listener like another mod's: records the event and marks the item
@@ -61,36 +63,33 @@ public class LootEventGameTests {
 
     private static final List<String> ALL = List.of("chest", "entity", "fishing", "archaeology", "gift", "barter");
 
+    // saved the way the editor's Settings tab saves (all values in one write, live at once)
     @BeforeBatch(batch = BATCH)
     public static void on(ServerLevel level) {
-        chance = TRConfig.CHANCE.get();
-        types = TRConfig.LOOT_TYPES.get();
-        configure();
+        original = ConfigFile.read();
+        JsonObject test = original.deepCopy();
+        test.addProperty("chance", 1.0);
+        JsonArray types = new JsonArray();
+        ALL.forEach(types::add);
+        test.add("lootTypes", types);
+        ConfigFile.write(test);
         listening = true;
     }
 
-    // Each set() saves the file, and Forge's file watcher then reads it back on another thread; reading the first
-    // save can undo the second value for a moment. So the tests check the values and set them again until they hold.
-    private static boolean configure() {
-        boolean ok = TRConfig.CHANCE.get() == 1.0 && TRConfig.LOOT_TYPES.get().equals(ALL);
-        if (!ok) {
-            TRConfig.CHANCE.set(1.0);
-            TRConfig.LOOT_TYPES.set(ALL);
-        }
-        return ok;
+    private static boolean configured() {
+        return TRConfig.CHANCE.get() == 1.0 && TRConfig.LOOT_TYPES.get().equals(ALL);
     }
 
     @AfterBatch(batch = BATCH)
     public static void off(ServerLevel level) {
         listening = false;
-        TRConfig.CHANCE.set(chance);
-        TRConfig.LOOT_TYPES.set(types);
+        ConfigFile.write(original);
     }
 
-    /** Rolls a table and checks the event and the relic it added (tried every tick until the config holds). */
+    /** Rolls a table and checks the event and the relic it added. */
     private static void check(GameTestHelper helper, ResourceLocation table, LootParams params, RelicGeneratedEvent.Source source) {
         helper.succeedWhen(() -> {
-            helper.assertTrue(configure(), "waiting for the test config");
+            helper.assertTrue(configured(), "the test config isn't set: " + TRConfig.LOOT_TYPES.get());
             synchronized (SEEN) {
                 SEEN.clear();
                 List<ItemStack> loot = helper.getLevel().getServer().getLootData().getLootTable(table).getRandomItems(params);
@@ -132,7 +131,7 @@ public class LootEventGameTests {
         LootParams params = at(helper).withParameter(LootContextParams.THIS_ENTITY, z)
                 .withParameter(LootContextParams.DAMAGE_SOURCE, z.damageSources().generic()).create(LootContextParamSets.ENTITY);
         helper.succeedWhen(() -> {
-            helper.assertTrue(configure(), "waiting for the test config");
+            helper.assertTrue(configured(), "the test config isn't set: " + TRConfig.LOOT_TYPES.get());
             List<ItemStack> loot = helper.getLevel().getServer().getLootData().getLootTable(EntityType.ZOMBIE.getDefaultLootTable()).getRandomItems(params);
             helper.assertTrue(loot.stream().noneMatch(s -> s.is(TRItems.UNIDENTIFIED.get())), "a relic from a kill without a player");
         });

@@ -11,10 +11,12 @@ import net.minecraft.world.item.Item;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
 
@@ -34,6 +36,8 @@ public final class TRData {
     private final NameList names = new NameList();
     private final Levels levels = new Levels();
     private final List<String> exclusionEntries = new ArrayList<>();
+    private final Map<ResourceLocation, List<String>> exclusionFiles = new LinkedHashMap<>();   // for the category check
+    private final Set<ResourceLocation> disabledCategories = new HashSet<>();
     private ItemList exclusions = ItemList.of(List.of());
     private final List<String> errors = new ArrayList<>();
     private final Map<ResourceLocation, String> rawJson;   // "folder/name" ids -> JSON, for the client sync
@@ -65,8 +69,13 @@ public final class TRData {
         return data;
     }
 
-    /** Client side: rebuilds the data from the JSON the server sent. */
+    /**
+     * Client side: rebuilds the data from the JSON the server sent. If it's the data already loaded (single
+     * player: the integrated server, in the same game, loaded it), that's kept: rebuilding it from the JSON lost
+     * the server's errors for files that weren't valid JSON (they aren't in the sync), and parsed it all again.
+     */
     public static void loadFromSync(Map<ResourceLocation, String> raw) {
+        if (current.rawJson.equals(raw)) return;
         Map<ResourceLocation, JsonElement> files = new LinkedHashMap<>();
         raw.forEach((id, s) -> files.put(id, JsonParser.parseString(s)));
         load(files);
@@ -86,7 +95,10 @@ public final class TRData {
             try {
                 JsonObject o = e.getValue().getAsJsonObject();
                 // "disabled": true switches a file off (how the editor removes a file another pack ships)
-                if (o.has("disabled") && o.get("disabled").getAsBoolean()) continue;
+                if (o.has("disabled") && o.get("disabled").getAsBoolean()) {
+                    if (folder.equals("categories")) disabledCategories.add(id);
+                    continue;
+                }
                 switch (folder) {
                     case "categories" -> categories.put(id, Category.parse(id, o));
                     case "rarities" -> rarities.put(id, Rarity.parse(id, o));
@@ -100,6 +112,7 @@ public final class TRData {
                         if (entries.contains("*")) throw new JsonParseException("\"*\" only works in rarities");
                         entries.forEach(ItemList::check);   // a bad entry is reported, not found when loot is rolled
                         exclusionEntries.addAll(entries);
+                        exclusionFiles.put(file, entries);
                     }
                     case "legendaries" -> legendaries.put(id, Legendary.parse(id, o));
                     default -> errors.add(file + ": unknown folder \"" + folder + "\"");
@@ -116,6 +129,7 @@ public final class TRData {
                 if (!legendaries.containsKey(c)) errors.add(fileId("legendaries", l.id()) + ": no legendary " + c + " (companions)");
             }
         }
+        CategoryNames.check(this, exclusionFiles, disabledCategories, errors);
         exclusions = ItemList.of(exclusionEntries);
         // lists look up categories/levels in this data set, not whatever is current
         exclusions.owner(this);
@@ -152,7 +166,7 @@ public final class TRData {
         return Collections.unmodifiableMap(legendaries);
     }
 
-    private static String fileId(String folder, ResourceLocation id) {
+    static String fileId(String folder, ResourceLocation id) {
         return id.getNamespace() + ":" + folder + "/" + id.getPath();
     }
 
