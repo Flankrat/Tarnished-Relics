@@ -37,12 +37,27 @@ final class EditorFiles {
         }
     }
 
-    /** Where a file lives inside a pack: tags in data/ns/tags/, the rest in data/ns/tarnished_relics/. */
+    /**
+     * Where a file lives inside a pack: tags in data/ns/tags/, the rest in data/ns/tarnished_relics/. Ids can contain
+     * "..": the file has to stay in its own folder, not just in the pack, or "minecraft:tags/../loot_tables/chests/x"
+     * wrote a chest's loot table.
+     */
     static Path file(Path pack, ResourceLocation id) throws IOException {
         Path data = pack.resolve("data").resolve(id.getNamespace());
-        Path file = EditorServer.isTag(id) ? data.resolve(id.getPath() + ".json") : data.resolve(TRDataLoader.FOLDER).resolve(id.getPath() + ".json");
-        if (!file.normalize().startsWith(pack)) throw new IOException("bad file id " + id);   // no ../ tricks
+        Path root = EditorServer.isTag(id) ? data.resolve("tags") : data.resolve(TRDataLoader.FOLDER);
+        Path file = EditorServer.isTag(id) ? data.resolve(id.getPath() + ".json") : root.resolve(id.getPath() + ".json");
+        if (!file.normalize().startsWith(root.normalize())) throw new IOException("bad file id " + id);
         return file;
+    }
+
+    /** True if the id has a place in a pack (see file). */
+    static boolean isWritable(ResourceLocation id) {
+        try {
+            file(Path.of("pack"), id);
+            return true;
+        } catch (IOException e) {
+            return false;
+        }
     }
 
     static void write(Path pack, ResourceLocation id, String json) throws IOException {

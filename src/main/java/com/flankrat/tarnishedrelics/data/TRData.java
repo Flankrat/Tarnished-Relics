@@ -101,6 +101,7 @@ public final class TRData {
                     if (folder.equals("categories")) disabledCategories.add(id);
                     continue;
                 }
+                checkKeys(folder, o);
                 switch (folder) {
                     case "categories" -> categories.put(id, Category.parse(id, o));
                     case "rarities" -> rarities.put(id, Rarity.parse(id, o));
@@ -139,6 +140,37 @@ public final class TRData {
         categories.values().forEach(c -> c.items().owner(this));
         rarities.values().forEach(r -> r.items().owner(this));
         legendaries.values().forEach(l -> l.items().owner(this));
+    }
+
+    /**
+     * Every key each kind of file can have (plus "disabled", which the editor uses to switch any file off). A
+     * misspelled key used to be skipped and its default used, so the file did something else than written
+     * ("signature_enchantment" gave generated legendaries no signature enchantments). The editor's fields
+     * (client.editor.Schema) are the same lists.
+     */
+    private static final Map<String, Set<String>> KEYS = Map.of(
+            "categories", Set.of("name", "auto", "items", "exclude", "slot", "silhouette", "priority", "weight", "smiths"),
+            "rarities", Set.of("name", "weight", "items", "levels", "exclude", "rolls", "identify_level", "cost", "villager_xp",
+                    "color", "unique_name", "legendary", "handmade_chance", "signature_enchantments", "enchantment_bonus",
+                    "drawback_chance", "drawback_pool", "lore_lines", "quality", "loot_tables"),
+            "affixes", Set.of("kind", "name", "pool", "applies_to", "weight", "group", "effects"),
+            "legendaries", Set.of("name", "lore", "items", "exclude", "category", "enchantments", "effects", "weight", "companions"),
+            "names", Set.of("names", "starts", "ends", "titles", "lore"),
+            "levels", Set.of("items", "keywords", "default"),
+            "exclusions", Set.of("items"));
+
+    /** The keys a file of this folder can have besides "disabled" (empty for a folder that isn't one of these). */
+    public static Set<String> keys(String folder) {
+        return KEYS.getOrDefault(folder, Set.of());
+    }
+
+    // an unknown key is an error (the file is skipped and reported, like any other bad file)
+    private static void checkKeys(String folder, JsonObject o) {
+        Set<String> known = KEYS.get(folder);
+        if (known == null) return;   // an unknown folder is reported below
+        for (String key : o.keySet()) {
+            if (!known.contains(key) && !key.equals("disabled")) throw new JsonParseException("unknown key \"" + key + "\"");
+        }
     }
 
     /**

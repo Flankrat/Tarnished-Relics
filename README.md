@@ -353,9 +353,10 @@ weapon: slashing, blunt...) needs those added to the tag, or those effects don't
 - `/tarnishedrelics identify`: identifies the relic in your main hand.
 - `/tarnishedrelics errors`: lists datapack files that failed to load or have a problem: invalid JSON, a bad item
   entry, or a category id that names no category (a legendary's `category`, an affix's `applies_to`, an
-  `@category` entry), or a misspelled key or value in an affix or legendary (an effect field or condition that
-  doesn't exist, an `apply_to` other than target/attacker/self, an `as` other than wielder/target, a `kind` other
-  than prefix/suffix/hidden). A category switched off with `"disabled": true` isn't an error.
+  `@category` entry), or a misspelled key or value: a key a file of that kind doesn't have (in any folder; only the
+  keys listed in this README, plus `"disabled"`), an effect field or condition that doesn't exist, an effect that's a
+  number without its `value`, an `apply_to` other than target/attacker/self, an `as` other than wielder/target, a
+  `kind` other than prefix/suffix/hidden. A category switched off with `"disabled": true` isn't an error.
 - `/tarnishedrelics editor`: opens the in-game editor.
 
 ## In-game editor

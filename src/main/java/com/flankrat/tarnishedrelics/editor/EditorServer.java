@@ -180,6 +180,12 @@ public final class EditorServer {
         for (Map.Entry<ResourceLocation, String> e : changes.entrySet()) {
             ResourceLocation id = e.getKey();
             boolean special = isTag(id) || id.equals(CONFIG_FILE);
+            // an id that would be written outside the mod's folders is refused here, before anything is written
+            // (found while writing, the files before it were already saved)
+            if (!id.equals(CONFIG_FILE) && !EditorFiles.isWritable(id)) {
+                errors.add(id + ": bad file id (outside the mod's folders)");
+                continue;
+            }
             if (e.getValue().isEmpty()) {
                 merged.remove(id);
                 continue;
