@@ -10,9 +10,10 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.ModList;
 import net.minecraftforge.fml.loading.FMLEnvironment;
 
-import javax.annotation.Nullable;
 import java.lang.reflect.Method;
+import java.util.Collection;
 import java.util.Map;
+import javax.annotation.Nullable;
 
 /**
  * Optional support for Quality Equipment Forked (mod id quality_forked). It stores a quality number in
@@ -70,7 +71,7 @@ public final class QualityCompat {
         Object quality = m.get(id);
         if (quality == null) return null;
         Object attributes = quality.getClass().getMethod("getAttributes").invoke(quality);
-        if (attributes instanceof java.util.Collection<?> c && c.isEmpty()) return null;
+        if (attributes instanceof Collection<?> c && c.isEmpty()) return null;
         return (String) quality.getClass().getMethod("getName").invoke(quality);
     }
 

@@ -23,6 +23,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.trading.MerchantOffer;
 import net.minecraftforge.event.AnvilUpdateEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.util.ObfuscationReflectionHelper;
@@ -161,6 +162,12 @@ public final class Blacksmith {
         } catch (ReflectiveOperationException | RuntimeException e) {
             TarnishedRelics.LOGGER.warn("[Tarnished Relics] couldn't give the blacksmith trade XP", e);
         }
+    }
+
+    // a price named to a player who logged out is forgotten (and doesn't stay in memory)
+    @SubscribeEvent
+    public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
+        PENDING.remove(event.getEntity().getUUID());
     }
 
     // Relics can't be renamed or combined in an anvil before they're identified

@@ -2,6 +2,7 @@ package com.flankrat.tarnishedrelics.data;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
 import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.ArmorMaterial;
 import net.minecraft.world.item.Item;
@@ -39,7 +40,11 @@ public final class Levels {
     private final Map<Item, Integer> cache = new ConcurrentHashMap<>();
 
     void add(JsonObject o) {
-        if (o.has("items")) for (Map.Entry<String, JsonElement> e : o.getAsJsonObject("items").entrySet()) items.put(e.getKey(), e.getValue().getAsInt());
+        if (o.has("items")) for (Map.Entry<String, JsonElement> e : o.getAsJsonObject("items").entrySet()) {
+            if (e.getKey().equals("*") || e.getKey().startsWith("@")) throw new JsonParseException("levels \"items\" takes ids, #tags and mod:* (not \"" + e.getKey() + "\")");
+            ItemList.check(e.getKey());   // a bad id is reported now instead of failing when an item's level is worked out
+            items.put(e.getKey(), e.getValue().getAsInt());
+        }
         if (o.has("keywords")) for (Map.Entry<String, JsonElement> e : o.getAsJsonObject("keywords").entrySet()) keywords.put(e.getKey(), e.getValue().getAsInt());
         if (o.has("default")) fallback = o.get("default").getAsInt();
     }

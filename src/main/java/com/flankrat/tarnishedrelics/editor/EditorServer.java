@@ -1,7 +1,9 @@
 package com.flankrat.tarnishedrelics.editor;
 
 import com.flankrat.tarnishedrelics.TarnishedRelics;
+import com.flankrat.tarnishedrelics.api.RelicGeneratedEvent;
 import com.flankrat.tarnishedrelics.data.Category;
+import com.flankrat.tarnishedrelics.data.Legendary;
 import com.flankrat.tarnishedrelics.data.Rarity;
 import com.flankrat.tarnishedrelics.data.TRData;
 import com.flankrat.tarnishedrelics.data.TRDataLoader;
@@ -9,7 +11,6 @@ import com.flankrat.tarnishedrelics.network.TRNetwork;
 import com.flankrat.tarnishedrelics.relic.Roller;
 import com.flankrat.tarnishedrelics.relic.UnidentifiedItem;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -24,9 +25,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.storage.LevelResource;
 import net.minecraftforge.network.PacketDistributor;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
-import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -37,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import javax.annotation.Nullable;
 
 /**
  * Server side of the in-game editor ({@code /tarnishedrelics editor}, op level 2).
@@ -94,7 +94,7 @@ public final class EditorServer {
         rm.listResourceStacks("tags", l -> l.getNamespace().equals(TarnishedRelics.MODID) && l.getPath().endsWith(".json")).forEach((loc, stack) -> {
             ResourceLocation id = new ResourceLocation(loc.getNamespace(), loc.getPath().substring(0, loc.getPath().length() - 5));
             JsonObject shown = new JsonObject();
-            shown.add("values", mergedValues(stack, Set.of()));
+            shown.add("values", EditorTags.mergedValues(stack, Set.of()));
             files.put(id, shown.toString());
             origin.put(id, String.join(",", stack.stream().map(Resource::sourcePackId).toList()));
         });
@@ -103,25 +103,28 @@ public final class EditorServer {
         TRNetwork.sendEditor(player, files, origin, refresh);
     }
 
-    /** A tag's values across packs, lowest first, honouring "replace". Packs in skip are left out. */
-    private static JsonArray mergedValues(List<Resource> stack, Set<String> skip) {
-        JsonArray out = new JsonArray();
-        for (Resource r : stack) {
-            if (skip.contains(r.sourcePackId())) continue;
-            try (Reader reader = r.openAsReader()) {
-                JsonObject o = JsonParser.parseReader(reader).getAsJsonObject();
-                if (o.has("replace") && o.get("replace").getAsBoolean()) out = new JsonArray();
-                if (o.has("values")) for (JsonElement v : o.getAsJsonArray("values")) if (!out.contains(v)) out.add(v);
-            } catch (IOException | RuntimeException e) {
-                // a broken tag file: vanilla reports it, the editor just skips it
-            }
+    /** Most text one save can send (all files together), so a broken client can't fill the server's memory. */
+    private static final int MAX_PENDING_CHARS = 16 * 1024 * 1024;
+
+    /** A file (or, with append, the next piece of one) sent for the next commit. */
+    public static void receiveFile(ServerPlayer player, ResourceLocation id, String json, boolean append) {
+        if (!allowed(player)) return;
+        Map<ResourceLocation, String> files = PENDING.computeIfAbsent(player.getUUID(), u -> new LinkedHashMap<>());
+        if (append) files.merge(id, json, String::concat);
+        else files.put(id, json);
+        int total = files.values().stream().mapToInt(String::length).sum();
+        if (total > MAX_PENDING_CHARS) {
+            files.clear();
+            files.put(TOO_BIG, "");   // commit answers with an error instead of saving part of it
         }
-        return out;
     }
 
-    public static void receiveFile(ServerPlayer player, ResourceLocation id, String json) {
-        if (!allowed(player)) return;
-        PENDING.computeIfAbsent(player.getUUID(), u -> new LinkedHashMap<>()).put(id, json);
+    // marks a save that sent more than MAX_PENDING_CHARS
+    private static final ResourceLocation TOO_BIG = new ResourceLocation(TarnishedRelics.MODID, "editor/too_big");
+
+    /** Forgets a player's unsent save (they logged out). */
+    public static void forget(ServerPlayer player) {
+        PENDING.remove(player.getUUID());
     }
 
     public static void commit(ServerPlayer player, boolean modpack) {
@@ -130,6 +133,11 @@ public final class EditorServer {
         if (!allowed(player)) {
             TRNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
                     new TRNetwork.EditorResult(false, List.of(Component.translatable("tarnishedrelics.editor.no_permission").getString())));
+            return;
+        }
+        if (changes != null && changes.containsKey(TOO_BIG)) {
+            TRNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
+                    new TRNetwork.EditorResult(false, List.of("Too much data in one save (over " + MAX_PENDING_CHARS / 1024 / 1024 + " MB of text)")));
             return;
         }
         if (changes == null || changes.isEmpty()) {
@@ -152,7 +160,7 @@ public final class EditorServer {
             try {
                 JsonElement json = JsonParser.parseString(e.getValue());
                 if (!json.isJsonObject()) throw new IllegalStateException("must be a JSON object");
-                if (isTag(id)) checkTag(id, json.getAsJsonObject(), errors);
+                if (isTag(id)) EditorTags.check(id, json.getAsJsonObject(), errors);
                 if (id.equals(CONFIG_FILE)) for (String err : ConfigFile.check(json.getAsJsonObject())) errors.add(id + ": " + err);
                 if (!special) merged.put(id, json);
             } catch (RuntimeException ex) {
@@ -180,13 +188,14 @@ public final class EditorServer {
                 ResourceLocation id = e.getKey();
                 if (id.equals(CONFIG_FILE)) {
                     ConfigFile.write(JsonParser.parseString(e.getValue()).getAsJsonObject());
+                    TRNetwork.sendSettings();   // players show what the server set, not their own config
                     continue;
                 }
                 if (e.getValue().isEmpty()) {
                     remove(server, worldPack, modpackPack, id);
                     continue;
                 }
-                String json = isTag(id) ? tagToWrite(server, id, JsonParser.parseString(e.getValue()).getAsJsonObject()) : e.getValue();
+                String json = isTag(id) ? EditorTags.toWrite(server, id, JsonParser.parseString(e.getValue()).getAsJsonObject()) : e.getValue();
                 write(modpack ? modpackPack : worldPack, id, json);
                 // saved for the whole modpack: the world's own copy would hide it, so it goes
                 if (modpack) Files.deleteIfExists(file(worldPack, id));
@@ -239,9 +248,9 @@ public final class EditorServer {
         TRData data = TRData.get();
         Rarity rarity = rarityId == null ? null : data.rarities().get(rarityId);
         Category category = categoryId == null ? null : data.categories().get(categoryId);
-        com.flankrat.tarnishedrelics.data.Legendary legendary = legendaryId == null ? null : data.legendaries().get(legendaryId);
+        Legendary legendary = legendaryId == null ? null : data.legendaries().get(legendaryId);
         List<ItemStack> relics = Roller.generateAll(player.getRandom(), rarity, category, legendary,
-                com.flankrat.tarnishedrelics.api.RelicGeneratedEvent.Source.COMMAND, null);
+                RelicGeneratedEvent.Source.COMMAND, null);
         if (relics.isEmpty()) {
             player.sendSystemMessage(Component.translatable("tarnishedrelics.editor.give_none"));
             return;
@@ -252,37 +261,6 @@ public final class EditorServer {
             if (!player.getInventory().add(out)) player.drop(out, false);
             player.sendSystemMessage(Component.translatable("tarnishedrelics.editor.given", name));
         }
-    }
-
-    private static void checkTag(ResourceLocation id, JsonObject o, List<String> errors) {
-        if (id.getPath().split("/").length < 3) errors.add(id + ": a tag needs a name like tags/entity_type/dragons");
-        JsonElement values = o.get("values");
-        if (values == null || !values.isJsonArray()) {
-            errors.add(id + ": needs a \"values\" list");
-            return;
-        }
-        for (JsonElement v : values.getAsJsonArray()) {
-            String s = v.isJsonObject() && v.getAsJsonObject().has("id") ? v.getAsJsonObject().get("id").getAsString()
-                    : v.isJsonPrimitive() ? v.getAsString() : null;
-            if (s == null || ResourceLocation.tryParse(s.startsWith("#") ? s.substring(1) : s) == null) errors.add(id + ": bad value " + v);
-        }
-    }
-
-    /**
-     * What to write for an edited tag. Tags add up across packs, so if the new list still has everything the other
-     * packs give, "replace": false keeps working when a mod adds to it later. If something from another pack was
-     * taken out, only "replace": true can remove it.
-     */
-    private static String tagToWrite(MinecraftServer server, ResourceLocation id, JsonObject edited) {
-        ResourceLocation loc = new ResourceLocation(id.getNamespace(), id.getPath() + ".json");
-        JsonArray others = mergedValues(server.getResourceManager().getResourceStack(loc), Set.of(PACK_ID, ModpackPack.ID));
-        JsonArray now = edited.getAsJsonArray("values");
-        boolean keepsAll = true;
-        for (JsonElement v : others) if (!now.contains(v)) keepsAll = false;
-        JsonObject out = new JsonObject();
-        out.addProperty("replace", !keepsAll);
-        out.add("values", now);
-        return out.toString();
     }
 
     // removed: delete the copy in use if it's one of ours, so the version underneath is used again

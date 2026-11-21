@@ -27,24 +27,28 @@ public final class EditorClient {
         if (EditorScreen.last != null) EditorScreen.last.saveResult(saved, errors);
     }
 
-    /** Largest file that fits in one client packet (32767 bytes, minus the id and length). */
-    private static final int MAX_FILE_BYTES = 32000;
+    /**
+     * Characters per packet when sending a file: a client packet can be at most 32767 bytes, and a character is up
+     * to 3 bytes in UTF-8 (plus the file id).
+     */
+    private static final int PIECE_CHARS = 8000;
 
     /**
-     * Sends every change (one packet per file: client packets are limited to 32 KB), then asks the server to save.
-     * Returns the files too big to send (nothing is sent then).
+     * Sends every change, then asks the server to save. Files bigger than one client packet go in pieces (the
+     * server joins them back together), so any size can be saved.
      */
-    public static List<String> save(EditorModel model, boolean modpack) {
-        List<String> tooBig = new java.util.ArrayList<>();
+    public static void save(EditorModel model, boolean modpack) {
         for (Map.Entry<ResourceLocation, String> e : model.changes().entrySet()) {
-            int bytes = e.getValue().getBytes(java.nio.charset.StandardCharsets.UTF_8).length;
-            if (bytes > MAX_FILE_BYTES) tooBig.add(e.getKey() + " is " + bytes / 1024 + " KB; files up to 31 KB can be saved from the editor (split it into two files)");
-        }
-        if (!tooBig.isEmpty()) return tooBig;
-        for (Map.Entry<ResourceLocation, String> e : model.changes().entrySet()) {
-            TRNetwork.CHANNEL.sendToServer(new TRNetwork.EditorFile(e.getKey(), e.getValue()));
+            String json = e.getValue();
+            int i = 0;
+            // at least one packet: "" (a removed file) is sent too
+            do {
+                int end = Math.min(json.length(), i + PIECE_CHARS);
+                if (end < json.length() && Character.isHighSurrogate(json.charAt(end - 1))) end--;   // keep a 2-char symbol together
+                TRNetwork.CHANNEL.sendToServer(new TRNetwork.EditorFile(e.getKey(), json.substring(i, end), i > 0));
+                i = end;
+            } while (i < json.length());
         }
         TRNetwork.CHANNEL.sendToServer(new TRNetwork.EditorCommit(true, modpack));
-        return tooBig;
     }
 }

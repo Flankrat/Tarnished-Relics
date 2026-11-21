@@ -1,16 +1,20 @@
 package com.flankrat.tarnishedrelics.client;
 
+import com.flankrat.tarnishedrelics.client.compat.TooltipOverhaulCompat;
 import com.flankrat.tarnishedrelics.data.Effect;
 import com.flankrat.tarnishedrelics.data.IdOrTag;
 import com.flankrat.tarnishedrelics.data.Rarity;
 import com.flankrat.tarnishedrelics.data.TRData;
+import com.flankrat.tarnishedrelics.name.NameFallback;
 import com.flankrat.tarnishedrelics.relic.RelicTag;
 import net.minecraft.ChatFormatting;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.effect.MobEffect;
+import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.event.entity.player.ItemTooltipEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.registries.ForgeRegistries;
@@ -18,6 +22,7 @@ import net.minecraftforge.registries.ForgeRegistries;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import javax.annotation.Nullable;
 
 /**
  * Tooltip of an identified relic: its rarity under the name, then one line per affix effect that isn't a plain
@@ -30,8 +35,8 @@ public final class RelicTooltips {
     }
 
     /** The relic's tier name ("Unique") in the tier's color, or null if the stack isn't an identified relic. */
-    @javax.annotation.Nullable
-    public static Component tierName(net.minecraft.world.item.ItemStack stack) {
+    @Nullable
+    public static Component tierName(ItemStack stack) {
         CompoundTag relic = RelicTag.get(stack);
         return relic == null ? null : tierName(relic);
     }
@@ -40,7 +45,7 @@ public final class RelicTooltips {
         ResourceLocation rarityId = RelicTag.rarity(relic);
         Rarity rarity = rarityId == null ? null : TRData.get().rarities().get(rarityId);
         String rarityKey = rarity != null ? rarity.nameKey() : "tarnishedrelics.rarity.unknown";
-        String fallback = rarityId != null ? com.flankrat.tarnishedrelics.name.NameFallback.title(rarityId.toString()) : "Relic";
+        String fallback = rarityId != null ? NameFallback.title(rarityId.toString()) : "Relic";
         return Component.translatableWithFallback(rarityKey, fallback).withStyle(s -> s.withColor(relic.getInt("Color")));
     }
 
@@ -51,9 +56,9 @@ public final class RelicTooltips {
         List<Component> lines = new ArrayList<>();
         ResourceLocation rarityId = RelicTag.rarity(relic);
         // Tooltip Overhaul's rating line under the name already shows the tier
-        if (!com.flankrat.tarnishedrelics.client.compat.TooltipOverhaulCompat.showsRating()) lines.add(tierName(relic));
+        if (!TooltipOverhaulCompat.showsRating()) lines.add(tierName(relic));
         // a legendary's lore lines (lang keys or plain text)
-        var lore = relic.getList("Lore", net.minecraft.nbt.Tag.TAG_STRING);
+        var lore = relic.getList("Lore", Tag.TAG_STRING);
         for (int i = 0; i < lore.size(); i++) {
             String line = lore.getString(i);
             lines.add(Component.translatableWithFallback(line, line).withStyle(ChatFormatting.DARK_PURPLE, ChatFormatting.ITALIC));

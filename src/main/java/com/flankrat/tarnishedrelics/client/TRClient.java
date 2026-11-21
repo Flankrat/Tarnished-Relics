@@ -2,10 +2,13 @@ package com.flankrat.tarnishedrelics.client;
 
 import com.flankrat.tarnishedrelics.TRItems;
 import com.flankrat.tarnishedrelics.TarnishedRelics;
+import com.flankrat.tarnishedrelics.relic.DisplaySettings;
 import net.minecraft.client.renderer.item.ItemProperties;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.client.event.RegisterColorHandlersEvent;
+import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 
@@ -34,6 +37,8 @@ public final class TRClient {
     public static void register(IEventBus modBus) {
         modBus.addListener(TRClient::setup);
         modBus.addListener(TRClient::colors);
+        // left a server: its display settings no longer apply
+        MinecraftForge.EVENT_BUS.addListener((ClientPlayerNetworkEvent.LoggingOut e) -> DisplaySettings.clear());
     }
 
     private static void setup(FMLClientSetupEvent event) {

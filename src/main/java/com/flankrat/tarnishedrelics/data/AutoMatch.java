@@ -49,6 +49,16 @@ public enum AutoMatch {
     }
 
     public boolean matches(Item item) {
+        try {
+            return check(item);
+        } catch (RuntimeException e) {
+            // a modded item that can't answer for an empty stack (no NBT, no player) is just not picked up,
+            // instead of breaking category matching for every item
+            return false;
+        }
+    }
+
+    private boolean check(Item item) {
         ItemStack stack = new ItemStack(item);
         if (stack.getMaxStackSize() != 1 || !stack.isDamageableItem()) return false;
         return switch (this) {

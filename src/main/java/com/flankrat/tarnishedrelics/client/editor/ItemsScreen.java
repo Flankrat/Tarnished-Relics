@@ -7,6 +7,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.ObjectSelectionList;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -14,8 +15,11 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.registries.ForgeRegistries;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.function.Supplier;
 
 /**
@@ -31,7 +35,7 @@ public class ItemsScreen extends Screen {
     private String search = "";
     private ItemList list;
     /** Items some recipe makes (worked out once): gear nothing can craft is often from a mod that isn't there. */
-    private java.util.Set<Item> craftable;
+    private Set<Item> craftable;
 
     public ItemsScreen(Screen parent, Component title, EditorModel model, Supplier<List<Item>> items) {
         super(title);
@@ -40,9 +44,9 @@ public class ItemsScreen extends Screen {
         this.items = items;
     }
 
-    private java.util.Set<Item> craftable() {
+    private Set<Item> craftable() {
         if (craftable == null) {
-            craftable = new java.util.HashSet<>();
+            craftable = new HashSet<>();
             var level = Minecraft.getInstance().level;
             if (level != null) {
                 for (var recipe : level.getRecipeManager().getRecipes()) {
@@ -74,13 +78,13 @@ public class ItemsScreen extends Screen {
         addRenderableWidget(Button.builder(Component.translatableWithFallback("tarnishedrelics.editor.exclude_uncraftable", "Exclude no-recipe items"), b -> {
             // decide everything first: each exclusion makes the preview be worked out again
             var data = model.preview();
-            List<String> ids = new java.util.ArrayList<>();
+            List<String> ids = new ArrayList<>();
             for (Item item : items.get()) {
                 ResourceLocation id = ForgeRegistries.ITEMS.getKey(item);
                 if (id != null && !craftable().contains(item) && data.categoryOf(item) != null) ids.add(id.toString());
             }
             for (String id : ids) model.setExcluded(id, true);
-        }).bounds(x + w - 150, 22, 150, 18).tooltip(net.minecraft.client.gui.components.Tooltip.create(Component.translatableWithFallback(
+        }).bounds(x + w - 150, 22, 150, 18).tooltip(Tooltip.create(Component.translatableWithFallback(
                 "tarnishedrelics.editor.exclude_uncraftable.tip",
                 "Excludes every relic item in this list that no recipe makes. Those are often for a mod that isn't installed (e.g. aluminum weapons with no aluminum)."))).build());
         list = new ItemList(minecraft, w, height, 46, height - 32, x);

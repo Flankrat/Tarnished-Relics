@@ -3,15 +3,19 @@ package com.flankrat.tarnishedrelics.data;
 import com.flankrat.tarnishedrelics.TarnishedRelics;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 
-import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import javax.annotation.Nullable;
 
 /**
  * Everything loaded from {@code data/<namespace>/tarnished_relics/}: categories, rarities, affixes and names.
@@ -57,7 +61,7 @@ public final class TRData {
     /** Client side: rebuilds the data from the JSON the server sent. */
     public static void loadFromSync(Map<ResourceLocation, String> raw) {
         Map<ResourceLocation, JsonElement> files = new LinkedHashMap<>();
-        raw.forEach((id, s) -> files.put(id, com.google.gson.JsonParser.parseString(s)));
+        raw.forEach((id, s) -> files.put(id, JsonParser.parseString(s)));
         load(files);
     }
 
@@ -82,7 +86,11 @@ public final class TRData {
                     case "affixes" -> affixes.put(id, Affix.parse(id, o));
                     case "names" -> names.add(o);
                     case "levels" -> levels.add(o);
-                    case "exclusions" -> exclusionEntries.addAll(Conditions.strings(o.get("items")));
+                    case "exclusions" -> {
+                        List<String> entries = Conditions.strings(o.get("items"));
+                        entries.forEach(ItemList::check);   // a bad entry is reported, not found when loot is rolled
+                        exclusionEntries.addAll(entries);
+                    }
                     case "legendaries" -> legendaries.put(id, Legendary.parse(id, o));
                     default -> errors.add(file + ": unknown folder \"" + folder + "\"");
                 }
@@ -164,12 +172,12 @@ public final class TRData {
     }
 
     // item -> its category (highest priority wins), cached per item
-    private final Map<Item, java.util.Optional<Category>> categoryCache = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<Item, Optional<Category>> categoryCache = new ConcurrentHashMap<>();
 
     @Nullable
     public Category categoryOf(Item item) {
-        return categoryCache.computeIfAbsent(item, it -> exclusions.contains(it) ? java.util.Optional.<Category>empty() : categories.values().stream()
+        return categoryCache.computeIfAbsent(item, it -> exclusions.contains(it) ? Optional.<Category>empty() : categories.values().stream()
                 .filter(c -> c.matches(it))
-                .max(java.util.Comparator.comparingInt(Category::priority))).orElse(null);
+                .max(Comparator.comparingInt(Category::priority))).orElse(null);
     }
 }

@@ -1,17 +1,19 @@
 package com.flankrat.tarnishedrelics.data;
 
 import com.google.gson.JsonElement;
+import com.google.gson.JsonParseException;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraftforge.registries.ForgeRegistries;
 
-import javax.annotation.Nullable;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import javax.annotation.Nullable;
 
 /**
  * A list of items from a datapack, minus an exclude list. Entries can be:
@@ -36,7 +38,7 @@ public final class ItemList {
     private volatile Set<Item> resolved, excludedSet;
     // lists being worked out on this thread (per thread: the client and integrated server may resolve at once),
     // to catch a list that includes itself through @category
-    private static final ThreadLocal<Set<ItemList>> RESOLVING = ThreadLocal.withInitial(java.util.HashSet::new);
+    private static final ThreadLocal<Set<ItemList>> RESOLVING = ThreadLocal.withInitial(HashSet::new);
 
     private ItemList(List<String> include, List<String> exclude) {
         this.include = include;
@@ -44,7 +46,21 @@ public final class ItemList {
     }
 
     static ItemList parse(@Nullable JsonElement include, @Nullable JsonElement exclude) {
-        return new ItemList(Conditions.strings(include), Conditions.strings(exclude));
+        List<String> in = Conditions.strings(include), out = Conditions.strings(exclude);
+        // checked here, so a typo is reported as a bad file instead of failing when a chest's loot is rolled
+        for (String e : in) check(e);
+        for (String e : out) check(e);
+        return new ItemList(in, out);
+    }
+
+    /** Throws if an entry isn't "*", "@category", "#tag", "mod:*" or an item id. */
+    static void check(String entry) {
+        boolean ok;
+        if (entry.equals("*")) ok = true;
+        else if (entry.startsWith("@") || entry.startsWith("#")) ok = ResourceLocation.tryParse(entry.substring(1)) != null;
+        else if (entry.endsWith(":*")) ok = ResourceLocation.isValidNamespace(entry.substring(0, entry.length() - 2));
+        else ok = ResourceLocation.tryParse(entry) != null;
+        if (!ok) throw new JsonParseException("bad item entry \"" + entry + "\" (use lowercase ids like minecraft:iron_sword, #tags, mod:* or @category)");
     }
 
     static ItemList of(List<String> include) {
@@ -99,7 +115,8 @@ public final class ItemList {
                 if (data.categoryOf(item) != null && (!filter || fits(data, item))) set.add(item);
             }
         } else if (entry.startsWith("@")) {
-            Category c = data.categories().get(new ResourceLocation(entry.substring(1)));
+            ResourceLocation id = ResourceLocation.tryParse(entry.substring(1));
+            Category c = id == null ? null : data.categories().get(id);
             if (c != null) for (Item item : ForgeRegistries.ITEMS) {
                 if (c.matches(item) && (!filter || fits(data, item))) set.add(item);
             }
@@ -116,22 +133,25 @@ public final class ItemList {
     /** Items an id, #tag or "mod:*" entry names. */
     static List<Item> match(String entry) {
         List<Item> out = new ArrayList<>();
+        // bad ids are reported when the file loads; here they just match nothing
         if (entry.startsWith("#")) {
+            ResourceLocation tag = ResourceLocation.tryParse(entry.substring(1));
             var tags = ForgeRegistries.ITEMS.tags();
-            if (tags != null) tags.getTag(TagKey.create(Registries.ITEM, new ResourceLocation(entry.substring(1)))).forEach(out::add);
+            if (tags != null && tag != null) tags.getTag(TagKey.create(Registries.ITEM, tag)).forEach(out::add);
         } else if (entry.endsWith(":*")) {
             String mod = entry.substring(0, entry.length() - 2);
             for (var e : ForgeRegistries.ITEMS.getEntries()) if (e.getKey().location().getNamespace().equals(mod)) out.add(e.getValue());
         } else {
-            ResourceLocation id = new ResourceLocation(entry);
-            if (ForgeRegistries.ITEMS.containsKey(id)) out.add(ForgeRegistries.ITEMS.getValue(id));
+            ResourceLocation id = ResourceLocation.tryParse(entry);
+            if (id != null && ForgeRegistries.ITEMS.containsKey(id)) out.add(ForgeRegistries.ITEMS.getValue(id));
         }
         return out;
     }
 
     static boolean inTag(Item item, String tag) {
+        ResourceLocation id = ResourceLocation.tryParse(tag);
         var tags = ForgeRegistries.ITEMS.tags();
-        return tags != null && tags.getTag(TagKey.create(Registries.ITEM, new ResourceLocation(tag))).contains(item);
+        return tags != null && id != null && tags.getTag(TagKey.create(Registries.ITEM, id)).contains(item);
     }
 
     /** True if an exclude entry names the item. */

@@ -1,15 +1,18 @@
 package com.flankrat.tarnishedrelics.network;
 
+import com.flankrat.tarnishedrelics.TRConfig;
 import com.flankrat.tarnishedrelics.TarnishedRelics;
+import com.flankrat.tarnishedrelics.client.editor.EditorClient;
 import com.flankrat.tarnishedrelics.data.TRData;
 import com.flankrat.tarnishedrelics.editor.EditorServer;
+import com.flankrat.tarnishedrelics.relic.DisplaySettings;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.fml.DistExecutor;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.event.OnDatapackSyncEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.network.NetworkDirection;
 import net.minecraftforge.network.NetworkEvent;
 import net.minecraftforge.network.NetworkRegistry;
@@ -20,6 +23,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
 /**
@@ -29,7 +33,7 @@ import java.util.function.Supplier;
  */
 public final class TRNetwork {
 
-    private static final String VERSION = "5";
+    private static final String VERSION = "6";
 
     /**
      * Most data one packet carries. A server-to-client packet can be at most 1 MB (1048576 bytes) or the player is
@@ -37,7 +41,7 @@ public final class TRNetwork {
      * back together on the client. Can be lowered with -Dtarnishedrelics.packetBudget=<bytes> to test splitting.
      */
     static final int BUDGET = Integer.getInteger("tarnishedrelics.packetBudget", 900_000);
-    private static final java.util.concurrent.atomic.AtomicInteger BATCHES = new java.util.concurrent.atomic.AtomicInteger();
+    private static final AtomicInteger BATCHES = new AtomicInteger();
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(TarnishedRelics.MODID, "main"), () -> VERSION, VERSION::equals, VERSION::equals);
 
@@ -57,71 +61,52 @@ public final class TRNetwork {
                 Optional.of(NetworkDirection.PLAY_TO_CLIENT));
         CHANNEL.registerMessage(5, EditorGive.class, EditorGive::encode, EditorGive::decode, EditorGive::handle,
                 Optional.of(NetworkDirection.PLAY_TO_SERVER));
+        CHANNEL.registerMessage(6, Settings.class, Settings::encode, Settings::decode, Settings::handle,
+                Optional.of(NetworkDirection.PLAY_TO_CLIENT));
     }
 
     // joining (player set) or /reload (player null = everyone)
     @SubscribeEvent
     public static void onSync(OnDatapackSyncEvent event) {
-        List<Map<ResourceLocation, String>> parts = split(TRData.get().rawJson(), BUDGET);
+        List<Map<ResourceLocation, String>> parts = PacketParts.split(TRData.get().rawJson(), BUDGET);
         int batch = BATCHES.incrementAndGet();
         for (int i = 0; i < parts.size(); i++) {
             SyncData packet = new SyncData(batch, i, parts.size(), parts.get(i));
             if (event.getPlayer() != null) CHANNEL.send(PacketDistributor.PLAYER.with(event::getPlayer), packet);
             else CHANNEL.send(PacketDistributor.ALL.noArg(), packet);
         }
+        if (event.getPlayer() != null) CHANNEL.send(PacketDistributor.PLAYER.with(event::getPlayer), Settings.current());
+        else sendSettings();
     }
 
-    /** Roughly how many bytes an entry takes in a packet (UTF-8 text, plus length prefixes). */
-    private static int size(ResourceLocation id, String value) {
-        return id.toString().length() + value.getBytes(java.nio.charset.StandardCharsets.UTF_8).length + 10;
+    /** Sends the server's display settings to every player (after they change in the editor). */
+    public static void sendSettings() {
+        CHANNEL.send(PacketDistributor.ALL.noArg(), Settings.current());
     }
 
-    /** Splits a map into parts of at most budget bytes each (an entry bigger than that gets a part to itself). */
-    static List<Map<ResourceLocation, String>> split(Map<ResourceLocation, String> map, int budget) {
-        List<Map<ResourceLocation, String>> parts = new java.util.ArrayList<>();
-        Map<ResourceLocation, String> part = new LinkedHashMap<>();
-        int used = 0;
-        for (Map.Entry<ResourceLocation, String> e : map.entrySet()) {
-            int n = size(e.getKey(), e.getValue());
-            if (!part.isEmpty() && used + n > budget) {
-                parts.add(part);
-                part = new LinkedHashMap<>();
-                used = 0;
-            }
-            part.put(e.getKey(), e.getValue());
-            used += n;
+    /** Server -> client: the server's display settings (see DisplaySettings). */
+    public record Settings(boolean showRarityColor) {
+
+        static Settings current() {
+            return new Settings(TRConfig.SHOW_RARITY_COLOR.get());
         }
-        parts.add(part);   // always at least one part, so an empty datapack still syncs
-        return parts;
-    }
 
-    /**
-     * Puts split packets back together on the client. Keeps only the newest batch: if a new one starts (another
-     * /reload) before the old one is complete, the old parts are dropped.
-     */
-    static final class Assembler {
-        private int batch = -1;
-        private final Map<Integer, Object[]> parts = new java.util.HashMap<>();
+        static void encode(Settings p, FriendlyByteBuf buf) {
+            buf.writeBoolean(p.showRarityColor);
+        }
 
-        /** Adds a part; returns all parts in order once every one is in, else null. */
-        @javax.annotation.Nullable
-        synchronized List<Object[]> add(int batch, int index, int count, Object[] part) {
-            if (batch != this.batch) {
-                this.batch = batch;
-                parts.clear();
-            }
-            parts.put(index, part);
-            if (parts.size() < count) return null;
-            List<Object[]> out = new java.util.ArrayList<>();
-            for (int i = 0; i < count; i++) out.add(parts.get(i));
-            parts.clear();
-            this.batch = -1;
-            return out;
+        static Settings decode(FriendlyByteBuf buf) {
+            return new Settings(buf.readBoolean());
+        }
+
+        static void handle(Settings p, Supplier<NetworkEvent.Context> ctx) {
+            ctx.get().enqueueWork(() -> DisplaySettings.fromServer(p.showRarityColor));
+            ctx.get().setPacketHandled(true);
         }
     }
 
-    private static final Assembler SYNC_PARTS = new Assembler();
-    private static final Assembler EDITOR_PARTS = new Assembler();
+    private static final PacketParts.Assembler SYNC_PARTS = new PacketParts.Assembler();
+    private static final PacketParts.Assembler EDITOR_PARTS = new PacketParts.Assembler();
 
     /** One part of the datapack files (id -> JSON text): part index of count, all with the same batch number. */
     public record SyncData(int batch, int index, int count, Map<ResourceLocation, String> files) {
@@ -143,7 +128,7 @@ public final class TRNetwork {
                 List<Object[]> all = SYNC_PARTS.add(p.batch, p.index, p.count, new Object[]{p.files});
                 if (all == null) return;   // more parts to come
                 Map<ResourceLocation, String> files = new LinkedHashMap<>();
-                for (Object[] part : all) files.putAll((Map<ResourceLocation, String>) part[0]);
+                for (Object[] part : all) PacketParts.join(files, (Map<ResourceLocation, String>) part[0]);
                 TRData.loadFromSync(files);
             });
             ctx.get().setPacketHandled(true);
@@ -167,8 +152,8 @@ public final class TRNetwork {
 
     /** Sends the editor's files and origins, split like the sync (half the budget for each map in a part). */
     public static void sendEditor(ServerPlayer player, Map<ResourceLocation, String> files, Map<ResourceLocation, String> origins, boolean refresh) {
-        List<Map<ResourceLocation, String>> f = split(files, BUDGET / 2);
-        List<Map<ResourceLocation, String>> o = split(origins, BUDGET / 2);
+        List<Map<ResourceLocation, String>> f = PacketParts.split(files, BUDGET / 2);
+        List<Map<ResourceLocation, String>> o = PacketParts.split(origins, BUDGET / 2);
         int count = Math.max(f.size(), o.size());
         int batch = BATCHES.incrementAndGet();
         for (int i = 0; i < count; i++) {
@@ -202,32 +187,36 @@ public final class TRNetwork {
                 Map<ResourceLocation, String> files = new LinkedHashMap<>();
                 Map<ResourceLocation, String> origins = new LinkedHashMap<>();
                 for (Object[] part : all) {
-                    files.putAll((Map<ResourceLocation, String>) part[0]);
-                    origins.putAll((Map<ResourceLocation, String>) part[1]);
+                    PacketParts.join(files, (Map<ResourceLocation, String>) part[0]);
+                    PacketParts.join(origins, (Map<ResourceLocation, String>) part[1]);
                 }
                 DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () ->
-                        com.flankrat.tarnishedrelics.client.editor.EditorClient.open(files, origins, p.refresh));
+                        EditorClient.open(files, origins, p.refresh));
             });
             ctx.get().setPacketHandled(true);
         }
     }
 
-    /** Op -> server: one changed file ("" = removed). Sent one per packet, then EditorCommit. */
-    public record EditorFile(ResourceLocation id, String json) {
+    /**
+     * Op -> server: one changed file ("" = removed), then EditorCommit. A client packet can be at most 32 KB, so a
+     * bigger file is sent in pieces: the first has append = false, the rest append = true (see EditorClient.save).
+     */
+    public record EditorFile(ResourceLocation id, String json, boolean append) {
 
         static void encode(EditorFile p, FriendlyByteBuf buf) {
             buf.writeResourceLocation(p.id);
             buf.writeUtf(p.json, 32767);
+            buf.writeBoolean(p.append);
         }
 
         static EditorFile decode(FriendlyByteBuf buf) {
-            return new EditorFile(buf.readResourceLocation(), buf.readUtf(32767));
+            return new EditorFile(buf.readResourceLocation(), buf.readUtf(32767), buf.readBoolean());
         }
 
         static void handle(EditorFile p, Supplier<NetworkEvent.Context> ctx) {
             ServerPlayer player = ctx.get().getSender();
             ctx.get().enqueueWork(() -> {
-                if (player != null) EditorServer.receiveFile(player, p.id, p.json);
+                if (player != null) EditorServer.receiveFile(player, p.id, p.json, p.append);
             });
             ctx.get().setPacketHandled(true);
         }
@@ -295,7 +284,7 @@ public final class TRNetwork {
 
         static void handle(EditorResult p, Supplier<NetworkEvent.Context> ctx) {
             ctx.get().enqueueWork(() -> DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () ->
-                    com.flankrat.tarnishedrelics.client.editor.EditorClient.result(p.saved, p.errors)));
+                    EditorClient.result(p.saved, p.errors)));
             ctx.get().setPacketHandled(true);
         }
     }

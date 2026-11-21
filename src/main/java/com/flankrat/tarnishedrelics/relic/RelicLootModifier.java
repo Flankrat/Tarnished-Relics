@@ -1,15 +1,15 @@
 package com.flankrat.tarnishedrelics.relic;
 
 import com.flankrat.tarnishedrelics.TRConfig;
+import com.flankrat.tarnishedrelics.api.RelicGeneratedEvent;
+import com.flankrat.tarnishedrelics.data.Wildcard;
 import com.google.common.base.Suppliers;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import com.flankrat.tarnishedrelics.api.RelicGeneratedEvent;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.storage.loot.LootContext;
-import net.minecraft.world.level.storage.loot.LootTable;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParamSet;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
@@ -23,7 +23,7 @@ import java.util.function.Supplier;
 
 /**
  * Every time loot is generated of the kinds in [loot] lootTypes (chests only by default), there is a
- * [loot] chance (default 1%) that one unidentified relic is added to it.
+ * [loot] chance (default 3%) that one unidentified relic is added to it.
  */
 public class RelicLootModifier extends LootModifier {
 
@@ -52,33 +52,34 @@ public class RelicLootModifier extends LootModifier {
         return loot;
     }
 
+    // what RelicGeneratedEvent listeners are told, by the loot table's kind
+    private static final Map<LootContextParamSet, RelicGeneratedEvent.Source> SOURCES = Map.of(
+            LootContextParamSets.CHEST, RelicGeneratedEvent.Source.CHEST,
+            LootContextParamSets.ENTITY, RelicGeneratedEvent.Source.ENTITY,
+            LootContextParamSets.FISHING, RelicGeneratedEvent.Source.FISHING,
+            LootContextParamSets.ARCHAEOLOGY, RelicGeneratedEvent.Source.ARCHAEOLOGY,
+            LootContextParamSets.GIFT, RelicGeneratedEvent.Source.GIFT,
+            LootContextParamSets.PIGLIN_BARTER, RelicGeneratedEvent.Source.BARTER);
+
     private static RelicGeneratedEvent.Source source(LootContext context) {
-        LootContextParamSet params = context.getLevel().getServer().getLootData().getLootTable(context.getQueriedLootTableId()).getParamSet();
-        if (params == LootContextParamSets.CHEST) return RelicGeneratedEvent.Source.CHEST;
-        if (params == LootContextParamSets.ENTITY) return RelicGeneratedEvent.Source.ENTITY;
-        if (params == LootContextParamSets.FISHING) return RelicGeneratedEvent.Source.FISHING;
-        if (params == LootContextParamSets.ARCHAEOLOGY) return RelicGeneratedEvent.Source.ARCHAEOLOGY;
-        if (params == LootContextParamSets.GIFT) return RelicGeneratedEvent.Source.GIFT;
-        if (params == LootContextParamSets.PIGLIN_BARTER) return RelicGeneratedEvent.Source.BARTER;
-        return RelicGeneratedEvent.Source.OTHER_LOOT;
+        return SOURCES.getOrDefault(params(context), RelicGeneratedEvent.Source.OTHER_LOOT);
+    }
+
+    // the kind of loot table being rolled (chest, entity...)
+    private static LootContextParamSet params(LootContext context) {
+        return context.getLevel().getServer().getLootData().getLootTable(context.getQueriedLootTableId()).getParamSet();
     }
 
     private static boolean eligible(LootContext context) {
         ResourceLocation id = context.getQueriedLootTableId();
-        if (TRConfig.EXCLUDE_TABLES.get().stream().anyMatch(p -> matches(p, id.toString()))) return false;
-        LootTable table = context.getLevel().getServer().getLootData().getLootTable(id);
-        LootContextParamSet params = table.getParamSet();
+        if (TRConfig.EXCLUDE_TABLES.get().stream().anyMatch(p -> Wildcard.matches(p, id.toString()))) return false;
+        LootContextParamSet params = params(context);
         boolean typeOk = TRConfig.LOOT_TYPES.get().stream().map(TYPES::get).anyMatch(t -> t == params);
         if (!typeOk) return false;
         // Mob drops only count when a player made the kill, so mob farms don't mass-produce relics
         if (params == LootContextParamSets.ENTITY && TRConfig.ENTITY_NEEDS_PLAYER.get()
                 && !context.hasParam(LootContextParams.LAST_DAMAGE_PLAYER)) return false;
         return true;
-    }
-
-    // "*" wildcards in loot table ids
-    private static boolean matches(String pattern, String id) {
-        return id.matches(java.util.regex.Pattern.quote(pattern).replace("*", "\\E.*\\Q"));
     }
 
     @Override
