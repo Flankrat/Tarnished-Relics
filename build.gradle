@@ -31,6 +31,18 @@ java.toolchain.languageVersion = JavaLanguageVersion.of(17)
 
 println "Java: ${System.getProperty 'java.version'}, JVM: ${System.getProperty 'java.vm.version'} (${System.getProperty 'java.vendor'}), Arch: ${System.getProperty 'os.arch'}"
 
+sourceSets {
+    // compile-only stubs of optional mods' classes (src/stubs), never in the built jar
+    stubs {
+        compileClasspath += configurations.minecraft
+    }
+    // in-world Forge GameTests (src/gametest): only loaded by the gameTestServer run, never in the built jar
+    gametest {
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
+    }
+}
+
 minecraft {
     mappings channel: 'parchment', version: "${parchment_version}-${mc_version}"
 
@@ -53,23 +65,28 @@ minecraft {
         server {
             args '--nogui'
         }
+        // ./gradlew runGameTestServer: runs the in-world tests (src/gametest) and stops, failing on a failed test
+        gameTestServer {
+            property 'forge.enabledGameTestNamespaces', mod_id
+            mods {
+                "${mod_id}" {
+                    source sourceSets.gametest
+                }
+            }
+        }
     }
 }
 
 repositories {
     mavenCentral()
+    // optional mods' jars for test runs (-PoptionalMods), see dependencies
+    flatDir { dirs 'libs' }
     maven {
         name = 'Jared (JEI)'
         url = 'https://maven.blamejared.com/'
     }
 }
 
-// compile-only stubs of optional mods' classes (src/stubs), never in the built jar
-sourceSets {
-    stubs {
-        compileClasspath += configurations.minecraft
-    }
-}
 
 dependencies {
     compileOnly sourceSets.stubs.output
@@ -78,6 +95,22 @@ dependencies {
     // JEI is optional: only its API is needed to build (to hide the unidentified item from its list)
     compileOnly fg.deobf("mezz.jei:jei-${mc_version}-common-api:${jei_version}")
     compileOnly fg.deobf("mezz.jei:jei-${mc_version}-forge-api:${jei_version}")
+    // plain JUnit tests (src/test, ./gradlew test): the datapack parsing and roll logic, on the real built-in files
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    // -PoptionalMods: also run with the optional mods put in libs/ as <name>-1.jar (Quality, Tooltip Overhaul, JEI...),
+    // to test the integrations. Without it the runs have no optional mods, which tests that nothing needs them.
+    if (project.hasProperty('optionalMods')) {
+        fileTree('libs').matching { include '*-1.jar' }.each { f -> runtimeOnly fg.deobf("blank:${f.name - '-1.jar'}:1") }
+    }
+}
+
+test {
+    useJUnitPlatform()
+    testLogging {
+        events 'passed', 'failed', 'skipped'
+        exceptionFormat 'full'
+    }
 }
 
 mixin {

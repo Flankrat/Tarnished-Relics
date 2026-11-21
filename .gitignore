@@ -22,3 +22,8 @@ Thumbs.db
 # Local build logs
 build-log.txt
 *.log
+
+# optional mods for test runs (-PoptionalMods)
+libs/
+# Minecraft logs from the JUnit tests
+/logs/
