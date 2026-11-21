@@ -29,16 +29,29 @@ public final class RelicTooltips {
     private RelicTooltips() {
     }
 
+    /** The relic's tier name ("Unique") in the tier's color, or null if the stack isn't an identified relic. */
+    @javax.annotation.Nullable
+    public static Component tierName(net.minecraft.world.item.ItemStack stack) {
+        CompoundTag relic = RelicTag.get(stack);
+        return relic == null ? null : tierName(relic);
+    }
+
+    private static Component tierName(CompoundTag relic) {
+        ResourceLocation rarityId = RelicTag.rarity(relic);
+        Rarity rarity = rarityId == null ? null : TRData.get().rarities().get(rarityId);
+        String rarityKey = rarity != null ? rarity.nameKey() : "tarnishedrelics.rarity.unknown";
+        String fallback = rarityId != null ? com.flankrat.tarnishedrelics.name.NameFallback.title(rarityId.toString()) : "Relic";
+        return Component.translatableWithFallback(rarityKey, fallback).withStyle(s -> s.withColor(relic.getInt("Color")));
+    }
+
     @SubscribeEvent
     public static void onTooltip(ItemTooltipEvent event) {
         CompoundTag relic = RelicTag.get(event.getItemStack());
         if (relic == null) return;
         List<Component> lines = new ArrayList<>();
         ResourceLocation rarityId = RelicTag.rarity(relic);
-        Rarity rarity = rarityId == null ? null : TRData.get().rarities().get(rarityId);
-        String rarityKey = rarity != null ? rarity.nameKey() : "tarnishedrelics.rarity.unknown";
-        String fallback = rarityId != null ? com.flankrat.tarnishedrelics.name.NameFallback.title(rarityId.toString()) : "Relic";
-        lines.add(Component.translatableWithFallback(rarityKey, fallback).withStyle(s -> s.withColor(relic.getInt("Color"))));
+        // Tooltip Overhaul's rating line under the name already shows the tier
+        if (!com.flankrat.tarnishedrelics.client.compat.TooltipOverhaulCompat.showsRating()) lines.add(tierName(relic));
         // a legendary's lore lines (lang keys or plain text)
         var lore = relic.getList("Lore", net.minecraft.nbt.Tag.TAG_STRING);
         for (int i = 0; i < lore.size(); i++) {

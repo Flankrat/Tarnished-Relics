@@ -1,6 +1,8 @@
 package com.flankrat.tarnishedrelics.name;
 
 import com.flankrat.tarnishedrelics.TarnishedRelics;
+import net.minecraft.ChatFormatting;
+import net.minecraft.locale.Language;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.ItemStack;
@@ -31,7 +33,11 @@ public final class QualityCompat {
         return loaded && !failed;
     }
 
-    /** "quality_equipment.quality.<name>" as a component, or null if the item has no quality (or Quality is absent). */
+    /**
+     * The quality's word ("Thick"), or null if the item has no quality, its quality has no word to show, or Quality is
+     * absent. Quality's own tooltip does the same: the quality's name is already its lang key
+     * ("quality_equipment.quality.thick"), and a quality without attributes ("normal") shows nothing.
+     */
     @Nullable
     public static Component word(ItemStack stack) {
         if (stack.getTag() == null || !stack.getTag().contains("tool_quality") || !loaded()) return null;
@@ -46,14 +52,26 @@ public final class QualityCompat {
             TarnishedRelics.LOGGER.warn("[Tarnished Relics] couldn't read Quality Equipment's qualities, names won't show the quality word", e);
             return null;
         }
-        return name == null ? null : Component.translatable("quality_equipment.quality." + name);
+        if (name == null || name.isEmpty()) return null;
+        // the name is the lang key; a bare name gets Quality's prefix
+        String key = name.contains(".") ? name : "quality_equipment.quality." + name;
+        Language lang = Language.getInstance();
+        // no translation: leave the word out instead of showing the raw key
+        if (!lang.has(key)) return null;
+        // Quality's words carry their own color codes (§9Thick); the name keeps the relic's color instead
+        String word = ChatFormatting.stripFormatting(lang.getOrDefault(key));
+        return word == null || word.isBlank() ? null : Component.literal(word.trim());
     }
 
+    // the quality's name, or null if it has no attributes (Quality shows nothing for those, e.g. "normal")
     @Nullable
     private static String nameFrom(Object map, int id) throws ReflectiveOperationException {
         if (!(map instanceof Map<?, ?> m)) return null;
         Object quality = m.get(id);
-        return quality == null ? null : (String) quality.getClass().getMethod("getName").invoke(quality);
+        if (quality == null) return null;
+        Object attributes = quality.getClass().getMethod("getAttributes").invoke(quality);
+        if (attributes instanceof java.util.Collection<?> c && c.isEmpty()) return null;
+        return (String) quality.getClass().getMethod("getName").invoke(quality);
     }
 
     /**
