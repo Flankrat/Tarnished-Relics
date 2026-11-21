@@ -121,10 +121,10 @@ Built in: `sword`, `axe`, `pickaxe`, `shovel`, `hoe`, `bow`, `crossbow`, `triden
 | `levels` | `[min, max]` material levels for the `"*"` and `"@category"` entries (items named directly always count) |
 | `name` | Optional: display name, as a lang key or plain text |
 | `rolls` | How many affixes to roll from each pool, e.g. `{ "unique": [2, 3], "normal": [1, 2] }` |
-| `identify_level` | Villager level needed: 1 Novice, 2 Apprentice, 3 Journeyman, 4 Expert, 5 Master |
+| `identify_level` | Villager level needed: 1 Novice, 2 Apprentice, 3 Journeyman, 4 Expert, 5 Master (1-5) |
 | `cost` | Emeralds to identify (rolled once per relic) |
 | `villager_xp` | Trade XP the blacksmith earns |
-| `color` | Name color once identified |
+| `color` | Name color once identified, six hex digits (`"#FF5555"`) |
 | `unique_name` | `true`: the name ends with "of" + a generated name (see `names/`) |
 | `legendary` | `true`: makes legendaries (see Legendaries) |
 | `handmade_chance` | Legendary: share that are hand-made (default 0.3) |
