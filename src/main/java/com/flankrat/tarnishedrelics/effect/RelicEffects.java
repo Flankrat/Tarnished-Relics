@@ -195,6 +195,8 @@ public final class RelicEffects {
         boolean crit = event.isVanillaCritical() || event.getResult() == Event.Result.ALLOW;
         if (!crit && chance > 0 && player.getRandom().nextDouble() < chance) {
             event.setResult(Event.Result.ALLOW);
+            // a hit that isn't a vanilla crit starts at 1.0: without this the crit did no extra damage
+            event.setDamageModifier(Math.max(event.getDamageModifier(), 1.5F));
             crit = true;
         }
         if (crit && damage != 0) event.setDamageModifier((float) (event.getDamageModifier() * Math.max(0, 1 + damage)));
