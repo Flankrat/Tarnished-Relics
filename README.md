@@ -190,8 +190,8 @@ Affixes removed from the datapack simply stop working on old items.
 | `thorns` | `value` | Sends that fraction of damage taken back to the attacker |
 | `on_hurt_effect` | `effect`, `duration`, `amplifier`, `apply_to` (`attacker`/`self`) | Potion effect when you're hit |
 | `passive_effect` | `effect`, `amplifier` | Kept on you while held/worn |
-| `crit_chance` | `value` | Extra chance for your hits to crit |
-| `crit_damage` | `value` | Crits hit harder (`0.5` = +50%) |
+| `crit_chance` | `value` | Extra chance for your hits to crit: melee hits, and arrows, bolts and thrown relics (1.5x damage) |
+| `crit_damage` | `value` | Crits hit harder (`0.5` = +50%). On projectiles, only crits from `crit_chance` |
 | `break_speed` | `value`, `blocks` (optional block id/#tag) | ±% mining speed |
 | `durability` | `value` | Chance each point of wear is ignored (negative: sometimes wears twice) |
 | `xp_bonus` | `value` | ±% XP from kills |

@@ -128,6 +128,76 @@ public class CustomDataGameTests {
         }
     }
 
+    // Bug (round 8): crit_chance and crit_damage were only checked by Forge's crit event, which only fires for melee
+    // attacks, so on a bow, a crossbow or a thrown relic they did nothing (Hunter, and Executioner on a bow).
+    // Projectile hits now roll crit_chance too: a crit is 1.5x damage, and crit_damage makes those crits hit harder.
+
+    // a 10 damage hit by this projectile on the zombie, after relic effects
+    private static float projectileHit(Zombie z, net.minecraft.world.damagesource.DamageSource source) {
+        LivingHurtEvent hurt = new LivingHurtEvent(z, source, 10);
+        MinecraftForge.EVENT_BUS.post(hurt);
+        return hurt.getAmount();
+    }
+
+    @GameTest(template = "gametest/empty", batch = BATCH)
+    public static void arrowsCritWithCritChance(GameTestHelper helper) {
+        ServerPlayer p = TestUtil.player(helper);
+        try {
+            Zombie z = helper.spawn(EntityType.ZOMBIE, new BlockPos(3, 1, 3));
+            z.setNoAi(true);
+            Arrow arrow = new Arrow(helper.getLevel(), p);
+            p.setItemInHand(InteractionHand.MAIN_HAND, TestUtil.relic(Items.BOW, "rare", "bow", "mainhand", "trtest:always_crits", 0.5));
+            float crit = projectileHit(z, p.damageSources().arrow(arrow, p));
+            p.setItemInHand(InteractionHand.MAIN_HAND, TestUtil.relic(Items.BOW, "rare", "bow", "mainhand",
+                    "trtest:always_crits", 0.5, "trtest:harder_crits", 0.5));
+            float harder = projectileHit(z, p.damageSources().arrow(arrow, p));
+            p.setItemInHand(InteractionHand.MAIN_HAND, TestUtil.relic(Items.BOW, "rare", "bow", "mainhand", "trtest:harder_crits", 0.5));
+            float noCrit = projectileHit(z, p.damageSources().arrow(arrow, p));
+            helper.assertTrue(Math.abs(crit - 15) < 1e-4, "an arrow crit from crit_chance is 1.5x: " + crit);
+            helper.assertTrue(Math.abs(harder - 22.5F) < 1e-4, "+50% crit damage on that crit: " + harder);
+            helper.assertTrue(noCrit == 10, "crit_damage alone made an arrow crit: " + noCrit);
+            helper.succeed();
+        } finally {
+            TestUtil.remove(p);
+        }
+    }
+
+    @GameTest(template = "gametest/empty", batch = BATCH)
+    public static void thrownRelicCritsWithItsCritChance(GameTestHelper helper) {
+        ServerPlayer p = TestUtil.player(helper);
+        try {
+            Zombie z = helper.spawn(EntityType.ZOMBIE, new BlockPos(3, 1, 3));
+            z.setNoAi(true);
+            ThrownTrident t = thrown(helper, p, TestUtil.relic(Items.TRIDENT, "rare", "trident", "mainhand", "trtest:always_crits", 0.5));
+            float crit = projectileHit(z, p.damageSources().trident(t, p));
+            // a held sword's crit_chance doesn't count for a thrown relic
+            p.setItemInHand(InteractionHand.MAIN_HAND, TestUtil.relic(Items.IRON_SWORD, "rare", "sword", "mainhand", "trtest:always_crits", 0.5));
+            ThrownTrident plain = thrown(helper, p, TestUtil.relic(Items.TRIDENT, "rare", "trident", "mainhand"));
+            float held = projectileHit(z, p.damageSources().trident(plain, p));
+            helper.assertTrue(Math.abs(crit - 15) < 1e-4, "the thrown trident's crit_chance crit: " + crit);
+            helper.assertTrue(held == 10, "the held sword's crit_chance counted for the thrown trident: " + held);
+            helper.succeed();
+        } finally {
+            TestUtil.remove(p);
+        }
+    }
+
+    // melee crits stay with Forge's crit event: a melee hit isn't crit a second time here
+    @GameTest(template = "gametest/empty", batch = BATCH)
+    public static void meleeHitsArentCritTwice(GameTestHelper helper) {
+        ServerPlayer p = TestUtil.player(helper);
+        try {
+            Zombie z = helper.spawn(EntityType.ZOMBIE, new BlockPos(3, 1, 3));
+            z.setNoAi(true);
+            p.setItemInHand(InteractionHand.MAIN_HAND, TestUtil.relic(Items.IRON_SWORD, "rare", "sword", "mainhand", "trtest:always_crits", 0.5));
+            float melee = projectileHit(z, p.damageSources().playerAttack(p));
+            helper.assertTrue(melee == 10, "a melee hit got a second crit in the hurt event: " + melee);
+            helper.succeed();
+        } finally {
+            TestUtil.remove(p);
+        }
+    }
+
     // ---- thrown relic weapons hit with their own effects ----
 
     private static ItemStack kitTrident() {
@@ -180,7 +250,7 @@ public class CustomDataGameTests {
         }
     }
 
-    // arrows stay as they were: the bow's damage bonus counts (it's in the hand), its on-hit effects don't (not melee)
+    // arrows: the bow's damage bonus counts (it's in the hand), its on-hit effects don't (not melee)
     @GameTest(template = "gametest/empty", batch = BATCH)
     public static void arrowsUnchanged(GameTestHelper helper) {
         ServerPlayer p = TestUtil.player(helper);
