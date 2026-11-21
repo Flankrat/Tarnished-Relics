@@ -320,7 +320,9 @@ profession to let it identify relics.
 - `/tarnishedrelics identify`: identifies the relic in your main hand.
 - `/tarnishedrelics errors`: lists datapack files that failed to load or have a problem: invalid JSON, a bad item
   entry, or a category id that names no category (a legendary's `category`, an affix's `applies_to`, an
-  `@category` entry). A category switched off with `"disabled": true` isn't an error.
+  `@category` entry), or a misspelled key or value in an affix or legendary (an effect field or condition that
+  doesn't exist, an `apply_to` other than target/attacker/self, an `as` other than wielder/target, a `kind` other
+  than prefix/suffix/hidden). A category switched off with `"disabled": true` isn't an error.
 - `/tarnishedrelics editor`: opens the in-game editor.
 
 ## In-game editor
