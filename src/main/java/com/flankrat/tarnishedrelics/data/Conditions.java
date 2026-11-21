@@ -3,6 +3,7 @@ package com.flankrat.tarnishedrelics.data;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.RandomSource;
@@ -13,6 +14,7 @@ import net.minecraft.world.level.biome.Biome;
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Optional "conditions" on an effect. Every listed condition must pass. Example:
@@ -34,9 +36,14 @@ public final class Conditions {
     private final List<IdOrTag<Biome>> biomes = new ArrayList<>();
     private final List<IdOrTag<EntityType<?>>> targets = new ArrayList<>();
 
+    private static final Set<String> KEYS = Set.of("chance", "health_below", "health_above", "in_water", "is_night", "is_day",
+            "sneaking", "on_fire", "y_below", "y_above", "dimensions", "biomes", "target");
+
     public static Conditions parse(@Nullable JsonElement json) {
         if (json == null) return NONE;
         JsonObject o = json.getAsJsonObject();
+        // a misspelled condition used to be skipped, so the effect worked all the time
+        for (String key : o.keySet()) if (!KEYS.contains(key)) throw new JsonParseException("unknown condition \"" + key + "\"");
         Conditions c = new Conditions();
         if (o.has("chance")) c.chance = o.get("chance").getAsDouble();
         if (o.has("health_below")) c.healthBelow = o.get("health_below").getAsDouble();

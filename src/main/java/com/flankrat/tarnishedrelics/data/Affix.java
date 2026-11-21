@@ -2,6 +2,7 @@ package com.flankrat.tarnishedrelics.data;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
 import net.minecraft.resources.ResourceLocation;
 
 import javax.annotation.Nullable;
@@ -9,6 +10,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * A prefix or suffix ({@code tarnished_relics/affixes/<name>.json}).
@@ -41,9 +43,12 @@ public record Affix(ResourceLocation id, String kind, @Nullable String nameKey, 
         }
         List<Effect> effects = new ArrayList<>();
         if (o.has("effects")) for (JsonElement e : o.getAsJsonArray("effects")) effects.add(Effect.parse(e.getAsJsonObject()));
+        String kind = o.has("kind") ? o.get("kind").getAsString() : "hidden";
+        // any other word used to make a hidden affix: no name part
+        if (!Set.of("prefix", "suffix", "hidden").contains(kind)) throw new JsonParseException("unknown kind \"" + kind + "\" (prefix, suffix or hidden)");
         List<String> applies = Conditions.strings(o.get("applies_to"));
         if (applies.isEmpty()) applies = List.of("*");
-        return new Affix(id, o.has("kind") ? o.get("kind").getAsString() : "hidden",
+        return new Affix(id, kind,
                 o.has("name") ? o.get("name").getAsString() : null,
                 o.has("pool") ? o.get("pool").getAsString() : "normal", applies, weight, byRarity,
                 o.has("group") ? o.get("group").getAsString() : null, effects);

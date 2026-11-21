@@ -231,6 +231,10 @@ public final class EditorModel {
                 }
                 if (removed) o.add("items", arr);   // files that don't have the entry stay untouched
             }
+            // the editor's file was only made for that entry in this session: gone again with it, so taking the
+            // entry back out is no change (it used to stay as a new, empty file and keep Save lit)
+            JsonObject own = files.get(EXCLUSIONS);
+            if (own != null && isNew(EXCLUSIONS) && own.equals(Schema.template("exclusions"))) files.remove(EXCLUSIONS);
         }
         edited();
     }

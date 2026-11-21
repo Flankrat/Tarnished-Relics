@@ -2,6 +2,7 @@ package com.flankrat.tarnishedrelics.client.editor;
 
 import com.flankrat.tarnishedrelics.client.TRClient;
 import com.flankrat.tarnishedrelics.data.AutoMatch;
+import com.flankrat.tarnishedrelics.name.NameFallback;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -12,6 +13,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 
 /**
  * What the editor knows about every datapack file: the fields each folder's files can have, how to edit each one,
@@ -253,6 +255,24 @@ public final class Schema {
     }
 
     /** The starting JSON of a new file in a folder. */
+    /**
+     * What a new file starts as: a copy of another file (copy, may be null) or the folder's template, switched on,
+     * with a readable name from the file name so it never shows a raw lang key.
+     */
+    public static JsonObject newFile(String folder, String name, @Nullable JsonObject copy) {
+        JsonObject start = copy != null ? copy.deepCopy() : template(folder);
+        start.remove("disabled");
+        String title = NameFallback.title(name);
+        switch (folder) {
+            case "categories" -> start.addProperty("name", "Unidentified " + title);
+            case "rarities" -> start.addProperty("name", title);
+            case "affixes" -> start.addProperty("name", title);
+            case "legendaries" -> start.addProperty("name", title);   // a legendary can't load without one
+            default -> { }
+        }
+        return start;
+    }
+
     public static JsonObject template(String folder) {
         JsonObject o = new JsonObject();
         switch (folder) {

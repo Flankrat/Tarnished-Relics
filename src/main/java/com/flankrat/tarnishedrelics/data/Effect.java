@@ -82,11 +82,10 @@ public final class Effect {
         conditions = Conditions.parse(o.get("conditions"));
         value = ValueSpec.parse(o.get("value"));
         attribute = o.has("attribute") ? new ResourceLocation(o.get("attribute").getAsString()) : null;
-        operation = switch (o.has("operation") ? o.get("operation").getAsString() : "add") {
-            case "add" -> AttributeModifier.Operation.ADDITION;
+        operation = switch (oneOf(o, "operation", "add", "add", "multiply_base", "multiply_total")) {
             case "multiply_base" -> AttributeModifier.Operation.MULTIPLY_BASE;
             case "multiply_total" -> AttributeModifier.Operation.MULTIPLY_TOTAL;
-            default -> throw new JsonParseException("operation must be add, multiply_base or multiply_total");
+            default -> AttributeModifier.Operation.ADDITION;
         };
         targets = Conditions.strings(o.get("target")).stream().map(s -> IdOrTag.parse(s, Registries.ENTITY_TYPE)).toList();
         damageTypes = Conditions.strings(o.get("damage")).stream().map(s -> IdOrTag.parse(s, Registries.DAMAGE_TYPE)).toList();
@@ -94,17 +93,23 @@ public final class Effect {
         mobEffect = o.has("effect") ? new ResourceLocation(o.get("effect").getAsString()) : null;
         duration = o.has("duration") ? o.get("duration").getAsInt() : 100;
         amplifier = o.has("amplifier") ? o.get("amplifier").getAsInt() : 0;
-        String applyTo = o.has("apply_to") ? o.get("apply_to").getAsString() : "target";
-        onSelf = applyTo.equals("self");
+        // any other word used to count as "target": "wielder" gave the enemy the buff
+        onSelf = oneOf(o, "apply_to", "target", "target", "attacker", "self").equals("self");
         function = o.has("function") ? new ResourceLocation(o.get("function").getAsString()) : null;
+        // only functions use trigger, so only theirs is checked (see validate)
         trigger = o.has("trigger") ? o.get("trigger").getAsString() : "hit";
-        asTarget = o.has("as") && o.get("as").getAsString().equals("target");
+        asTarget = oneOf(o, "as", "wielder", "wielder", "target").equals("target");
         slot = o.has("slot") ? EquipmentSlot.byName(o.get("slot").getAsString()) : null;
         validate();
     }
 
+    /** Every field an effect can have; any other key is a typo (it used to be ignored, so its default was used). */
+    private static final Set<String> FIELDS = Set.of("type", "value", "attribute", "operation", "target", "damage", "effect",
+            "duration", "amplifier", "apply_to", "blocks", "function", "trigger", "as", "conditions", "tooltip", "hidden", "slot");
+
     public static Effect parse(JsonObject o) {
         if (!o.has("type")) throw new JsonParseException("effect needs a \"type\"");
+        for (String key : o.keySet()) if (!FIELDS.contains(key)) throw new JsonParseException("unknown effect field \"" + key + "\"");
         return new Effect(o);
     }
 
@@ -115,11 +120,24 @@ public final class Effect {
             case ON_HIT_EFFECT, ON_HURT_EFFECT, PASSIVE_EFFECT -> require(mobEffect != null, "effect");
             case FUNCTION -> {
                 require(function != null, "function");
-                if (!Set.of("hit", "kill", "hurt", "tick").contains(trigger))
-                    throw new JsonParseException("function trigger must be hit, kill, hurt or tick");
+                checkOneOf("trigger", trigger, "hit", "kill", "hurt", "tick");
             }
             default -> { }
         }
+    }
+
+    /** A field that takes one of a few words (fallback when it's missing); any other word is an error. */
+    private static String oneOf(JsonObject o, String key, String fallback, String... allowed) {
+        String value = o.has(key) ? o.get(key).getAsString() : fallback;
+        checkOneOf(key, value, allowed);
+        return value;
+    }
+
+    // e.g. unknown apply_to "wielder" (target, attacker or self)
+    private static void checkOneOf(String key, String value, String... allowed) {
+        if (List.of(allowed).contains(value)) return;
+        String words = String.join(", ", List.of(allowed).subList(0, allowed.length - 1)) + " or " + allowed[allowed.length - 1];
+        throw new JsonParseException("unknown " + key + " \"" + value + "\" (" + words + ")");
     }
 
     private void require(boolean ok, String field) {
