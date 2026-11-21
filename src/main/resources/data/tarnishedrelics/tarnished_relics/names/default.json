@@ -52,5 +52,40 @@
     "orn",
     "mael",
     "ion"
+  ],
+  "titles": [
+    "the Last Light",
+    "Bane of Kings",
+    "the Hollow Dawn",
+    "Oathbreaker",
+    "the Unforgiving",
+    "Herald of Ash",
+    "the Quiet End",
+    "Warden of the Deep",
+    "the Starless",
+    "Kingslayer",
+    "the Red Tide",
+    "Whisper of Ruin",
+    "the Unbroken",
+    "Doom of the Drowned",
+    "the Wandering Star"
+  ],
+  "lore": [
+    "{name} was never meant to be found.",
+    "Its last owner did not die of old age.",
+    "The smith who made it took the secret to the grave.",
+    "It hums when blood is near.",
+    "Old songs speak of {name}, and none of them end well.",
+    "Kings have bled for less.",
+    "It remembers every hand that held it.",
+    "Forged before the blight, and it shows.",
+    "A name is scratched into it, worn smooth.",
+    "It is warm, even in the snow.",
+    "Whoever buried it did not want it found.",
+    "The dead do not rest near {name}.",
+    "It has outlived three empires.",
+    "Light bends around its edge.",
+    "Sold once for a kingdom; stolen twice.",
+    "It chooses its bearer, not the other way around."
   ]
 }

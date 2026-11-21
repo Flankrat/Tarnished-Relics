@@ -1,0 +1,30 @@
+{
+  "name": "legendary.tarnishedrelics.dawnbreaker_crest",
+  "lore": [
+    "legendary.tarnishedrelics.dawnbreaker_crest.lore.0"
+  ],
+  "items": [
+    "minecraft:netherite_helmet",
+    "minecraft:diamond_helmet"
+  ],
+  "enchantments": {
+    "minecraft:protection": 5,
+    "minecraft:fire_protection": 4
+  },
+  "effects": [
+    {
+      "type": "damage_taken",
+      "damage": "#minecraft:is_fire",
+      "value": [
+        -0.5,
+        -0.3
+      ]
+    },
+    {
+      "type": "passive_effect",
+      "effect": "minecraft:night_vision",
+      "amplifier": 0
+    }
+  ],
+  "weight": 0
+}

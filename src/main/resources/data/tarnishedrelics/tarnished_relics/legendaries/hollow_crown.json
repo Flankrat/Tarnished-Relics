@@ -1,0 +1,37 @@
+{
+  "name": "legendary.tarnishedrelics.hollow_crown",
+  "lore": [
+    "legendary.tarnishedrelics.hollow_crown.lore.0",
+    "legendary.tarnishedrelics.hollow_crown.lore.1"
+  ],
+  "items": [
+    "minecraft:golden_helmet"
+  ],
+  "enchantments": {
+    "minecraft:protection": 6,
+    "minecraft:binding_curse": 1
+  },
+  "effects": [
+    {
+      "type": "xp_bonus",
+      "value": [
+        0.5,
+        1.0
+      ]
+    },
+    {
+      "type": "looting",
+      "value": [
+        1,
+        2
+      ]
+    },
+    {
+      "type": "attribute",
+      "attribute": "minecraft:generic.max_health",
+      "operation": "add",
+      "value": -4
+    }
+  ],
+  "weight": 10
+}

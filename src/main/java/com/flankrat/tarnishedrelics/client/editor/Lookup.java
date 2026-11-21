@@ -80,6 +80,21 @@ public final class Lookup {
                 }
                 addTags(out, ForgeRegistries.VILLAGER_PROFESSIONS);
             }
+            case ENCHANTMENT -> {
+                for (var e : ForgeRegistries.ENCHANTMENTS.getEntries()) {
+                    ResourceLocation id = e.getKey().location();
+                    out.add(new Choice(id.toString(), net.minecraft.network.chat.Component.translatable(e.getValue().getDescriptionId()).getString()
+                            + " (max " + e.getValue().getMaxLevel() + ")", id.getNamespace(), new ItemStack(Items.ENCHANTED_BOOK), "enchantment"));
+                }
+            }
+            case LEGENDARY -> {
+                for (ResourceLocation f : model.filesIn("legendaries")) {
+                    ResourceLocation id = EditorModel.shortId(f);
+                    var json = model.get(f);
+                    String name = json != null && json.has("name") ? json.get("name").getAsString() : id.getPath();
+                    out.add(new Choice(id.toString(), name, id.getNamespace(), new ItemStack(Items.NETHER_STAR), "legendary"));
+                }
+            }
             case LOOT_TYPE -> {
                 for (String t : com.flankrat.tarnishedrelics.editor.ConfigFile.LOOT_TYPES) out.add(new Choice(t, t, "", ItemStack.EMPTY, "loot"));
             }
@@ -218,6 +233,12 @@ public final class Lookup {
             }
             case PROFESSION -> {
                 return checkRegistry(value, ForgeRegistries.VILLAGER_PROFESSIONS);
+            }
+            case ENCHANTMENT -> {
+                return checkRegistry(value, ForgeRegistries.ENCHANTMENTS);
+            }
+            case LEGENDARY -> {
+                return model.exists(EditorModel.fileId("legendaries", rl(value))) ? null : "No legendary " + value;
             }
             case LOOT_TYPE -> {
                 return com.flankrat.tarnishedrelics.editor.ConfigFile.LOOT_TYPES.contains(value) ? null : "Not a loot type";

@@ -53,7 +53,7 @@ public class EditorScreen extends Screen {
     /** The open editor, for packets that arrive while a picker is on top of it. */
     @Nullable static EditorScreen last;
 
-    private static final List<String> TABS = List.of("categories", "rarities", "affixes", "names", "levels", "exclusions", "tags", "settings", "mods");
+    private static final List<String> TABS = List.of("categories", "rarities", "affixes", "legendaries", "names", "levels", "exclusions", "tags", "settings", "mods");
     /** Where Save writes: the world's editor pack, or the modpack folder every world loads. Kept between openings. */
     private static boolean saveToModpack;
     private static final int ROW = 22;
@@ -133,14 +133,17 @@ public class EditorScreen extends Screen {
         int tabW = (width - 16) / TABS.size();
         for (int i = 0; i < TABS.size(); i++) {
             String tab = TABS.get(i);
-            Button b = Button.builder(t("tab." + tab, cap(tab)), x -> {
+            // "Legendaries" doesn't fit a tab at small widths
+            String label = tab.equals("legendaries") ? "Legendary" : cap(tab);
+            Button b = Button.builder(t("tab." + tab, label), x -> {
                 if (!folder.equals(tab)) {
                     folder = tab;
                     selected = null;
                     raw = false;
                     scroll = 0;
-                    fileListScroll = 0;
                     newName = null;
+                    fileList = null;   // so the old tab's list scroll isn't carried over
+                    fileListScroll = 0;
                     rebuildWidgets();
                 }
             }).bounds(8 + i * tabW, 18, tabW - 2, 18).build();
@@ -325,9 +328,13 @@ public class EditorScreen extends Screen {
             setStatus(t("fix_first", "Fix the errors first."), RED, errs);
             return;
         }
+        List<String> tooBig = EditorClient.save(model, saveToModpack);
+        if (!tooBig.isEmpty()) {
+            setStatus(t("too_big", "A file is too big to send."), RED, tooBig);
+            return;
+        }
         saving = true;
         setStatus(t("saving", "Saving..."), TEXT, List.of());
-        EditorClient.save(model, saveToModpack);
         rebuildWidgets();
     }
 
@@ -497,6 +504,13 @@ public class EditorScreen extends Screen {
                 items = itemsWhere(i -> data.exclusions().contains(i));
                 text = "All exclusion files together keep " + items.size() + " item(s) from being relics";
             }
+            case "legendaries" -> {
+                var l = data.legendaries().get(shortId);
+                if (l != null) {
+                    items = new ArrayList<>(l.items().resolve());
+                    text = items.size() + " possible base item(s)" + (l.weight() <= 0 ? " · only drops with its set" : "");
+                }
+            }
             case "affixes" -> {
                 var a = data.affixes().get(shortId);
                 if (a != null) {
@@ -509,7 +523,8 @@ public class EditorScreen extends Screen {
         // a short explanation for the folders whose rules aren't obvious from the fields
         String explain = switch (folder) {
             case "levels" -> "Item level = the highest of its tool tier, armor and a material word in its id (keywords). \"items\" here overrides that. Rarities use levels to pick base items.";
-            case "rarities" -> "\"*\" = every item with a category, filtered by \"levels\". Items named directly always count.";
+            case "rarities" -> "\"*\" = every item with a category, filtered by \"levels\". Items named directly always count. \"legendary\": generated legendaries (plus hand-made ones from the Legendary tab, by handmade_chance).";
+            case "legendaries" -> "A hand-made relic: always this name, lore, enchantments and effects; each copy gets one roll for the value ranges. Legendary rarities drop these by their handmade_chance, generated ones otherwise.";
             case "tags" -> tagHelp(shortId.getPath());
             default -> null;
         };
@@ -533,15 +548,16 @@ public class EditorScreen extends Screen {
                     () -> shown))).bounds(0, 0, 50, 18).build(), right);
         }
         // test rolls (from the saved data, which is what the server has)
-        if (folder.equals("rarities") || folder.equals("categories")) {
+        if (folder.equals("rarities") || folder.equals("categories") || folder.equals("legendaries")) {
             String rarity = folder.equals("rarities") ? shortId.toString() : "";
             String category = folder.equals("categories") ? shortId.toString() : "";
+            String legendary = folder.equals("legendaries") ? shortId.toString() : "";
             Tooltip tip = Tooltip.create(t("give.tip", "Rolls one from the saved data (save first to try your changes)"));
             right -= 72;
-            place(r, Button.builder(t("give_id", "Identified"), b -> TRNetwork.CHANNEL.sendToServer(new TRNetwork.EditorGive(rarity, category, true)))
+            place(r, Button.builder(t("give_id", "Identified"), b -> TRNetwork.CHANNEL.sendToServer(new TRNetwork.EditorGive(rarity, category, legendary, true)))
                     .bounds(0, 0, 70, 18).tooltip(tip).build(), right);
             right -= 52;
-            place(r, Button.builder(t("give", "Give"), b -> TRNetwork.CHANNEL.sendToServer(new TRNetwork.EditorGive(rarity, category, false)))
+            place(r, Button.builder(t("give", "Give"), b -> TRNetwork.CHANNEL.sendToServer(new TRNetwork.EditorGive(rarity, category, legendary, false)))
                     .bounds(0, 0, 50, 18).tooltip(tip).build(), right);
         }
     }

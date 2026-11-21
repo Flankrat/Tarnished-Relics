@@ -1,0 +1,47 @@
+{
+  "weight": 1,
+  "quality": 1,
+  "legendary": true,
+  "handmade_chance": 0.3,
+  "items": [
+    "*"
+  ],
+  "levels": [
+    3,
+    99
+  ],
+  "rolls": {
+    "legendary": [
+      2,
+      2
+    ],
+    "unique": [
+      1,
+      1
+    ],
+    "normal": [
+      1,
+      2
+    ]
+  },
+  "signature_enchantments": [
+    2,
+    3
+  ],
+  "enchantment_bonus": [
+    1,
+    3
+  ],
+  "drawback_chance": 0.35,
+  "lore_lines": [
+    1,
+    2
+  ],
+  "identify_level": 5,
+  "cost": [
+    40,
+    64
+  ],
+  "villager_xp": 60,
+  "color": "#FF5522"
+}

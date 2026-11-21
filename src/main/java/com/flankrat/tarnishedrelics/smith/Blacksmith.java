@@ -80,8 +80,8 @@ public final class Blacksmith {
             refuse(villager);
             return;
         }
-        CompoundTag tag = held.getOrCreateTag();
-        if (!tag.contains("Hidden")) return;   // an empty relic (e.g. from /give) has nothing to identify
+        CompoundTag tag = held.getTag();
+        if (tag == null || !tag.contains("Hidden")) return;   // an empty relic (e.g. from /give) has nothing to identify
         int needed = Math.max(1, tag.getInt("Level"));
         int cost = Math.max(0, tag.getInt("Cost"));
         if (villager.getVillagerData().getLevel() < needed) {

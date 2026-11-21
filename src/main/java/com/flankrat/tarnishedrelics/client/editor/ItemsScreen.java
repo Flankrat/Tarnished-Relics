@@ -72,10 +72,14 @@ public class ItemsScreen extends Screen {
         });
         addRenderableWidget(box);
         addRenderableWidget(Button.builder(Component.translatableWithFallback("tarnishedrelics.editor.exclude_uncraftable", "Exclude no-recipe items"), b -> {
+            // decide everything first: each exclusion makes the preview be worked out again
+            var data = model.preview();
+            List<String> ids = new java.util.ArrayList<>();
             for (Item item : items.get()) {
                 ResourceLocation id = ForgeRegistries.ITEMS.getKey(item);
-                if (id != null && !craftable().contains(item) && model.preview().categoryOf(item) != null) model.setExcluded(id.toString(), true);
+                if (id != null && !craftable().contains(item) && data.categoryOf(item) != null) ids.add(id.toString());
             }
+            for (String id : ids) model.setExcluded(id, true);
         }).bounds(x + w - 150, 22, 150, 18).tooltip(net.minecraft.client.gui.components.Tooltip.create(Component.translatableWithFallback(
                 "tarnishedrelics.editor.exclude_uncraftable.tip",
                 "Excludes every relic item in this list that no recipe makes. Those are often for a mod that isn't installed (e.g. aluminum weapons with no aluminum)."))).build());

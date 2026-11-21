@@ -1,0 +1,37 @@
+{
+  "name": "legendary.tarnishedrelics.glass_heart",
+  "lore": [
+    "legendary.tarnishedrelics.glass_heart.lore.0",
+    "legendary.tarnishedrelics.glass_heart.lore.1"
+  ],
+  "items": [
+    "minecraft:netherite_axe",
+    "minecraft:diamond_axe"
+  ],
+  "enchantments": {
+    "minecraft:sharpness": 10
+  },
+  "effects": [
+    {
+      "type": "attribute",
+      "attribute": "minecraft:generic.max_health",
+      "operation": "multiply_total",
+      "value": -0.5
+    },
+    {
+      "type": "crit_damage",
+      "value": [
+        0.5,
+        1.0
+      ]
+    },
+    {
+      "type": "crit_chance",
+      "value": [
+        0.1,
+        0.2
+      ]
+    }
+  ],
+  "weight": 10
+}

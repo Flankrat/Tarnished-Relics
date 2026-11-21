@@ -1,0 +1,24 @@
+{
+  "kind": "hidden",
+  "pool": "legendary",
+  "applies_to": [
+    "tarnishedrelics:sword",
+    "tarnishedrelics:axe",
+    "tarnishedrelics:trident",
+    "tarnishedrelics:weapon",
+    "tarnishedrelics:bow",
+    "tarnishedrelics:crossbow",
+    "tarnishedrelics:ranged"
+  ],
+  "weight": 10,
+  "group": "legendary_damage",
+  "effects": [
+    {
+      "type": "damage_vs",
+      "value": [
+        0.25,
+        0.4
+      ]
+    }
+  ]
+}

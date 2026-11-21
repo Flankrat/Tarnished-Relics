@@ -1,0 +1,16 @@
+{
+  "kind": "hidden",
+  "pool": "legendary",
+  "applies_to": [
+    "tarnishedrelics:chestplate",
+    "tarnishedrelics:helmet"
+  ],
+  "weight": 10,
+  "effects": [
+    {
+      "type": "passive_effect",
+      "effect": "minecraft:regeneration",
+      "amplifier": 0
+    }
+  ]
+}

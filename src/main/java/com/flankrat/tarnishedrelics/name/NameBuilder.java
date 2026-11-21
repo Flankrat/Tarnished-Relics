@@ -25,6 +25,11 @@ public final class NameBuilder {
         if (relic == null) return null;
         int color = relic.getInt("Color");
         MutableComponent out = Component.empty().withStyle(s -> s.withColor(color).withItalic(false));
+        // a legendary always has its own name, nothing added
+        if (relic.contains("LegendaryName")) {
+            String name = relic.getString("LegendaryName");
+            return out.append(Component.translatableWithFallback(name, name));
+        }
         boolean first = true;
 
         Component quality = QualityCompat.word(stack);

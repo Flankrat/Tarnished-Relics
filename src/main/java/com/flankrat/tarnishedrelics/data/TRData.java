@@ -25,6 +25,7 @@ public final class TRData {
     private final Map<ResourceLocation, Category> categories = new LinkedHashMap<>();
     private final Map<ResourceLocation, Rarity> rarities = new LinkedHashMap<>();
     private final Map<ResourceLocation, Affix> affixes = new LinkedHashMap<>();
+    private final Map<ResourceLocation, Legendary> legendaries = new LinkedHashMap<>();
     private final NameList names = new NameList();
     private final Levels levels = new Levels();
     private final List<String> exclusionEntries = new ArrayList<>();
@@ -82,6 +83,7 @@ public final class TRData {
                     case "names" -> names.add(o);
                     case "levels" -> levels.add(o);
                     case "exclusions" -> exclusionEntries.addAll(Conditions.strings(o.get("items")));
+                    case "legendaries" -> legendaries.put(id, Legendary.parse(id, o));
                     default -> errors.add(file + ": unknown folder \"" + folder + "\"");
                 }
             } catch (RuntimeException ex) {
@@ -89,23 +91,32 @@ public final class TRData {
                 errors.add(file + ": " + ex.getMessage());
             }
         }
+        // a legendary's effects work as a hidden affix (see Legendary)
+        for (Legendary l : legendaries.values()) affixes.put(l.affix().id(), l.affix());
+        for (Legendary l : legendaries.values()) {
+            for (ResourceLocation c : l.companions()) {
+                if (!legendaries.containsKey(c)) errors.add(fileId("legendaries", l.id()) + ": no legendary " + c + " (companions)");
+            }
+        }
         exclusions = ItemList.of(exclusionEntries);
         // lists look up categories/levels in this data set, not whatever is current
         exclusions.owner(this);
         categories.values().forEach(c -> c.items().owner(this));
         rarities.values().forEach(r -> r.items().owner(this));
+        legendaries.values().forEach(l -> l.items().owner(this));
     }
 
     private void logResult() {
         for (String err : errors) TarnishedRelics.LOGGER.error("[Tarnished Relics] bad datapack file {}", err);
-        TarnishedRelics.LOGGER.info("[Tarnished Relics] loaded {} categories, {} rarities, {} affixes ({} errors)",
-                categories.size(), rarities.size(), affixes.size(), errors.size());
+        TarnishedRelics.LOGGER.info("[Tarnished Relics] loaded {} categories, {} rarities, {} affixes, {} legendaries ({} errors)",
+                categories.size(), rarities.size(), affixes.size() - legendaries.size(), legendaries.size(), errors.size());
     }
 
     /** Forget tag lookups (tags change on /reload). */
     public void clearCaches() {
         categories.values().forEach(c -> c.items().clearCache());
         rarities.values().forEach(r -> r.items().clearCache());
+        legendaries.values().forEach(l -> l.items().clearCache());
         exclusions.clearCache();
         levels.clearCache();
         categoryCache.clear();
@@ -117,6 +128,14 @@ public final class TRData {
 
     public Map<ResourceLocation, Rarity> rarities() {
         return Collections.unmodifiableMap(rarities);
+    }
+
+    public Map<ResourceLocation, Legendary> legendaries() {
+        return Collections.unmodifiableMap(legendaries);
+    }
+
+    private static String fileId(String folder, ResourceLocation id) {
+        return id.getNamespace() + ":" + folder + "/" + id.getPath();
     }
 
     public Map<ResourceLocation, Affix> affixes() {

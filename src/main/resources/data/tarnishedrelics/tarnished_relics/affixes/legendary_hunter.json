@@ -1,0 +1,27 @@
+{
+  "kind": "hidden",
+  "pool": "legendary",
+  "applies_to": [
+    "tarnishedrelics:bow",
+    "tarnishedrelics:crossbow",
+    "tarnishedrelics:ranged"
+  ],
+  "weight": 10,
+  "group": "legendary_damage",
+  "effects": [
+    {
+      "type": "damage_vs",
+      "value": [
+        0.3,
+        0.5
+      ]
+    },
+    {
+      "type": "crit_chance",
+      "value": [
+        0.1,
+        0.2
+      ]
+    }
+  ]
+}

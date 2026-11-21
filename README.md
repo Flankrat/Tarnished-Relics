@@ -5,7 +5,8 @@ Diablo-style loot for Minecraft Forge 1.20.1.
 Every time a loot chest is generated there is a small chance (1% by default) that an **unidentified relic** is added: a darkened silhouette of a weapon, piece of armor or tool, named only by its type
 ("Unidentified Sword"). You can't use it, enchant it, repair it or rename it until a **blacksmith villager** identifies
 it. Then it turns into the real item, with a tier, random affixes and a name like
-**"Champion's Iron Sword of Smiting"**, or for a Unique, **"Sturdy Netherite Pickaxe of Ithireal"**.
+**"Champion's Iron Sword of Smiting"**, or for a Unique, **"Sturdy Netherite Pickaxe of Ithireal"**. The rarest
+are **Legendaries**: hand-made relics with their own name, lore, signature enchantments and effects.
 
 Everything is datapack-driven: item categories, tiers, affixes and their effects, and name lists. Weapons, armor,
 tools and shields from **other mods are picked up automatically**, and an **in-game editor** (`/tarnishedrelics editor`)
@@ -120,13 +121,21 @@ Built in: `sword`, `axe`, `pickaxe`, `shovel`, `hoe`, `bow`, `crossbow`, `triden
 | `villager_xp` | Trade XP the blacksmith earns |
 | `color` | Name color once identified |
 | `unique_name` | `true`: the name ends with "of" + a generated name (see `names/`) |
+| `legendary` | `true`: makes legendaries (see Legendaries) |
+| `handmade_chance` | Legendary: share that are hand-made (default 0.3) |
+| `signature_enchantments`, `enchantment_bonus` | Legendary: how many fitting enchantments, and how many levels above their max (single-level ones stay at 1) |
+| `drawback_chance`, `drawback_pool` | Legendary: chance of one affix from that pool (default `drawback`) |
+| `lore_lines` | Legendary: how many generated lore lines |
+| `quality` | Extra weight per point of the looter's Luck (Luck potions, luck gear), like loot table quality |
+| `loot_tables` | Only drops in these loot tables (`*` wildcards); empty = any |
 
 The tier's display name is the lang key `tarnishedrelics.rarity.<namespace>.<name>` unless `name` is set (with no lang
 entry either, it's made from the file name).
 
 Built in: `magic` (weight 70, levels 1-2, 1-2 affixes, Novice, 2-4 emeralds), `rare` (25, levels 2-3, 3-4 affixes,
 Journeyman, 8-12), `unique` (5, levels 3 and up plus the vanilla bow and crossbow, 2-3 unique-pool + 1-2 normal
-affixes, Master, 20-30, generated name).
+affixes, Master, 20-30, generated name), `legendary` (1, quality 1, levels 3 and up, 2 legendary-pool + 1 unique + 1-2 normal affixes, 2-3 signature
+enchantments 1-3 levels above max, 35% drawback, 30% hand-made instead, Master, 40-64 emeralds).
 
 ### `affixes/<name>.json`: prefixes and suffixes
 
@@ -186,11 +195,60 @@ Every effect can also have:
 - `"conditions"`: all must pass. `chance` (0-1), `health_below` / `health_above` (fraction of the wielder's max
   health), `in_water`, `is_night`, `is_day`, `sneaking`, `on_fire`, `y_below`, `y_above`, `dimensions` (list),
   `biomes` (ids/#tags), `target` (entity ids/#tags).
+- `"slot"`: works while the item is in that slot instead of its category's (`offhand` for a dagger that helps from
+  the offhand).
 - `"tooltip"`: its own tooltip line, a lang key or plain text (`%1$s` = value as a percent, `%2$s` = plain number).
 - `"hidden": true`: no tooltip line.
 
 Damage and effect names in tooltips use the lang key `tarnishedrelics.target.<namespace>.<path>` if it exists,
 otherwise the id's path.
+
+### Legendaries
+
+A rarity with `"legendary": true` makes legendaries, in two kinds:
+
+- **Generated** (most of them): a base item and affixes like any rarity (`items`, `levels`, `rolls`; the built-in one
+  rolls from the strong `legendary` affix pool plus `unique` and `normal`), and on top: a generated name
+  ("Grimfang, the Last Light") and lore lines from `names/`, signature enchantments that fit the item put on above
+  their normal max (`signature_enchantments`, `enchantment_bonus`), and a chance of one drawback from the `drawback`
+  pool (`drawback_chance`, `drawback_pool`). The name is shown as it is, with nothing added.
+- **Hand-made** (`handmade_chance` of them, when any can drop): one from `legendaries/`, below.
+
+### `legendaries/<name>.json`: hand-made legendary relics
+
+A hand-made legendary always has the same name, lore, signature enchantments and effects; only the numbers vary
+(each copy gets one roll for all its value ranges).
+
+```json
+{
+  "name": "Widow's Kiss",
+  "lore": ["One kiss is all it takes.", "Held close, it keeps its bearer alive."],
+  "items": ["minecraft:iron_sword", "minecraft:diamond_sword"],
+  "category": "tarnishedrelics:sword",
+  "enchantments": { "minecraft:sharpness": 6, "minecraft:unbreaking": 4 },
+  "effects": [
+    { "type": "on_hit_effect", "effect": "minecraft:poison", "duration": 100, "amplifier": 2 },
+    { "type": "attribute", "attribute": "minecraft:generic.max_health", "operation": "multiply_total",
+      "value": [0.15, 0.25], "slot": "offhand" }
+  ],
+  "weight": 10,
+  "companions": []
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `name`, `lore` | Its name and the lines under it (lang keys or plain text). Nothing else is added to the name |
+| `items` | Base items, one is picked (ids, #tags, `mod:*`) |
+| `category` | Optional: the category (slot, silhouette) if the base item has none |
+| `enchantments` | Put on as they are: above the normal max level, and any combination |
+| `effects` | Like an affix's effects. `"slot"` on an effect makes it work from another slot (offhand bonus) |
+| `weight` | How often it's picked among the legendaries; `0` = only drops with its set |
+| `companions` | Other legendaries that drop together with it, as a set |
+
+Built in: Dawnbreaker (with its set piece, Crest of the Dawn), Widow's Kiss, Glass Heart (huge damage, half your max
+health), Gravewarden's Aegis, Skyhook, Deepdelver, Tidebreaker, Windstride and The Hollow Crown (riches, but cursed
+with Binding). `/tarnishedrelics legendary <id>` gives one (and the rest of its set).
 
 ### `names/<any>.json`: words for Unique names
 
@@ -198,11 +256,14 @@ otherwise the id's path.
 {
   "names": ["Ithireal", "Grimfang"],
   "starts": ["Ith", "Mor", "Vael"],
-  "ends": ["ireal", "goth", "andor"]
+  "ends": ["ireal", "goth", "andor"],
+  "titles": ["the Last Light", "Bane of Kings"],
+  "lore": ["{name} was never meant to be found.", "Kings have bled for less."]
 }
 ```
 
-All files are merged. A Unique gets a whole name or a start + end, about half the time each.
+All files are merged. A Unique gets a whole name or a start + end, about half the time each. Generated legendaries
+use the same names, half the time with ", <title>", and lore lines (`{name}` is replaced by the name).
 
 ### `levels/<any>.json`: material levels
 
@@ -248,14 +309,15 @@ profession to let it identify relics.
 ## Commands (op)
 
 - `/tarnishedrelics give [rarity] [category] [count]`: random relics.
+- `/tarnishedrelics legendary <id>`: a specific legendary (and the rest of its set).
 - `/tarnishedrelics identify`: identifies the relic in your main hand.
 - `/tarnishedrelics errors`: lists datapack files that failed to load.
 - `/tarnishedrelics editor`: opens the in-game editor.
 
 ## In-game editor
 
-`/tarnishedrelics editor` (op level 2) opens a screen for everything above: the datapack folders, the mod's tags and
-the config.
+`/tarnishedrelics editor` (op level 2) opens a screen for everything above: the datapack folders (legendaries
+included), the mod's tags and the config.
 
 - **Tabs**: categories, rarities, affixes, names, levels, exclusions, tags, settings, mods. The file tabs list their
   files (from the mod, KubeJS, datapacks...); pick one to edit it as a form. Hover a field's name for what it does.

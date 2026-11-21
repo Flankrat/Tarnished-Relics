@@ -1,0 +1,39 @@
+{
+  "name": "legendary.tarnishedrelics.deepdelver",
+  "lore": [
+    "legendary.tarnishedrelics.deepdelver.lore.0"
+  ],
+  "items": [
+    "minecraft:netherite_pickaxe",
+    "minecraft:diamond_pickaxe"
+  ],
+  "enchantments": {
+    "minecraft:efficiency": 7,
+    "minecraft:fortune": 5,
+    "minecraft:unbreaking": 5
+  },
+  "effects": [
+    {
+      "type": "break_speed",
+      "value": [
+        0.3,
+        0.6
+      ]
+    },
+    {
+      "type": "attribute",
+      "attribute": "minecraft:generic.luck",
+      "operation": "add",
+      "value": [
+        1,
+        2
+      ]
+    },
+    {
+      "type": "passive_effect",
+      "effect": "minecraft:night_vision",
+      "amplifier": 0
+    }
+  ],
+  "weight": 10
+}

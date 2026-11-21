@@ -1,0 +1,18 @@
+{
+  "kind": "hidden",
+  "pool": "drawback",
+  "applies_to": [
+    "*"
+  ],
+  "weight": 10,
+  "group": "drawback",
+  "effects": [
+    {
+      "type": "durability",
+      "value": [
+        -0.5,
+        -0.3
+      ]
+    }
+  ]
+}

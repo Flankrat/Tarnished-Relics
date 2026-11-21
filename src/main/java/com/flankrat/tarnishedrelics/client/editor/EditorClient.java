@@ -27,11 +27,24 @@ public final class EditorClient {
         if (EditorScreen.last != null) EditorScreen.last.saveResult(saved, errors);
     }
 
-    /** Sends every change (one packet per file: client packets are limited to 32 KB), then asks the server to save. */
-    public static void save(EditorModel model, boolean modpack) {
+    /** Largest file that fits in one client packet (32767 bytes, minus the id and length). */
+    private static final int MAX_FILE_BYTES = 32000;
+
+    /**
+     * Sends every change (one packet per file: client packets are limited to 32 KB), then asks the server to save.
+     * Returns the files too big to send (nothing is sent then).
+     */
+    public static List<String> save(EditorModel model, boolean modpack) {
+        List<String> tooBig = new java.util.ArrayList<>();
+        for (Map.Entry<ResourceLocation, String> e : model.changes().entrySet()) {
+            int bytes = e.getValue().getBytes(java.nio.charset.StandardCharsets.UTF_8).length;
+            if (bytes > MAX_FILE_BYTES) tooBig.add(e.getKey() + " is " + bytes / 1024 + " KB; files up to 31 KB can be saved from the editor (split it into two files)");
+        }
+        if (!tooBig.isEmpty()) return tooBig;
         for (Map.Entry<ResourceLocation, String> e : model.changes().entrySet()) {
             TRNetwork.CHANNEL.sendToServer(new TRNetwork.EditorFile(e.getKey(), e.getValue()));
         }
         TRNetwork.CHANNEL.sendToServer(new TRNetwork.EditorCommit(true, modpack));
+        return tooBig;
     }
 }

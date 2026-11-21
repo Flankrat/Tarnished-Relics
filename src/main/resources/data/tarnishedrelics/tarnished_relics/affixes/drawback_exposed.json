@@ -1,0 +1,18 @@
+{
+  "kind": "hidden",
+  "pool": "drawback",
+  "applies_to": [
+    "*"
+  ],
+  "weight": 10,
+  "group": "drawback",
+  "effects": [
+    {
+      "type": "damage_taken",
+      "value": [
+        0.1,
+        0.2
+      ]
+    }
+  ]
+}

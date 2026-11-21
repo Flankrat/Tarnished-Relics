@@ -32,7 +32,11 @@ public final class ItemList {
     private final List<String> exclude;
     private int minLevel = Integer.MIN_VALUE, maxLevel = Integer.MAX_VALUE;
     private TRData owner;   // the data set this list belongs to (null: the current one)
-    private Set<Item> resolved, excludedSet;   // cleared on reload
+    // cleared on reload; volatile because the client and the integrated server can both read the same lists
+    private volatile Set<Item> resolved, excludedSet;
+    // lists being worked out on this thread (per thread: the client and integrated server may resolve at once),
+    // to catch a list that includes itself through @category
+    private static final ThreadLocal<Set<ItemList>> RESOLVING = ThreadLocal.withInitial(java.util.HashSet::new);
 
     private ItemList(List<String> include, List<String> exclude) {
         this.include = include;
@@ -67,15 +71,25 @@ public final class ItemList {
     }
 
     public Set<Item> resolve() {
+        // a list that (through @category) includes itself would loop forever; the inner use sees it as empty
         if (resolved == null) {
-            Set<Item> set = new LinkedHashSet<>();
-            for (String s : include) add(set, s, true);
-            Set<Item> minus = new LinkedHashSet<>();
-            for (String s : exclude) add(minus, s, false);
-            set.removeAll(minus);
-            resolved = set;
+            if (!RESOLVING.get().add(this)) return Set.of();
+            try {
+                resolved = build();
+            } finally {
+                RESOLVING.get().remove(this);
+            }
         }
         return resolved;
+    }
+
+    private Set<Item> build() {
+        Set<Item> set = new LinkedHashSet<>();
+        for (String s : include) add(set, s, true);
+        Set<Item> minus = new LinkedHashSet<>();
+        for (String s : exclude) add(minus, s, false);
+        set.removeAll(minus);
+        return set;
     }
 
     private void add(Set<Item> set, String entry, boolean filter) {
