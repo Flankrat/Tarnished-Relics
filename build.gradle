@@ -64,7 +64,15 @@ repositories {
     }
 }
 
+// compile-only stubs of optional mods' classes (src/stubs), never in the built jar
+sourceSets {
+    stubs {
+        compileClasspath += configurations.minecraft
+    }
+}
+
 dependencies {
+    compileOnly sourceSets.stubs.output
     minecraft "net.minecraftforge:forge:${mc_version}-${forge_version}"
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
     // JEI is optional: only its API is needed to build (to hide the unidentified item from its list)

@@ -7,6 +7,9 @@
   "mixins": [
     "ItemStackMixin"
   ],
+  "client": [
+    "compat.TooltipOverhaulRatingMixin"
+  ],
   "injectors": {
     "defaultRequire": 1
   }
