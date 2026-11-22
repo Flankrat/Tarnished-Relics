@@ -1,6 +1,10 @@
 {
   "item.tarnishedrelics.unidentified": "Unidentified Relic",
   "tarnishedrelics.tooltip.unidentified": "Take it to a blacksmith to identify it.",
+  "tarnishedrelics.tooltip.hold_shift": "Hold Shift to see the rolls",
+  "tarnishedrelics.tooltip.roll": " (%s to %s, %s roll)",
+  "tarnishedrelics.tooltip.set": "Set: %s (%s/%s)",
+  "tarnishedrelics.tooltip.up_to": " (up to %s)",
   "item.tarnishedrelics.unidentified.sword": "Unidentified Sword",
   "item.tarnishedrelics.unidentified.axe": "Unidentified Axe",
   "item.tarnishedrelics.unidentified.pickaxe": "Unidentified Pickaxe",

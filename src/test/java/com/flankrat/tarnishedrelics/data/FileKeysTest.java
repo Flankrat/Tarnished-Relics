@@ -78,4 +78,11 @@ class FileKeysTest {
     void builtInDataHasNoErrors() {
         assertEquals(List.of(), TRData.parseOnly(BuiltInData.files()).errors());
     }
+
+    // a set bonus without the set's other pieces could never work
+    @Test
+    void setEffectsNeedCompanions() {
+        reported("legendaries", "{\"name\": \"Lonely\", \"items\": [\"minecraft:stick\"], \"category\": \"tarnishedrelics:sword\","
+                + " \"set_effects\": [{\"type\": \"lifesteal\", \"value\": 0.1}]}", "companions");
+    }
 }

@@ -42,5 +42,24 @@
   "weight": 10,
   "companions": [
     "tarnishedrelics:dawnbreaker_crest"
+  ],
+  "set_effects": [
+    {
+      "type": "damage_vs",
+      "target": "#tarnishedrelics:undead",
+      "value": [
+        0.25,
+        0.4
+      ]
+    },
+    {
+      "type": "attribute",
+      "attribute": "minecraft:generic.max_health",
+      "operation": "add",
+      "value": [
+        4,
+        6
+      ]
+    }
   ]
 }

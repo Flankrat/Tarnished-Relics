@@ -157,7 +157,8 @@ public final class Schema {
                 f("enchantments", Kind.MAP_INT, Pick.ENCHANTMENT, "Put on as they are: above the normal max level, and any combination", JsonObject::new),
                 f("effects", Kind.EFFECTS, Pick.NONE, "What it does; value ranges are rolled once per copy", JsonArray::new),
                 f("weight", Kind.INT, Pick.NONE, "How often it's picked among the legendaries (0 = only drops with its set)", () -> num(10)),
-                f("companions", Kind.LIST, Pick.LEGENDARY, "Other legendaries that drop with it, as a set", JsonArray::new)));
+                f("companions", Kind.LIST, Pick.LEGENDARY, "Other legendaries that drop with it, as a set", JsonArray::new),
+                f("set_effects", Kind.EFFECTS, Pick.NONE, "Set bonus (needs companions): works while the whole set is in its slots; ranges use this one's roll", JsonArray::new)));
         FILES.put("affixes", List.of(
                 f("kind", Kind.ENUM, Pick.NONE, "prefix/suffix put a word in the name; hidden adds none", () -> str("prefix"), "prefix", "suffix", "hidden"),
                 f("name", Kind.TEXT, Pick.NONE, "Name word (lang key or plain text), e.g. Champion's / of the Bear", () -> str("New")),
