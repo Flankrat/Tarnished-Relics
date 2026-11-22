@@ -295,10 +295,11 @@ final class EditorForm {
         place(head, Button.builder(t("add_entry", "+ Add"), b -> {
             if (f.pick() != Pick.NONE) {
                 host.open(new PickerScreen(host.screen(), f.pick(), model, val -> {
-                    arr.add(val);
+                    // several can be picked at once; one already in the list isn't added a second time
+                    if (!arr.contains(new JsonPrimitive(val))) arr.add(val);
                     obj.add(key, arr);
                     host.restructure();
-                }));
+                }, true));
             } else {
                 arr.add("");
                 obj.add(key, arr);
@@ -346,7 +347,7 @@ final class EditorForm {
                 map.add(uniqueKey(map, k), f.kind() == Kind.MAP_INT ? new JsonPrimitive(1) : rangeJson(1, 2));
                 host.restructure();
             };
-            if (f.pick() != Pick.NONE) host.open(new PickerScreen(host.screen(), f.pick(), model, add));
+            if (f.pick() != Pick.NONE) host.open(new PickerScreen(host.screen(), f.pick(), model, add, true));
             else add.accept("new");
         }).bounds(0, 0, 50, 18).build(), valueX(indent));
         removeField(head, obj, key);
@@ -413,7 +414,7 @@ final class EditorForm {
         place(head, Button.builder(t("add_entry", "+ Add"), b -> host.open(new PickerScreen(host.screen(), Pick.RARITY, model, k -> {
             obj.getAsJsonObject(key).add(uniqueKey(obj.getAsJsonObject(key), k), new JsonPrimitive(10));
             host.restructure();
-        }))).bounds(0, 0, 50, 18).build(), valueX(indent) + 92);
+        }, true))).bounds(0, 0, 50, 18).build(), valueX(indent) + 92);
         removeField(head, obj, key);
         mapEntries(v.getAsJsonObject(), Pick.RARITY, false, indent + 12);
     }
@@ -447,7 +448,7 @@ final class EditorForm {
         else place(head, Button.builder(t("add_entry", "+ Add"), b -> host.open(new PickerScreen(host.screen(), Pick.RARITY, model, k -> {
             obj.getAsJsonObject(key).add(uniqueKey(obj.getAsJsonObject(key), k), rangeJson(0.1, 0.2));
             host.restructure();
-        }))).bounds(0, 0, 50, 18).build(), x);
+        }, true))).bounds(0, 0, 50, 18).build(), x);
         removeField(head, obj, key);
         if (mode == 2) mapEntries(v.getAsJsonObject(), Pick.RARITY, true, indent + 12);
     }
