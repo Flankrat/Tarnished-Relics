@@ -150,6 +150,8 @@
   "tarnishedrelics.editor.pick": "Pick a value",
   "tarnishedrelics.editor.search": "Search...",
   "tarnishedrelics.editor.select": "Select",
+  "tarnishedrelics.editor.select.multi_tip": "Shift-click entries to pick several, then Select adds them all",
+  "tarnishedrelics.editor.pick.multi_hint": "Shift-click to pick several",
   "tarnishedrelics.editor.exclude_uncraftable": "Exclude no-recipe items",
   "tarnishedrelics.editor.exclude_uncraftable.tip": "Excludes every relic item in this list that no recipe makes. Those are often for a mod that isn't installed (e.g. aluminum weapons with no aluminum)."
 }

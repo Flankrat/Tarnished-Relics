@@ -6,6 +6,7 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.CycleButton;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.ObjectSelectionList;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
@@ -19,6 +20,10 @@ import java.util.function.Consumer;
 /**
  * Searchable list to pick an id: items (with icons), tags, whole mods, categories... depending on the field.
  * Filters by text (matches the id or the shown name) and by mod. Double-click or Select picks; Esc goes back.
+ * <p>
+ * When the picker adds entries (a list's "+ Add"), shift-click marks several values and Select adds them all,
+ * in the order they were marked. Marks stay while the search and filters change, so values from different
+ * searches or mods can be added in one go.
  */
 public class PickerScreen extends Screen {
 
@@ -27,6 +32,10 @@ public class PickerScreen extends Screen {
     private final Screen parent;
     private final Schema.Pick pick;
     private final Consumer<String> onPick;
+    // true when the caller adds entries, so picking several at once makes sense (false: replacing one value)
+    private final boolean multi;
+    private final PickerMarks marks = new PickerMarks();
+    private Button selectButton;
     private final List<Lookup.Choice> all;
     private final List<String> mods = new ArrayList<>();
     private final List<String> kinds = new ArrayList<>();
@@ -36,11 +45,18 @@ public class PickerScreen extends Screen {
     private EditBox searchBox;
     private ChoiceList list;
 
+    /** Picks one value (replacing a value in place). */
     public PickerScreen(Screen parent, Schema.Pick pick, EditorModel model, Consumer<String> onPick) {
+        this(parent, pick, model, onPick, false);
+    }
+
+    /** With multi, shift-click marks several values and onPick is called once for each, in the order marked. */
+    public PickerScreen(Screen parent, Schema.Pick pick, EditorModel model, Consumer<String> onPick, boolean multi) {
         super(Component.translatableWithFallback("tarnishedrelics.editor.pick", "Pick a value"));
         this.parent = parent;
         this.pick = pick;
         this.onPick = onPick;
+        this.multi = multi;
         this.all = Lookup.choices(pick, model);
         Set<String> m = new LinkedHashSet<>();
         Set<String> k = new LinkedHashSet<>();
@@ -81,8 +97,12 @@ public class PickerScreen extends Screen {
                 }));
         list = new ChoiceList(minecraft, w, height, 46, height - 32, x);
         addRenderableWidget(list);
-        addRenderableWidget(Button.builder(Component.translatableWithFallback("tarnishedrelics.editor.select", "Select"), b -> choose())
+        selectButton = addRenderableWidget(Button.builder(selectLabel(), b -> choose())
                 .bounds(width / 2 - 104, height - 26, 100, 20).build());
+        if (multi) {
+            selectButton.setTooltip(Tooltip.create(Component.translatableWithFallback("tarnishedrelics.editor.select.multi_tip",
+                    "Shift-click entries to pick several, then Select adds them all")));
+        }
         addRenderableWidget(Button.builder(Component.translatableWithFallback("gui.cancel", "Cancel"), b -> onClose())
                 .bounds(width / 2 + 4, height - 26, 100, 20).build());
         refill();
@@ -116,11 +136,24 @@ public class PickerScreen extends Screen {
         }
     }
 
+    /** "Select", or "Select (3)" once values are marked. */
+    private Component selectLabel() {
+        Component select = Component.translatableWithFallback("tarnishedrelics.editor.select", "Select");
+        return marks.size() == 0 ? select : select.copy().append(" (" + marks.size() + ")");
+    }
+
+    /** Shift-click on a row (multi pickers only): marks or unmarks it. */
+    private void toggleMark(Lookup.Choice c) {
+        marks.toggle(c.value());
+        selectButton.setMessage(selectLabel());
+    }
+
     private void choose() {
         ChoiceList.Entry e = list.getSelected();
-        if (e == null) return;
+        List<String> picked = marks.picked(e == null ? null : e.choice.value());
+        if (picked.isEmpty()) return;
         Minecraft.getInstance().setScreen(parent);
-        onPick.accept(e.choice.value());
+        for (String value : picked) onPick.accept(value);   // one call per value, in the order they were marked
     }
 
     @Override
@@ -143,6 +176,10 @@ public class PickerScreen extends Screen {
         g.fill(0, 0, width, height, 0xF0141418);   // nearly opaque: the world behind made the list hard to read
         super.render(g, mouseX, mouseY, partial);
         g.drawCenteredString(font, title.copy().append(" (" + kindName(pick.name().toLowerCase(Locale.ROOT)) + ")"), width / 2, 8, 0xFFFFFF);
+        if (multi) {   // where the shift-click trick is explained without hovering anything
+            g.drawString(font, Component.translatableWithFallback("tarnishedrelics.editor.pick.multi_hint", "Shift-click to pick several"),
+                    width / 2 + 108, height - 20, 0x909090, false);
+        }
     }
 
     /** The scrolling result list. */
@@ -184,13 +221,20 @@ public class PickerScreen extends Screen {
 
             @Override
             public void render(GuiGraphics g, int index, int top, int left, int w, int h, int mx, int my, boolean hovered, float partial) {
+                boolean marked = marks.isMarked(choice.value());
+                if (marked) g.fill(left, top - 1, left + w, top + h + 1, 0x4020A020);   // green tint behind marked rows
                 if (!choice.icon().isEmpty()) g.renderItem(choice.icon(), left + 2, top + 1);
-                g.drawString(font, choice.label(), left + 22, top + 2, 0xFFFFFF, false);
+                g.drawString(font, choice.label(), left + 22, top + 2, marked ? 0x55FF55 : 0xFFFFFF, false);
                 g.drawString(font, choice.value(), left + 22, top + 11, 0x909090, false);
             }
 
             @Override
             public boolean mouseClicked(double mx, double my, int button) {
+                if (multi && Screen.hasShiftDown()) {   // shift-click marks it for a multi-pick instead of choosing it
+                    toggleMark(choice);
+                    lastClick = 0;   // so a quick second shift-click toggles again instead of counting as a double-click
+                    return true;
+                }
                 setSelected(this);
                 long now = System.currentTimeMillis();
                 if (now - lastClick < 300) choose();   // double-click
