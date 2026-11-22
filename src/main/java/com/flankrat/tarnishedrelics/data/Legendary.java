@@ -30,14 +30,18 @@ import static com.flankrat.tarnishedrelics.data.JsonFields.intOr;
  *                                               normally can't go together
  *   "effects": [ ... ],                         like an affix's effects (see Effect); ranges are rolled per copy
  *   "weight": 10,                               how often it's picked among the legendaries (0 = only as a companion)
- *   "companions": ["tarnishedrelics:dawnbreaker_crest"]   other legendaries that drop with it, as a set
+ *   "companions": ["tarnishedrelics:dawnbreaker_crest"],  other legendaries that drop with it, as a set
+ *   "set_effects": [ ... ]                      optional, needs companions: effects that work while the whole set
+ *                                               (this one and its companions) is in its slots; values use this
+ *                                               one's roll
  * }
  * </pre>
  * The effects are kept as a hidden affix with the id {@code <namespace>:legendary/<name>}, so they work and show in
  * tooltips exactly like affix effects.
  */
 public record Legendary(ResourceLocation id, ItemList items, @Nullable ResourceLocation category, String name, List<String> lore,
-                        Map<String, Integer> enchantments, int weight, List<ResourceLocation> companions, Affix affix) {
+                        Map<String, Integer> enchantments, int weight, List<ResourceLocation> companions, Affix affix,
+                        List<Effect> setEffects) {
 
     /** Affix pool no rarity rolls from (so a legendary's effects never turn up as a normal affix). */
     public static final String POOL = "handmade_legendary";
@@ -58,8 +62,12 @@ public record Legendary(ResourceLocation id, ItemList items, @Nullable ResourceL
         ResourceLocation affixId = new ResourceLocation(id.getNamespace(), "legendary/" + id.getPath());
         Affix affix = new Affix(affixId, "hidden", null, POOL, List.of("*"), 0, Map.of(), null, effects);
         List<ResourceLocation> companions = Conditions.strings(o.get("companions")).stream().map(ResourceLocation::new).toList();
+        List<Effect> setEffects = new ArrayList<>();
+        if (o.has("set_effects")) for (JsonElement e : o.getAsJsonArray("set_effects")) setEffects.add(Effect.parse(e.getAsJsonObject()));
+        // a set bonus is for wearing the set together: one piece alone is no set
+        if (!setEffects.isEmpty() && companions.isEmpty()) throw new JsonParseException("set_effects needs companions (the set's other pieces)");
         return new Legendary(id, ItemList.parse(o.get("items"), o.get("exclude")),
                 idOrNull(o, "category"),
-                o.get("name").getAsString(), lore, enchants, intOr(o, "weight", 10), companions, affix);
+                o.get("name").getAsString(), lore, enchants, intOr(o, "weight", 10), companions, affix, List.copyOf(setEffects));
     }
 }

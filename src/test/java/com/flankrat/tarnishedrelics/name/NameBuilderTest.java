@@ -81,4 +81,17 @@ class NameBuilderTest {
         Component c = NameBuilder.build(relic(new CompoundTag()), Component.literal("Iron Sword"));
         assertEquals(0x5555FF, c.getStyle().getColor().getValue());
     }
+
+    // decoded prefixes are remembered: the same name every time, and changing one handed out never changes the next
+    @Test
+    void rememberedPrefixIsTheSameAndSafe() {
+        String json = "{\"text\":\"Notched\",\"color\":\"aqua\"}";
+        Component first = NameBuilder.prefix(json);
+        assertEquals("Notched", first.getString());
+        ((net.minecraft.network.chat.MutableComponent) first).append("!!!");
+        Component second = NameBuilder.prefix(json);
+        assertEquals("Notched", second.getString(), "a change to an earlier copy showed up");
+        assertNull(NameBuilder.prefix("{not json"));
+        assertNull(NameBuilder.prefix("{not json"), "a bad prefix the second time");
+    }
 }

@@ -9,6 +9,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.MobType;
 import net.minecraft.world.level.biome.Biome;
 
 import javax.annotation.Nullable;
@@ -127,11 +128,26 @@ public final class Conditions {
         }
         if (!targets.isEmpty()) {
             if (target == null) return false;
-            var holder = target.getType().builtInRegistryHolder();
-            if (targets.stream().noneMatch(t -> t.matches(holder))) return false;
+            if (targets.stream().noneMatch(t -> isTarget(t, target))) return false;
         }
         if (targetInAir != null && (target == null || inAir(target) != targetInAir)) return false;
         return true;
+    }
+
+    private static final ResourceLocation UNDEAD = new ResourceLocation("tarnishedrelics", "undead");
+    private static final ResourceLocation ARTHROPODS = new ResourceLocation("tarnishedrelics", "arthropods");
+
+    /**
+     * True if the mob is this target (an entity id or #tag). #tarnishedrelics:undead and #tarnishedrelics:arthropods
+     * also take every mob the game itself counts as undead or an arthropod (the mob type vanilla's Smite and Bane of
+     * Arthropods check): the tags only list vanilla's, so mods' zombies, skeletons, liches and spiders didn't count.
+     */
+    public static boolean isTarget(IdOrTag<EntityType<?>> t, LivingEntity mob) {
+        if (t.matches(mob.getType().builtInRegistryHolder())) return true;
+        if (!t.isTag()) return false;
+        if (t.id().equals(UNDEAD)) return mob.getMobType() == MobType.UNDEAD;
+        if (t.id().equals(ARTHROPODS)) return mob.getMobType() == MobType.ARTHROPOD;
+        return false;
     }
 
     /** In the air: not standing on anything, not in water or lava, not riding (flying, jumping, falling, knocked up). */

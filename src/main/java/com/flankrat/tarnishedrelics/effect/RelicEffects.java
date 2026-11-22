@@ -1,6 +1,7 @@
 package com.flankrat.tarnishedrelics.effect;
 
 import com.flankrat.tarnishedrelics.TarnishedRelics;
+import com.flankrat.tarnishedrelics.data.Conditions;
 import com.flankrat.tarnishedrelics.data.Effect;
 import com.flankrat.tarnishedrelics.data.IdOrTag;
 import com.flankrat.tarnishedrelics.mixin.AbstractArrowAccessor;
@@ -66,20 +67,25 @@ public final class RelicEffects {
     record Active(Effect effect, double value, ItemStack stack) {
     }
 
-    /** Every working effect of the given type on everything this entity holds or wears. */
+    /**
+     * Every working effect of the given type on everything this entity holds or wears, plus complete legendary sets'
+     * bonuses (SetBonuses).
+     */
     static List<Active> active(LivingEntity entity, Effect.Type type) {
         List<Active> out = new ArrayList<>();
         for (EquipmentSlot slot : EquipmentSlot.values()) {
             ItemStack stack = entity.getItemBySlot(slot);
             collect(stack, slot, type, out);
         }
+        SetBonuses.collect(entity, type, out::add);   // and the bonuses of complete legendary sets
         return out;
     }
 
     /**
      * The effects that count for a hit the attacker made. Usually everything they hold and wear. A relic weapon that
      * was thrown (a trident, a modded javelin) hits with its own effects, as if it were in its slot, plus the
-     * armor's; what's in the hands then didn't make that hit, so it doesn't count.
+     * armor's; what's in the hands then didn't make that hit, so it doesn't count (nor a set bonus: the thrown piece
+     * isn't in its slot).
      */
     static List<Active> forHit(LivingEntity attacker, DamageSource source, Effect.Type type) {
         ItemStack thrown = thrownRelic(source, attacker);
@@ -139,6 +145,7 @@ public final class RelicEffects {
     static Gear gear(LivingEntity entity) {
         Gear g = new Gear(new EnumMap<>(Effect.Type.class));
         for (EquipmentSlot slot : EquipmentSlot.values()) collect(entity.getItemBySlot(slot), slot, null, g::add);
+        SetBonuses.collect(entity, null, g::add);
         return g;
     }
 
@@ -210,9 +217,8 @@ public final class RelicEffects {
      */
     private static float dealt(float amount, Gear gear, LivingEntity attacker, LivingEntity victim, boolean projectile, RandomSource random) {
         // damage_vs: +/- % damage against matching targets (or everything)
-        var holder = victim.getType().builtInRegistryHolder();
         amount *= (float) multiplier(sum(gear.of(Effect.Type.DAMAGE_VS),
-                e -> e.targets.isEmpty() || e.targets.stream().anyMatch(t -> t.matches(holder)), attacker, victim, random));
+                e -> e.targets.isEmpty() || e.targets.stream().anyMatch(t -> Conditions.isTarget(t, victim)), attacker, victim, random));
         // crits for a projectile hit (an arrow or bolt, or a thrown relic): Forge's crit event (onCrit) only fires
         // for melee attacks, so crit_chance and crit_damage did nothing on bows, crossbows and thrown relics
         if (projectile) amount *= projectileCrit(gear, attacker, victim, random);

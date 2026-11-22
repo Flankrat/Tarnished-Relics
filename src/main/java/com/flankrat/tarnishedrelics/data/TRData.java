@@ -154,7 +154,7 @@ public final class TRData {
                     "color", "unique_name", "legendary", "handmade_chance", "signature_enchantments", "enchantment_bonus",
                     "drawback_chance", "drawback_pool", "lore_lines", "quality", "loot_tables"),
             "affixes", Set.of("kind", "name", "pool", "applies_to", "weight", "group", "effects"),
-            "legendaries", Set.of("name", "lore", "items", "exclude", "category", "enchantments", "effects", "weight", "companions"),
+            "legendaries", Set.of("name", "lore", "items", "exclude", "category", "enchantments", "effects", "weight", "companions", "set_effects"),
             "names", Set.of("names", "starts", "ends", "titles", "lore"),
             "levels", Set.of("items", "keywords", "default"),
             "exclusions", Set.of("items"));

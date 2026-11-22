@@ -8,7 +8,8 @@ into the real item, with a tier, random affixes and a name like **"Champion's Ir
 Unique, **"Sturdy Netherite Pickaxe of Ithireal"**. The rarest are **Legendaries**: named, with lore, enchantments above
 their normal maximum and effects no ordinary relic gets.
 
-- Four tiers (Magic, Rare, Unique, Legendary), 76 built-in affixes and 10 hand-made legendaries.
+- Four tiers (Magic, Rare, Unique, Legendary), 76 built-in affixes and 10 hand-made legendaries, including a set with
+  a set bonus.
 - Weapons, armor, tools and shields from **other mods become relics automatically**, by what they are.
 - Everything is **datapack-driven**: item categories, tiers, affixes and their effects, names, material levels.
 - An **in-game editor** (`/tarnishedrelics editor`) changes all of it without touching a file, for one world or a
@@ -28,7 +29,8 @@ their normal maximum and effects no ordinary relic gets.
    replaces the relic in your hand, and the smith earns trade XP (they can level up from it).
 4. **Use it.** Affixes work while the item is in its own slot (a sword in the main hand, a helmet on your head). The
    tooltip shows the tier and every effect; attribute bonuses show in the normal stat lines. An effect that only works
-   some of the time (a chance, at night, below 30% health...) says "(sometimes)".
+   some of the time (a chance, at night, below 30% health...) says "(sometimes)". Hold **Shift** to see each rolled
+   number's range and how good the roll is ("+3.4 Attack Damage (+2 to +5, 47% roll)").
 
 ## Tiers
 
@@ -44,7 +46,8 @@ normal ones, a generated name and lore ("Grimfang, the Last Light"), 2-3 enchant
 levels above their normal maximum (any that go on the item, even two that normally exclude each other, like Sharpness
 and Smite), and a 35% chance of a drawback. The other 30% are **hand-made**: Dawnbreaker (with its set piece, Crest of
 the Dawn), Widow's Kiss, Glass Heart (huge damage, half your max health), Gravewarden's Aegis, Skyhook, Deepdelver,
-Tidebreaker, Windstride and The Hollow Crown (riches, but cursed with Binding).
+Tidebreaker, Windstride and The Hollow Crown (riches, but cursed with Binding). Dawnbreaker and its Crest are a **set**:
+wearing both (the sword in hand, the crest on your head) adds more damage against undead and extra health.
 
 ## Built-in affixes
 
@@ -344,6 +347,7 @@ one roll for all its value ranges).
 | `effects` | Like an affix's effects |
 | `weight` | How often it's picked among the hand-made legendaries; `0` = only drops with its set |
 | `companions` | Other legendaries that drop together with it, as a set |
+| `set_effects` | Optional, needs `companions`: a set bonus. Effects (like `effects`) that work while the whole set, this legendary and its companions, is on, each piece in its own slot. Values use this legendary's roll. Attributes in a set bonus go on the player once a second while the set is complete |
 
 ### `names/<any>.json`: words for generated names
 
@@ -396,10 +400,11 @@ In `data/tarnishedrelics/tags/` (any pack can add to them, or use the editor's T
 | `villager_profession/weaponsmiths` | weaponsmith | sword, axe, trident, weapon |
 | `villager_profession/fletchers` | fletcher | bow, crossbow, ranged |
 | `villager_profession/blacksmiths` | armorer, weaponsmith, toolsmith | categories without `smiths` (a pack's own) |
-| `entity_types/undead`, `entity_types/arthropods` | vanilla's undead and arthropods | of Smiting, of the Bane and other damage bonuses |
+| `entity_types/undead`, `entity_types/arthropods` | vanilla's undead and arthropods, and every mob the game counts as undead or an arthropod (mods' too, the same check as Smite and Bane of Arthropods) | of Smiting, of the Bane and other damage bonuses |
 | `damage_type/melee` | see Melee hits | what counts as a melee hit |
 
-Add a mod's smith to a profession tag to let it identify that kind of relic, and a mod's undead to `undead`.
+Add a mod's smith to a profession tag to let it identify that kind of relic. A mod's undead only needs adding to
+`undead` if the mod doesn't mark it as undead itself.
 
 ### Errors
 

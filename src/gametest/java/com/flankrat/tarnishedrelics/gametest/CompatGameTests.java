@@ -165,4 +165,43 @@ public class CompatGameTests {
             // Infernal Mobs isn't installed
         }
     }
+
+    // Mods' undead and arthropods count for "vs undead / arthropods" bonuses (of Smiting, of the Bane) like vanilla's:
+    // the game's own mob type (the one Smite and Bane of Arthropods use) counts, not only the tag, which lists vanilla's
+    // mobs. Every mod mob in the pack that is undead or an arthropod, hit by a sword of Smiting / of the Bane, takes
+    // more damage than 10.
+    @GameTest(template = "gametest/empty", batch = BATCH, timeoutTicks = 400)
+    public static void moddedUndeadAndArthropodsCount(GameTestHelper helper) {
+        ServerPlayer p = TestUtil.player(helper);
+        StringBuilder missed = new StringBuilder();
+        int checked = 0;
+        try {
+            ItemStack smiting = TestUtil.relic(Items.STONE_SWORD, "rare", "sword", "mainhand", "tarnishedrelics:of_smiting", 0.5);
+            ItemStack bane = TestUtil.relic(Items.STONE_SWORD, "rare", "sword", "mainhand", "tarnishedrelics:of_the_bane", 0.5);
+            for (EntityType<?> type : ForgeRegistries.ENTITY_TYPES) {
+                ResourceLocation id = ForgeRegistries.ENTITY_TYPES.getKey(type);
+                if (id == null || id.getNamespace().equals("minecraft")) continue;
+                LivingEntity mob;
+                try {
+                    if (!(type.create(helper.getLevel()) instanceof LivingEntity l)) continue;
+                    mob = l;
+                } catch (Throwable t) {
+                    continue;   // some mods' mobs can't be made outside their own spawning
+                }
+                var kind = mob.getMobType();
+                ItemStack sword = kind == net.minecraft.world.entity.MobType.UNDEAD ? smiting : kind == net.minecraft.world.entity.MobType.ARTHROPOD ? bane : null;
+                if (sword == null) continue;
+                checked++;
+                p.setItemInHand(InteractionHand.MAIN_HAND, sword);
+                var hurt = new net.minecraftforge.event.entity.living.LivingHurtEvent(mob, p.damageSources().playerAttack(p), 10);
+                net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(hurt);
+                if (hurt.getAmount() <= 10.001F && missed.length() < 1500) missed.append(id).append(" (").append(kind == net.minecraft.world.entity.MobType.UNDEAD ? "undead" : "arthropod").append("); ");
+            }
+            TarnishedRelics.LOGGER.info("[Tarnished Relics test] modded undead/arthropods checked: {}", checked);
+            helper.assertTrue(missed.isEmpty(), "mod mobs that didn't take the bonus: " + missed);
+            helper.succeed();
+        } finally {
+            TestUtil.remove(p);
+        }
+    }
 }
