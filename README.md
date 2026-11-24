@@ -124,6 +124,28 @@ Legendaries keep their own name with nothing added. The whole name is in the tie
 
 The editor's Settings tab edits the same file.
 
+## A relic for sure: the `tarnishedrelics:relic` loot entry
+
+The config's chance is the same for every loot table. To make a loot table always drop a relic (a boss, a quest
+reward chest), put a `tarnishedrelics:relic` entry in one of its pools. It makes a relic exactly like the ones found
+in loot, usually one, or a legendary with the rest of its set:
+
+```json
+{ "rolls": 1, "entries": [ { "type": "tarnishedrelics:relic" } ] }
+```
+
+`rarities` limits it to some tiers, picked among them by their usual weights (and Luck), e.g. rare or better:
+
+```json
+{ "type": "tarnishedrelics:relic",
+  "rarities": ["tarnishedrelics:rare", "tarnishedrelics:unique", "tarnishedrelics:legendary"] }
+```
+
+It takes the other entry fields too (`weight`, `quality`, `conditions`, `functions`), so it can be one choice among
+others in a pool, or depend on a condition (one entry for strong mobs, another for the rest). A tier's own
+`loot_tables` limit still applies. Tiers that don't exist are skipped with a warning in the log; when none of the
+listed tiers can make anything, the entry drops nothing. It works whether or not `[loot]` is enabled.
+
 ## Commands (op level 2)
 
 - `/tarnishedrelics give [rarity] [category] [count]`: random relics.

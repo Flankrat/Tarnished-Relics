@@ -14,6 +14,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.storage.loot.LootContext;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import javax.annotation.Nullable;
 
@@ -90,6 +91,19 @@ public final class Roller {
         return out;
     }
 
+    /**
+     * Relics for one drop like {@link #generateAll}, but the rarity is picked only among the given ones (by their
+     * weights, Luck and loot table rules as usual). Used by the "tarnishedrelics:relic" loot entry's "rarities" list,
+     * e.g. a boss that always drops rare or better. Empty when none of them can make anything.
+     */
+    public static List<ItemStack> generateAmong(RandomSource random, Collection<Rarity> among,
+                                                RelicGeneratedEvent.Source source, @Nullable LootContext context) {
+        TRData data = TRData.get();
+        float luck = context != null ? context.getLuck() : 0;
+        Rarity rarity = pickRarity(data, random, null, luck, context != null ? context.getQueriedLootTableId() : null, among);
+        return rarity == null ? List.of() : generateAll(random, rarity, null, null, source, context);
+    }
+
     @Nullable
     private static Rarity legendaryRarity(TRData data) {
         for (Rarity r : data.rarities().values()) if (r.legendary()) return r;
@@ -139,8 +153,15 @@ public final class Roller {
     @Nullable
     private static Rarity pickRarity(TRData data, RandomSource random, @Nullable Category category, float luck,
                                      @Nullable ResourceLocation table) {
+        return pickRarity(data, random, category, luck, table, data.rarities().values());
+    }
+
+    // the same, choosing only among the given rarities
+    @Nullable
+    private static Rarity pickRarity(TRData data, RandomSource random, @Nullable Category category, float luck,
+                                     @Nullable ResourceLocation table, Collection<Rarity> among) {
         List<Rarity> usable = new ArrayList<>();
-        for (Rarity r : data.rarities().values()) {
+        for (Rarity r : among) {
             if (r.weightWithLuck(luck) <= 0 || !r.allowsTable(table)) continue;
             if (canMake(data, r, category)) usable.add(r);
         }
