@@ -61,7 +61,8 @@ public class RelicLootModifier extends LootModifier {
             LootContextParamSets.GIFT, RelicGeneratedEvent.Source.GIFT,
             LootContextParamSets.PIGLIN_BARTER, RelicGeneratedEvent.Source.BARTER);
 
-    private static RelicGeneratedEvent.Source source(LootContext context) {
+    // package-private: RelicEntry reports the same sources
+    static RelicGeneratedEvent.Source source(LootContext context) {
         return SOURCES.getOrDefault(params(context), RelicGeneratedEvent.Source.OTHER_LOOT);
     }
 
