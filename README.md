@@ -119,10 +119,24 @@ Legendaries keep their own name with nothing added. The whole name is in the tie
 | `[loot] lootTypes` | `["chest"]` | Kinds of loot that can get one: `chest`, `entity` (mob drops: rolled on every kill, so even a few percent adds up fast), `fishing`, `archaeology`, `gift`, `barter`. Any other word is refused (the default comes back) |
 | `[loot] entityNeedsPlayerKill` | `true` | With `entity`: mob drops only count for kills by a player (no mob farms) |
 | `[loot] excludeTables` | the spawn bonus chest | Loot tables that never get relics (`*` wildcards) |
+| `[loot] luckRollBonus` | `0.25` | How much each point of the looter's Luck pushes a found relic's affix values toward their best end (Bad Luck: toward their worst). At `0.25`, Luck 1 makes the average roll about 56% instead of 50%, Luck 4 about 67%. `0` turns it off. See "Luck" below |
 | `[identify] confirmSeconds` | `10` | Time to use the relic on the smith again to pay |
 | `[display] showRarityColorUnidentified` | `false` | Unidentified relics show their tier's color as a hint. On a server, the server's value counts for every player |
 
 The editor's Settings tab edits the same file.
+
+### Luck
+
+The looter's Luck (Luck potions, luck gear, Luck of the Sea when fishing; vanilla passes the killer's Luck for mob
+drops and the opener's for chests) counts twice when a relic drops:
+
+- **Rarity**: each rarity's `quality` adds that much weight per point of Luck (the built-in Legendary has 1).
+- **Affix values**: every rolled value is pushed toward its good end by `luckRollBonus` per point. The good end
+  depends on the effect: a higher number for most (more damage, a smaller penalty), a lower one for `damage_taken`.
+  An affix's effects share one roll, so it goes the way most of them agree on, and an affix whose effects pull
+  opposite ways is left alone. Drawbacks get milder the same way. Bad Luck does the reverse.
+
+Relics made by commands have no looter, so Luck doesn't count for them.
 
 ## A relic for sure: the `tarnishedrelics:relic` loot entry
 

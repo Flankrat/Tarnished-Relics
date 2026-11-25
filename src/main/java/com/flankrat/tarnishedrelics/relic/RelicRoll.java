@@ -1,5 +1,6 @@
 package com.flankrat.tarnishedrelics.relic;
 
+import com.flankrat.tarnishedrelics.TRConfig;
 import com.flankrat.tarnishedrelics.api.RelicGeneratedEvent;
 import com.flankrat.tarnishedrelics.data.Affix;
 import com.flankrat.tarnishedrelics.data.Category;
@@ -63,7 +64,7 @@ record RelicRoll(TRData data, RandomSource random, RelicGeneratedEvent.Source so
                 if (a == null) break;   // nothing left that fits
                 taken.add(a.id());
                 if (a.group() != null) groups.add(a.group());
-                affixes.add(affixEntry(a.id()));
+                affixes.add(affixEntry(a, rarity));
                 if (a.nameKey() != null) {
                     if (a.kind().equals("prefix") && !relic.contains("Prefix")) relic.putString("Prefix", a.nameKey());
                     if (a.kind().equals("suffix") && !relic.contains("Suffix")) relic.putString("Suffix", a.nameKey());
@@ -87,7 +88,7 @@ record RelicRoll(TRData data, RandomSource random, RelicGeneratedEvent.Source so
                                     Set<ResourceLocation> taken, Set<String> groups) {
         if (random.nextDouble() < rarity.drawbackChance()) {
             Affix drawback = pickAffix(rarity, cat, rarity.drawbackPool(), taken, groups);
-            if (drawback != null) affixes.add(affixEntry(drawback.id()));
+            if (drawback != null) affixes.add(affixEntry(drawback, rarity));
         }
         String name = data.names().generateLegendary(random);
         relic.putString("LegendaryName", name);
@@ -140,7 +141,7 @@ record RelicRoll(TRData data, RandomSource random, RelicGeneratedEvent.Source so
         relic.putString("LegendaryName", l.name());
         relic.put("Lore", strings(l.lore()));
         ListTag affixes = new ListTag();
-        affixes.add(affixEntry(l.affix().id()));
+        affixes.add(affixEntry(l.affix(), rarity));
         relic.put("Affixes", affixes);
         return finish(real, relic, rarity, cat);
     }
@@ -155,11 +156,14 @@ record RelicRoll(TRData data, RandomSource random, RelicGeneratedEvent.Source so
         return relic;
     }
 
-    // one rolled affix: its id and a 0-1 roll
-    private CompoundTag affixEntry(ResourceLocation id) {
+    // one rolled affix: its id and a 0-1 roll, pushed toward its good end by the looter's Luck (see LuckRoll)
+    private CompoundTag affixEntry(Affix affix, Rarity rarity) {
         CompoundTag entry = new CompoundTag();
-        entry.putString("Id", id.toString());
-        entry.putFloat("Roll", random.nextFloat());
+        entry.putString("Id", affix.id().toString());
+        float roll = random.nextFloat();
+        float luck = context != null ? context.getLuck() : 0;   // commands and the editor have no looter: no Luck
+        if (luck != 0) roll = LuckRoll.apply(roll, luck, TRConfig.LUCK_ROLL_BONUS.get(), LuckRoll.direction(affix, rarity.id()));
+        entry.putFloat("Roll", roll);
         return entry;
     }
 

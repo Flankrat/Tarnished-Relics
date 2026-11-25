@@ -45,6 +45,7 @@ public class ConfigGameTests {
         JsonArray tables = new JsonArray();
         tables.add("minecraft:chests/test_" + n);
         o.add("excludeTables", tables);
+        o.addProperty("luckRollBonus", 0.5 + n * 0.05);
         o.addProperty("confirmSeconds", 20 + n);
         o.addProperty("showRarityColorUnidentified", n % 2 == 0);
         return o;

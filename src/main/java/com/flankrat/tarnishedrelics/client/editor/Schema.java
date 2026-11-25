@@ -85,6 +85,7 @@ public final class Schema {
             f("lootTypes", Kind.LIST, Pick.LOOT_TYPE, "Kinds of loot that can get one: chest, entity (mob drops: rolled on every kill, so it adds up fast), fishing, archaeology, gift, barter", () -> arr("chest")),
             f("entityNeedsPlayerKill", Kind.BOOL, Pick.NONE, "If entity is on: mob drops only count for kills by a player (stops mob farms)", () -> new JsonPrimitive(true)),
             f("excludeTables", Kind.LIST, Pick.NONE, "Loot table ids that never get relics (* works as a wildcard)", JsonArray::new),
+            f("luckRollBonus", Kind.NUMBER, Pick.NONE, "How much each point of the looter's Luck pushes affix values toward their best (0-2, 0 = off)", () -> num(0.25)),
             f("confirmSeconds", Kind.INT, Pick.NONE, "Seconds to use the relic on the smith again to pay (1-120)", () -> num(10)),
             f("showRarityColorUnidentified", Kind.BOOL, Pick.NONE, "Unidentified relics show their rarity's color as a hint", () -> new JsonPrimitive(false)));
 

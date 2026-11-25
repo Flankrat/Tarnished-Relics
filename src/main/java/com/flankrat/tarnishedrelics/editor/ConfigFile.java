@@ -37,6 +37,7 @@ public final class ConfigFile {
         o.add("lootTypes", array(TRConfig.LOOT_TYPES.get()));
         o.addProperty("entityNeedsPlayerKill", TRConfig.ENTITY_NEEDS_PLAYER.get());
         o.add("excludeTables", array(TRConfig.EXCLUDE_TABLES.get()));
+        o.addProperty("luckRollBonus", TRConfig.LUCK_ROLL_BONUS.get());
         o.addProperty("confirmSeconds", TRConfig.CONFIRM_SECONDS.get());
         o.addProperty("showRarityColorUnidentified", TRConfig.SHOW_RARITY_COLOR.get());
         return o;
@@ -54,6 +55,8 @@ public final class ConfigFile {
         try {
             double chance = o.get("chance").getAsDouble();
             if (chance < 0 || chance > 1) errors.add("chance must be between 0 and 1");
+            double luck = o.get("luckRollBonus").getAsDouble();
+            if (luck < 0 || luck > 2) errors.add("luckRollBonus must be between 0 and 2");
             int confirm = o.get("confirmSeconds").getAsInt();
             if (confirm < 1 || confirm > 120) errors.add("confirmSeconds must be 1-120");
             for (JsonElement t : o.getAsJsonArray("lootTypes")) {
@@ -90,6 +93,7 @@ public final class ConfigFile {
             file.set(TRConfig.LOOT_TYPES.getPath(), strings(o.getAsJsonArray("lootTypes")));
             file.set(TRConfig.ENTITY_NEEDS_PLAYER.getPath(), o.get("entityNeedsPlayerKill").getAsBoolean());
             file.set(TRConfig.EXCLUDE_TABLES.getPath(), strings(o.getAsJsonArray("excludeTables")));
+            file.set(TRConfig.LUCK_ROLL_BONUS.getPath(), o.get("luckRollBonus").getAsDouble());
             file.set(TRConfig.CONFIRM_SECONDS.getPath(), o.get("confirmSeconds").getAsInt());
             file.set(TRConfig.SHOW_RARITY_COLOR.getPath(), o.get("showRarityColorUnidentified").getAsBoolean());
             Path temp = path.resolveSibling(path.getFileName() + ".tmp");
@@ -120,6 +124,7 @@ public final class ConfigFile {
         TRConfig.LOOT_TYPES.set(strings(o.getAsJsonArray("lootTypes")));
         TRConfig.ENTITY_NEEDS_PLAYER.set(o.get("entityNeedsPlayerKill").getAsBoolean());
         TRConfig.EXCLUDE_TABLES.set(strings(o.getAsJsonArray("excludeTables")));
+        TRConfig.LUCK_ROLL_BONUS.set(o.get("luckRollBonus").getAsDouble());
         TRConfig.CONFIRM_SECONDS.set(o.get("confirmSeconds").getAsInt());
         TRConfig.SHOW_RARITY_COLOR.set(o.get("showRarityColorUnidentified").getAsBoolean());
         TRConfig.SPEC.save();

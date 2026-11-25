@@ -21,6 +21,7 @@ public final class TRConfig {
     public static final ForgeConfigSpec.ConfigValue<List<? extends String>> LOOT_TYPES;
     public static final ForgeConfigSpec.BooleanValue ENTITY_NEEDS_PLAYER;
     public static final ForgeConfigSpec.ConfigValue<List<? extends String>> EXCLUDE_TABLES;
+    public static final ForgeConfigSpec.DoubleValue LUCK_ROLL_BONUS;
     public static final ForgeConfigSpec.IntValue CONFIRM_SECONDS;
     public static final ForgeConfigSpec.BooleanValue SHOW_RARITY_COLOR;
 
@@ -38,6 +39,10 @@ public final class TRConfig {
                 .define("entityNeedsPlayerKill", true);
         EXCLUDE_TABLES = b.comment("Loot tables that never get relics, e.g. \"minecraft:chests/spawn_bonus_chest\". \"*\" works as a wildcard.")
                 .defineListAllowEmpty(List.of("excludeTables"), () -> List.of("minecraft:chests/spawn_bonus_chest"), o -> o instanceof String);
+        LUCK_ROLL_BONUS = b.comment("How much each point of the looter's Luck pushes a found relic's affix values toward their best (and Bad Luck",
+                        "toward their worst). 0 = Luck doesn't change the values. At 0.25, Luck 1 makes the average roll about 56% instead of 50%,",
+                        "Luck 4 about 67%. Luck already makes better rarities likelier through each rarity's \"quality\".")
+                .defineInRange("luckRollBonus", 0.25, 0.0, 2.0);
         b.pop();
 
         b.push("identify");

@@ -212,4 +212,39 @@ public class RollerGameTests {
         helper.assertTrue(missing.isEmpty(), "attributes that don't exist: " + missing);
         helper.succeed();
     }
+
+    // how good the affix rolls of 400 rare relics dropped with this much Luck are on average (0-1, 1 = every value at
+    // its best end), through a real loot context like a chest opened or a mob killed by a lucky player
+    private static double goodness(GameTestHelper helper, float luck) {
+        RandomSource random = RandomSource.create(99);   // the same draws for every luck, so only Luck differs
+        net.minecraft.world.level.storage.loot.LootContext context = new net.minecraft.world.level.storage.loot.LootContext.Builder(
+                new net.minecraft.world.level.storage.loot.LootParams.Builder(helper.getLevel()).withLuck(luck)
+                        .create(net.minecraft.world.level.storage.loot.parameters.LootContextParamSets.EMPTY)).create(null);
+        double sum = 0;
+        int count = 0;
+        for (int i = 0; i < 400; i++) {
+            ItemStack wrapper = Roller.generate(random, rarity("rare"), null, RelicGeneratedEvent.Source.OTHER_LOOT, context);
+            ListTag list = relicOf(wrapper).getList("Affixes", Tag.TAG_COMPOUND);
+            for (int k = 0; k < list.size(); k++) {
+                Affix a = TRData.get().affixes().get(new ResourceLocation(list.getCompound(k).getString("Id")));
+                int dir = com.flankrat.tarnishedrelics.relic.LuckRoll.direction(a, rarity("rare").id());
+                if (dir == 0) continue;
+                float roll = list.getCompound(k).getFloat("Roll");
+                sum += dir > 0 ? roll : 1 - roll;
+                count++;
+            }
+        }
+        return sum / count;
+    }
+
+    // Luck on the loot context moves the stored rolls toward each affix's good end (higher numbers, but lower for
+    // damage_taken), and Bad Luck the other way; no Luck stays a plain even roll
+    @GameTest(template = "gametest/empty")
+    public static void luckImprovesRolls(GameTestHelper helper) {
+        double none = goodness(helper, 0), lucky = goodness(helper, 4), unlucky = goodness(helper, -4);
+        helper.assertTrue(Math.abs(none - 0.5) < 0.04, "no Luck should average about 50%, got " + none);
+        helper.assertTrue(lucky > 0.62, "Luck 4 should average about 67%, got " + lucky);
+        helper.assertTrue(unlucky < 0.38, "Luck -4 should average about 33%, got " + unlucky);
+        helper.succeed();
+    }
 }
