@@ -30,7 +30,8 @@ their normal maximum and effects no ordinary relic gets.
 4. **Use it.** Affixes work while the item is in its own slot (a sword in the main hand, a helmet on your head). The
    tooltip shows the tier and every effect; attribute bonuses show in the normal stat lines. An effect that only works
    some of the time (a chance, at night, below 30% health...) says "(sometimes)". Hold **Shift** to see each rolled
-   number's range and how good the roll is ("+3.4 Attack Damage (+2 to +5, 47% roll)").
+   number's range and how good the roll is ("+3.4 Attack Damage (+2 to +5, 47% roll)"). The range reads from the
+   worst value to the best and 100% is always the best, so for damage taken it's "(-8% to -15%, 100% roll)".
 
 ## Tiers
 

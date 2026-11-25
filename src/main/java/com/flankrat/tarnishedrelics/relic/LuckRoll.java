@@ -34,7 +34,7 @@ public final class LuckRoll {
             ValueSpec.Range r = e.value.rangeFor(rarity);
             if (r.max() == r.min()) continue;                                  // fixed: the roll changes nothing
             int up = r.max() > r.min() ? 1 : -1;                               // which way a higher roll moves the value
-            int good = e.type == Effect.Type.DAMAGE_TAKEN ? -1 : 1;            // which way of the value is better
+            int good = e.type.better();                                        // which way of the value is better
             sum += up * good;
         }
         return Integer.signum(sum);
