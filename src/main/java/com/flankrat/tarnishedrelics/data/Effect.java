@@ -67,6 +67,24 @@ public final class Effect {
         public String key() {
             return name().toLowerCase(Locale.ROOT);
         }
+
+        /**
+         * Which way of the value is better: +1 higher (more damage, a smaller penalty like -0.1 instead of -0.15),
+         * -1 lower (damage_taken: -0.25 = take 25% less). Used by the tooltip's roll note and by Luck.
+         */
+        public int better() {
+            return this == DAMAGE_TAKEN ? -1 : 1;
+        }
+
+        /** The better of two values of this type (the best end of a range). */
+        public double best(double a, double b) {
+            return better() > 0 ? Math.max(a, b) : Math.min(a, b);
+        }
+
+        /** The worse of two values of this type (the worst end of a range). */
+        public double worst(double a, double b) {
+            return better() > 0 ? Math.min(a, b) : Math.max(a, b);
+        }
     }
 
     public final Type type;

@@ -133,7 +133,7 @@ public final class RelicTooltips {
     /**
      * A legendary set piece: "Set: Dawnbreaker, Crest of the Dawn (1/2)" and the set bonus, in blue while the whole set
      * is on (what the player holds and wears, each in its own slot), in gray otherwise. Values use the main piece's
-     * roll: this one's, or a worn main piece's; without either, the lowest value "(up to" the highest ")".
+     * roll: this one's, or a worn main piece's; without either, the worst value "(up to" the best ")".
      */
     private static void setLines(CompoundTag relic, ItemStack stack, List<Component> lines) {
         ResourceLocation id = relic.contains("Legendary") ? ResourceLocation.tryParse(relic.getString("Legendary")) : null;
@@ -160,28 +160,35 @@ public final class RelicTooltips {
         ItemStack main = set.id().equals(id) ? stack : worn.get(set.id());
         ResourceLocation rarity = RelicTag.rarity(main != null ? RelicTag.get(main) : relic);
         for (Effect e : set.setEffects()) {
-            double v = main != null ? e.value.get(rarity, SetBonuses.roll(main)) : e.value.rangeFor(rarity).min();
+            ValueSpec.Range r = e.value.rangeFor(rarity);
+            // no main piece to read a roll from: the worst value "(up to" the best ")" (for damage_taken the worst is
+            // the higher number, so "-30% (up to -50%)", not "-50% (up to -30%)")
+            double v = main != null ? e.value.get(rarity, SetBonuses.roll(main)) : e.type.worst(r.min(), r.max());
             Component line = e.type == Effect.Type.ATTRIBUTE ? attributeLine(e, v) : describe(e, v);
             if (line == null) continue;
-            if (main == null && e.type.number && e.value.rangeFor(rarity).min() != e.value.rangeFor(rarity).max()) {
-                line = Component.empty().append(line).append(Component.translatable("tarnishedrelics.tooltip.up_to", format(e, e.value.rangeFor(rarity).max())));
+            if (main == null && e.type.number && r.min() != r.max()) {
+                line = Component.empty().append(line).append(Component.translatable("tarnishedrelics.tooltip.up_to", format(e, e.type.best(r.min(), r.max()))));
             }
             lines.add(Component.literal(" ").append(line).withStyle(complete ? ChatFormatting.BLUE : ChatFormatting.DARK_GRAY));
         }
     }
 
     /**
-     * " (2 to 5, 47% roll)": the range the value was rolled in, and where in it the item's roll is (0% the lowest, 100%
-     * the highest), in the same units as the line. Null for an effect without a rolled number (fixed values, potion
-     * effects, functions).
+     * " (2 to 5, 47% roll)": the range the value was rolled in, from its worst to its best end, and how good the item's
+     * value is in it (0% the worst, 100% the best), in the same units as the line. Usually the worst is the lowest
+     * number, but for damage_taken it's the highest (-5% taken is worse than -10%), so going by the raw roll there
+     * called the best value a 0% roll. Null for an effect without a rolled number (fixed values, potion effects,
+     * functions).
      */
     @Nullable
     static Component rollNote(Effect e, @Nullable ResourceLocation rarity, double roll) {
         if (!e.type.number) return null;
         ValueSpec.Range r = e.value.rangeFor(rarity);
         if (r.min() == r.max()) return null;
-        return Component.translatable("tarnishedrelics.tooltip.roll", format(e, r.min()), format(e, r.max()),
-                Math.round(roll * 100) + "%").withStyle(ChatFormatting.DARK_GRAY);
+        double worst = e.type.worst(r.min(), r.max()), best = e.type.best(r.min(), r.max());
+        double good = (e.value.get(rarity, roll) - worst) / (best - worst);   // 0 at the worst end, 1 at the best
+        return Component.translatable("tarnishedrelics.tooltip.roll", format(e, worst), format(e, best),
+                Math.round(good * 100) + "%").withStyle(ChatFormatting.DARK_GRAY);
     }
 
     // a value as its line shows it: a percent, except on-hit fire (seconds), looting (levels) and added attributes

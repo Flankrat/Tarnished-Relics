@@ -53,6 +53,20 @@ class TooltipRollTest {
         assertTrue(note("{\"type\": \"looting\", \"value\": [1, 2]}", 0.5).contains("+2"));
     }
 
+    // Bug: for damage_taken a lower value is better (-10% taken beats -5%), but the note counted from the lowest
+    // number, so of_fire_warding's best value (roll 0 = -10%) said "0% roll" and its worst "100% roll". The percent is
+    // now how good the value is, and the range reads from the worst to the best like every other line.
+    @Test
+    void damageTakenCountsTheBetterEnd() {
+        String warding = "{\"type\": \"damage_taken\", \"value\": {\"rare\": [-0.15, -0.08]}}";   // of_fire_warding, rare
+        String best = note(warding, 0.0), worst = note(warding, 1.0);
+        assertTrue(best.contains("100%"), "the best value (-15%) should be a 100% roll: " + best);
+        assertTrue(worst.contains("0%") && !worst.contains("100%"), "the worst value (-8%) should be a 0% roll: " + worst);
+        assertTrue(best.indexOf("-8%") < best.indexOf("-15%"), "range from the worst to the best: " + best);
+        // a drawback the same way: Exposed's +10% taken is the milder end
+        assertTrue(note("{\"type\": \"damage_taken\", \"value\": [0.1, 0.2]}", 0.0).contains("100%"));
+    }
+
     // nothing to show: a fixed number, or an effect without one
     @Test
     void noRange() {
