@@ -52,6 +52,12 @@ public final class ConfigFile {
     /** Problems with the values (empty list = fine). */
     public static List<String> check(JsonObject o) {
         List<String> errors = new ArrayList<>();
+        // name a missing value (an older editor that doesn't know a newer setting) instead of a null-pointer message
+        for (String key : List.of("enabled", "chance", "lootTypes", "entityNeedsPlayerKill", "excludeTables", "luckRollBonus",
+                "confirmSeconds", "showRarityColorUnidentified")) {
+            if (!o.has(key)) errors.add("missing value " + key);
+        }
+        if (!errors.isEmpty()) return errors;
         try {
             double chance = o.get("chance").getAsDouble();
             if (chance < 0 || chance > 1) errors.add("chance must be between 0 and 1");

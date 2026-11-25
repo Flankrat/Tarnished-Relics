@@ -1,5 +1,6 @@
 package com.flankrat.tarnishedrelics.editor;
 
+import com.flankrat.tarnishedrelics.TarnishedRelics;
 import com.flankrat.tarnishedrelics.data.TRDataLoader;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParser;
@@ -40,13 +41,19 @@ final class EditorFiles {
     /**
      * Where a file lives inside a pack: tags in data/ns/tags/, the rest in data/ns/tarnished_relics/. Ids can contain
      * "..": the file has to stay in its own folder, not just in the pack, or "minecraft:tags/../loot_tables/chests/x"
-     * wrote a chest's loot table.
+     * wrote a chest's loot table. A namespace may be "." or ".." too, which pointed data/ns/ at the pack's own folder.
+     * Tags are only the mod's own (the editor shows nothing else): another mod's or vanilla's list could otherwise be
+     * replaced.
      */
     static Path file(Path pack, ResourceLocation id) throws IOException {
-        Path data = pack.resolve("data").resolve(id.getNamespace());
+        String ns = id.getNamespace();
+        if (ns.equals(".") || ns.equals("..")) throw new IOException("bad file id " + id);
+        if (EditorServer.isTag(id) && !ns.equals(TarnishedRelics.MODID)) throw new IOException("not one of the mod's tags: " + id);
+        Path data = pack.resolve("data").resolve(ns);
         Path root = EditorServer.isTag(id) ? data.resolve("tags") : data.resolve(TRDataLoader.FOLDER);
         Path file = EditorServer.isTag(id) ? data.resolve(id.getPath() + ".json") : root.resolve(id.getPath() + ".json");
-        if (!file.normalize().startsWith(root.normalize())) throw new IOException("bad file id " + id);
+        if (!file.normalize().startsWith(root.normalize()) || !root.normalize().startsWith(pack.resolve("data").normalize()))
+            throw new IOException("bad file id " + id);
         return file;
     }
 

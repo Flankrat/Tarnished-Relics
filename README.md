@@ -172,7 +172,8 @@ listed tiers can make anything, the entry drops nothing. It works whether or not
 ## In-game editor
 
 `/tarnishedrelics editor` (op level 2) opens a screen for everything in the datapack format below, the mod's tags and
-the config.
+the config. Saving for the whole modpack or changing the config needs op level 4 (a server's operators, or single
+player with cheats on), since every world uses those; level 2 saves for the current world only.
 
 - **Tabs**: categories, rarities, affixes, legendaries, names, levels, exclusions, tags, settings, mods. The file tabs
   list every file (from the mod, KubeJS, datapacks...); pick one to edit it as a form. Hover a field's name for what it

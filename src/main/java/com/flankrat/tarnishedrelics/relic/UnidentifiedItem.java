@@ -47,6 +47,16 @@ public class UnidentifiedItem extends Item {
         tooltip.add(Component.translatable("tarnishedrelics.tooltip.unidentified").withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC));
     }
 
+    /**
+     * What clients are sent: everything but the real item ("Hidden"), so a tooltip or NBT-viewer mod can't show what
+     * the relic is before the smith identifies it (see {@link HiddenItems}).
+     */
+    @Nullable
+    @Override
+    public net.minecraft.nbt.CompoundTag getShareTag(ItemStack stack) {
+        return HiddenItems.forClient(super.getShareTag(stack));
+    }
+
     /** The hidden real item (a copy), or EMPTY if this one has none. */
     public static ItemStack hidden(ItemStack wrapper) {
         CompoundTag tag = wrapper.getTag();

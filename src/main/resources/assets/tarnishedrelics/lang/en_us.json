@@ -140,6 +140,7 @@
   "tarnishedrelics.effect.legendary.stormstride.0": "Grants Speed during the day",
   "tarnishedrelics.effect.legendary.stormstride.1": "Grants Jump Boost during the day",
   "tarnishedrelics.editor.no_permission": "[Tarnished Relics] You need to be an operator to save editor changes.",
+  "tarnishedrelics.editor.no_permission_everywhere": "[Tarnished Relics] Saving for the whole modpack or changing the config needs operator level 4. Save for this world instead.",
   "tarnishedrelics.slot.mainhand": "in the main hand",
   "tarnishedrelics.slot.offhand": "in the off hand",
   "tarnishedrelics.slot.head": "on the head",
