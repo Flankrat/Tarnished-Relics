@@ -33,7 +33,8 @@ import java.util.function.Supplier;
  */
 public final class TRNetwork {
 
-    private static final String VERSION = "6";
+    // raised when a packet or the editor's file formats change (7: the config's luckRollBonus, 0.7.0)
+    private static final String VERSION = "7";
 
     /**
      * Most data one packet carries. A server-to-client packet can be at most 1 MB (1048576 bytes) or the player is

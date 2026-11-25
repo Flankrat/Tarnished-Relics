@@ -37,7 +37,8 @@ import java.util.UUID;
 import javax.annotation.Nullable;
 
 /**
- * Server side of the in-game editor ({@code /tarnishedrelics editor}, op level 2).
+ * Server side of the in-game editor ({@code /tarnishedrelics editor}, op level 2; saving for the whole modpack or
+ * changing the config needs level 4, since every world uses those).
  * <p>
  * The editor works on "files" with ids "namespace:folder/name":
  * <ul>
@@ -66,15 +67,36 @@ public final class EditorServer {
     public static final String PACK_ID = "file/" + PACK;
     public static final ResourceLocation CONFIG_FILE = new ResourceLocation(TarnishedRelics.MODID, "config/common");
     private static final int PERMISSION = 2;
+    // saves that reach beyond this world (the whole-modpack pack, the config) need a server operator's level
+    private static final int PERMISSION_EVERYWHERE = 4;
 
-    // files a player has sent but not committed yet: id -> JSON text ("" = remove)
-    private static final Map<UUID, Map<ResourceLocation, String>> PENDING = new HashMap<>();
+    // what a player has sent but not committed yet
+    private static final Map<UUID, Pending> PENDING = new HashMap<>();
+
+    // a player's unsent save: id -> JSON text ("" = remove), built piece by piece; the text total is kept as it
+    // grows, so each piece costs only its own length
+    private static final class Pending {
+        final Map<ResourceLocation, StringBuilder> files = new LinkedHashMap<>();
+        long chars;
+        boolean refused;   // went over a limit: commit answers with an error instead of saving part of it
+
+        Map<ResourceLocation, String> toStrings() {
+            Map<ResourceLocation, String> out = new LinkedHashMap<>();
+            files.forEach((id, text) -> out.put(id, text.toString()));
+            return out;
+        }
+    }
 
     private EditorServer() {
     }
 
     public static boolean allowed(ServerPlayer player) {
         return player.hasPermissions(PERMISSION);
+    }
+
+    /** May save for the whole modpack and change the config: files every world loads, so a server operator only. */
+    public static boolean allowedEverywhere(ServerPlayer player) {
+        return player.hasPermissions(PERMISSION_EVERYWHERE);
     }
 
     public static boolean isTag(ResourceLocation id) {
@@ -103,22 +125,32 @@ public final class EditorServer {
 
     /** Most text one save can send (all files together), so a broken client can't fill the server's memory. */
     private static final int MAX_PENDING_CHARS = 16 * 1024 * 1024;
+    /**
+     * Most files one save can send. Empty files (removals) are 0 characters, so the text limit alone let a broken
+     * client queue any number of them; the editor sends only the files that changed, far fewer than this.
+     */
+    static final int MAX_PENDING_FILES = 4096;
 
     /** A file (or, with append, the next piece of one) sent for the next commit. */
     public static void receiveFile(ServerPlayer player, ResourceLocation id, String json, boolean append) {
         if (!allowed(player)) return;
-        Map<ResourceLocation, String> files = PENDING.computeIfAbsent(player.getUUID(), u -> new LinkedHashMap<>());
-        if (append) files.merge(id, json, String::concat);
-        else files.put(id, json);
-        int total = files.values().stream().mapToInt(String::length).sum();
-        if (total > MAX_PENDING_CHARS) {
-            files.clear();
-            files.put(TOO_BIG, "");   // commit answers with an error instead of saving part of it
+        Pending pending = PENDING.computeIfAbsent(player.getUUID(), u -> new Pending());
+        if (pending.refused) return;   // already over a limit: nothing more is kept
+        StringBuilder text = pending.files.get(id);
+        if (text == null) {
+            text = new StringBuilder();
+            pending.files.put(id, text);
+        } else if (!append) {
+            pending.chars -= text.length();   // sent again from the start: replaces the earlier text
+            text.setLength(0);
+        }
+        text.append(json);
+        pending.chars += json.length();
+        if (pending.chars > MAX_PENDING_CHARS || pending.files.size() > MAX_PENDING_FILES) {
+            pending.files.clear();
+            pending.refused = true;
         }
     }
-
-    // marks a save that sent more than MAX_PENDING_CHARS
-    private static final ResourceLocation TOO_BIG = new ResourceLocation(TarnishedRelics.MODID, "editor/too_big");
 
     /** Forgets a player's unsent save (they logged out). */
     public static void forget(ServerPlayer player) {
@@ -126,14 +158,21 @@ public final class EditorServer {
     }
 
     public static void commit(ServerPlayer player, boolean modpack) {
-        Map<ResourceLocation, String> changes = PENDING.remove(player.getUUID());
+        Pending pending = PENDING.remove(player.getUUID());
+        Map<ResourceLocation, String> changes = pending == null ? null : pending.toStrings();
         // always answer, or the client's editor waits on "Saving..." forever
         if (!allowed(player)) {
             reply(player, false, List.of(Component.translatable("tarnishedrelics.editor.no_permission").getString()));
             return;
         }
-        if (changes != null && changes.containsKey(TOO_BIG)) {
-            reply(player, false, List.of("Too much data in one save (over " + MAX_PENDING_CHARS / 1024 / 1024 + " MB of text)"));
+        if (pending != null && pending.refused) {
+            reply(player, false, List.of("Too much data in one save (over " + MAX_PENDING_CHARS / 1024 / 1024 + " MB of text or "
+                    + MAX_PENDING_FILES + " files)"));
+            return;
+        }
+        // the whole-modpack pack and the config are used by every world: a level 2 op only edits this world
+        if ((modpack || (changes != null && changes.containsKey(CONFIG_FILE))) && !allowedEverywhere(player)) {
+            reply(player, false, List.of(Component.translatable("tarnishedrelics.editor.no_permission_everywhere").getString()));
             return;
         }
         if (changes == null || changes.isEmpty()) {
@@ -148,11 +187,18 @@ public final class EditorServer {
         }
         // 2. write: config values to the toml, files to the chosen pack
         MinecraftServer server = player.server;
+        boolean packFiles = changes.keySet().stream().anyMatch(id -> !id.equals(CONFIG_FILE));
         try {
             write(server, changes, modpack);
         } catch (IOException | RuntimeException ex) {
             TarnishedRelics.LOGGER.error("[Tarnished Relics] editor couldn't save", ex);
-            reply(player, false, List.of("Couldn't write the datapack: " + ex.getMessage()));
+            List<String> error = List.of("Couldn't write the datapack: " + ex.getMessage());
+            // files written before the error are on disk: reload so the server runs what's there, not older data
+            if (packFiles) reloadThen(player, () -> {
+                reply(player, false, error);
+                open(player, true);
+            });
+            else reply(player, false, error);
             return;
         }
         TarnishedRelics.LOGGER.info("[Tarnished Relics] {} saved {} file(s) in the editor ({})", player.getGameProfile().getName(), changes.size(),
@@ -164,7 +210,7 @@ public final class EditorServer {
             open(player, true);
         };
         // 3. reload (only the config changed: nothing to reload), then refresh the editor
-        if (changes.keySet().stream().anyMatch(id -> !id.equals(CONFIG_FILE))) reloadThen(player, done);
+        if (packFiles) reloadThen(player, done);
         else done.run();
     }
 
@@ -187,7 +233,9 @@ public final class EditorServer {
                 continue;
             }
             if (e.getValue().isEmpty()) {
-                merged.remove(id);
+                // "" removes a file; the config isn't one, and parsing "" for it crashed the write
+                if (id.equals(CONFIG_FILE)) errors.add(id + ": the config can't be removed");
+                else merged.remove(id);
                 continue;
             }
             try {
@@ -213,12 +261,20 @@ public final class EditorServer {
         Path worldPack = server.getWorldPath(LevelResource.DATAPACK_DIR).resolve(PACK).toAbsolutePath().normalize();
         Path modpackPack = ModpackPack.folder().toAbsolutePath().normalize();
         boolean packFiles = changes.keySet().stream().anyMatch(id -> !id.equals(CONFIG_FILE));
-        if (packFiles && !modpack) EditorFiles.writePackMeta(worldPack);
-        if (packFiles && modpack) ModpackPack.ensure();
+        // everything that can throw on bad values is worked out before the first file is touched
+        Map<ResourceLocation, String> toWrite = new LinkedHashMap<>();
         for (Map.Entry<ResourceLocation, String> e : changes.entrySet()) {
             ResourceLocation id = e.getKey();
+            if (id.equals(CONFIG_FILE) || e.getValue().isEmpty()) toWrite.put(id, e.getValue());
+            else toWrite.put(id, isTag(id) ? EditorTags.toWrite(server, id, JsonParser.parseString(e.getValue()).getAsJsonObject()) : e.getValue());
+        }
+        JsonObject config = changes.containsKey(CONFIG_FILE) ? JsonParser.parseString(changes.get(CONFIG_FILE)).getAsJsonObject() : null;
+        if (packFiles && !modpack) EditorFiles.writePackMeta(worldPack);
+        if (packFiles && modpack) ModpackPack.ensure();
+        for (Map.Entry<ResourceLocation, String> e : toWrite.entrySet()) {
+            ResourceLocation id = e.getKey();
             if (id.equals(CONFIG_FILE)) {
-                ConfigFile.write(JsonParser.parseString(e.getValue()).getAsJsonObject());
+                ConfigFile.write(config);
                 TRNetwork.sendSettings();   // players show what the server set, not their own config
                 continue;
             }
@@ -226,8 +282,7 @@ public final class EditorServer {
                 EditorFiles.remove(server, worldPack, modpackPack, id);
                 continue;
             }
-            String json = isTag(id) ? EditorTags.toWrite(server, id, JsonParser.parseString(e.getValue()).getAsJsonObject()) : e.getValue();
-            EditorFiles.write(modpack ? modpackPack : worldPack, id, json);
+            EditorFiles.write(modpack ? modpackPack : worldPack, id, e.getValue());
             // saved for the whole modpack: the world's own copy would hide it, so it goes
             if (modpack) Files.deleteIfExists(EditorFiles.file(worldPack, id));
         }
@@ -244,10 +299,25 @@ public final class EditorServer {
             selected.remove(PACK_ID);
             selected.add(PACK_ID);
         }
-        server.reloadResources(selected).thenRunAsync(done, server).exceptionally(ex -> {
+        afterReload(server.reloadResources(selected), server, done, ex -> {
             // a failed reload (another pack broke it): the files are written, but say so instead of waiting forever
             TarnishedRelics.LOGGER.error("[Tarnished Relics] reload after the editor's save failed", ex);
-            server.execute(() -> reply(player, false, List.of("Saved, but the reload failed: " + ex.getMessage())));
+            reply(player, false, List.of("Saved, but the reload failed: " + ex.getMessage()));
+        });
+    }
+
+    /**
+     * Runs done on the executor after the reload, or failed with the reload's own error. An error thrown by done
+     * itself (refreshing the editor) is only logged: the reload worked, so the op isn't told it failed.
+     */
+    static java.util.concurrent.CompletableFuture<Void> afterReload(java.util.concurrent.CompletableFuture<Void> reload,
+                                                                   java.util.concurrent.Executor executor, Runnable done,
+                                                                   java.util.function.Consumer<Throwable> failed) {
+        return reload.handle((v, reloadError) -> reloadError).thenAcceptAsync(reloadError -> {
+            if (reloadError != null) failed.accept(reloadError);
+            else done.run();
+        }, executor).exceptionally(ex -> {
+            TarnishedRelics.LOGGER.error("[Tarnished Relics] error after the editor's save was reloaded", ex);
             return null;
         });
     }
